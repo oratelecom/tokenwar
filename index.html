@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>slimstack — 4-tool token-saving stack for Claude Code</title>
+  <meta name="description" content="caveman + RTK + context-mode + claude-mem — each compresses a different buffer, so the gains stack." />
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --panel: #131722;
+      --ink: #e6e8ee;
+      --muted: #8a93a6;
+      --accent: #7c9eff;
+      --green: #22c55e;
+      --amber: #fbbf24;
+      --rtk: #38bdf8;
+      --ctx: #4ade80;
+      --mem: #c084fc;
+      --cave: #fbbf24;
+      --border: rgba(255, 255, 255, 0.08);
+      --radius: 14px;
+      --shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+      --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Inter", Segoe UI, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 48px 24px 96px; }
+    header { text-align: center; margin-bottom: 56px; }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      margin: 0 0 12px;
+      letter-spacing: -0.02em;
+      background: linear-gradient(120deg, #7c9eff, #c084fc 50%, #fbbf24);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent;
+    }
+    .tag { color: var(--muted); font-size: 1.1rem; max-width: 640px; margin: 0 auto; }
+    .badges {
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+      margin-top: 24px; font-family: var(--font-mono); font-size: 0.92rem;
+    }
+    .badge {
+      padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--panel);
+    }
+    .badge.ctx  { color: var(--ctx); border-color: rgba(74, 222, 128, 0.35); }
+    .badge.mem  { color: var(--mem); border-color: rgba(192, 132, 252, 0.35); }
+    .badge.rtk  { color: var(--rtk); border-color: rgba(56, 189, 248, 0.35); }
+    .badge.cave { color: var(--cave); border-color: rgba(251, 191, 36, 0.35); }
+
+    section { margin: 56px 0; }
+    h2 {
+      font-size: 1.45rem; margin: 0 0 18px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    h2::before {
+      content: ""; width: 6px; height: 22px; border-radius: 3px;
+      background: linear-gradient(180deg, var(--accent), transparent);
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    /* === Buffer diagram === */
+    .diagram {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 28px;
+    }
+    .flow {
+      display: grid;
+      grid-template-columns: 140px 1fr 140px;
+      gap: 16px;
+      align-items: center;
+    }
+    .node {
+      background: #1c2030;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+    }
+    .arrow {
+      position: relative;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--ink);
+    }
+    .arrow::before {
+      content: ""; position: absolute; left: 8%; right: 8%; top: 50%;
+      height: 2px; background: linear-gradient(90deg, transparent, currentColor, transparent);
+      opacity: 0.4;
+    }
+    .arrow .pill {
+      position: relative; z-index: 2;
+      padding: 6px 14px; border-radius: 999px;
+      background: var(--bg); border: 1px solid currentColor;
+    }
+    .arrow.cave  .pill { color: var(--cave); }
+    .arrow.rtk   .pill { color: var(--rtk); }
+    .arrow.ctx   .pill { color: var(--ctx); }
+    .arrow.mem   .pill { color: var(--mem); }
+
+    /* === 4-card grid === */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-top: 3px solid currentColor;
+    }
+    .card.ctx  { color: var(--ctx); }
+    .card.mem  { color: var(--mem); }
+    .card.rtk  { color: var(--rtk); }
+    .card.cave { color: var(--cave); }
+    .card h3 { margin: 0 0 6px; font-size: 1.15rem; }
+    .card p  { margin: 0; color: var(--ink); font-size: 0.93rem; }
+    .card .buffer {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    /* === Proof table === */
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.93rem;
+    }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    td code {
+      background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;
+      font-family: var(--font-mono); font-size: 0.85em;
+    }
+    .check { color: var(--green); font-weight: 600; }
+
+    footer {
+      text-align: center; color: var(--muted);
+      font-size: 0.85rem; margin-top: 80px;
+      font-family: var(--font-mono);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 640px) {
+      .flow { grid-template-columns: 1fr; }
+      .arrow { height: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>slimstack</h1>
+      <p class="tag">4 tools. 4 buffers. Zero overlap. Token savings <strong>stack</strong> instead of fighting.</p>
+      <div class="badges">
+        <span class="badge ctx">[ctx 1.0.107]</span>
+        <span class="badge mem">[mem 12.1.4]</span>
+        <span class="badge rtk">[rtk 44.7M]</span>
+        <span class="badge cave">[caveman 84cc3c1]</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>Each tool owns a distinct buffer</h2>
+      <div class="panel diagram">
+
+        <!-- caveman: LLM → USER -->
+        <div class="flow">
+          <div class="node">🧠 LLM</div>
+          <div class="arrow cave"><span class="pill">caveman ⤵ compress output</span></div>
+          <div class="node">👤 User</div>
+        </div>
+
+        <!-- RTK: SHELL → LLM -->
+        <div class="flow">
+          <div class="node">💻 Shell · tools</div>
+          <div class="arrow rtk"><span class="pill">RTK ⤵ compress stdout</span></div>
+          <div class="node">🧠 LLM</div>
+        </div>
+
+        <!-- context-mode: LLM ↔ SANDBOX -->
+        <div class="flow">
+          <div class="node">🧠 LLM</div>
+          <div class="arrow ctx"><span class="pill">context-mode ⇄ sandbox + FTS5</span></div>
+          <div class="node">🧪 Sandbox</div>
+        </div>
+
+        <!-- claude-mem: LLM ↔ persistent store -->
+        <div class="flow">
+          <div class="node">🧠 LLM</div>
+          <div class="arrow mem"><span class="pill">claude-mem ⇄ persistent store</span></div>
+          <div class="node">💾 Cross-session</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>4 layers, 4 responsibilities</h2>
+      <div class="cards">
+        <div class="card cave">
+          <h3>caveman</h3>
+          <p>Compresses what the model says to the user. Drops articles, filler, hedging — keeps technical substance exact.</p>
+          <div class="buffer">buffer: LLM → USER</div>
+        </div>
+        <div class="card rtk">
+          <h3>RTK</h3>
+          <p>Rewrites shell commands at the hook level. Compressed stdout enters the model context instead of raw output.</p>
+          <div class="buffer">buffer: SHELL → LLM</div>
+        </div>
+        <div class="card ctx">
+          <h3>context-mode</h3>
+          <p>Offloads heavy ops (HTTP, large files, MCP) into a sandbox. Only the answer enters context. FTS5 indexes everything.</p>
+          <div class="buffer">buffer: LLM ⇄ SANDBOX</div>
+        </div>
+        <div class="card mem">
+          <h3>claude-mem</h3>
+          <p>Persists session knowledge across <code>/clear</code> and restarts. Recallable next session — no re-explaining.</p>
+          <div class="buffer">buffer: cross-session store</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Why complementary, not conflicting</h2>
+      <div class="panel">
+        <table>
+          <thead>
+            <tr><th>Rule</th><th>What slimstack <code>check.sh</code> verifies</th><th>Verdict</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>R1</code></td>
+              <td>Single <code>PreToolUse</code> Bash hook (RTK only — no double-rewrite)</td>
+              <td class="check">PASS ✓</td>
+            </tr>
+            <tr>
+              <td><code>R2</code></td>
+              <td><code>claude-mem</code> writes <code>~/.claude-mem</code>, <code>context-mode</code> writes <code>~/.claude/projects/&lt;slug&gt;/memory</code> — disjoint sinks</td>
+              <td class="check">PASS ✓</td>
+            </tr>
+            <tr>
+              <td><code>R3</code></td>
+              <td>RTK targets tool stdout; caveman targets LLM output — disjoint buffers</td>
+              <td class="check">PASS ✓</td>
+            </tr>
+            <tr>
+              <td><code>R4</code></td>
+              <td>All 4 tools installed at compatible versions</td>
+              <td class="check">PASS ✓</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      <p>
+        Built with caveman 🦴 ·
+        <a href="https://github.com/ousamabenyounes/slimstack">github.com/ousamabenyounes/slimstack</a> ·
+        MIT
+      </p>
+    </footer>
+  </div>
+</body>
+</html>
