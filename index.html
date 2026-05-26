@@ -160,12 +160,76 @@
     .check { color: var(--green); font-weight: 600; }
 
     footer {
-      text-align: center; color: var(--muted);
+      color: var(--muted);
       font-size: 0.85rem; margin-top: 80px;
       font-family: var(--font-mono);
     }
     footer a { color: var(--accent); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
+
+    /* === Credits block === */
+    .credits {
+      background: linear-gradient(135deg, rgba(124, 158, 255, 0.07), rgba(192, 132, 252, 0.05));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 36px;
+      margin-top: 56px;
+    }
+    .credits-head {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 14px;
+      padding-bottom: 18px;
+      border-bottom: 1px dashed var(--border);
+      margin-bottom: 22px;
+    }
+    .credits-kicker {
+      font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--muted); font-weight: 600;
+    }
+    .credits-brand {
+      font-size: 1.15rem; color: var(--ink); font-weight: 600;
+      font-family: var(--font-sans);
+    }
+    .credits-brand a { color: var(--ink); }
+    .credits-brand a:hover { color: var(--accent); }
+    .credits-tagline {
+      color: var(--muted); font-size: 0.9rem; margin-left: auto;
+    }
+    .credits-section-title {
+      color: var(--ink); font-size: 0.92rem;
+      margin: 0 0 14px; font-family: var(--font-sans); font-weight: 600;
+    }
+    .contrib-list {
+      list-style: none; padding: 0; margin: 0;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px 24px;
+    }
+    .contrib-list li {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0;
+    }
+    .contrib-mark {
+      font-family: var(--font-mono); font-weight: 700;
+      min-width: 1.2em; text-align: center;
+    }
+    .contrib-mark.done { color: var(--green); }
+    .contrib-mark.soon { color: var(--cave); }
+    .contrib-name {
+      font-family: var(--font-mono); font-weight: 600; color: var(--ink);
+      min-width: 110px;
+    }
+    .contrib-role { color: var(--muted); font-size: 0.85rem; }
+    .credits-foot {
+      margin-top: 22px; padding-top: 18px;
+      border-top: 1px dashed var(--border);
+      display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between;
+      align-items: center;
+    }
+    .credits-foot em {
+      color: var(--accent); font-style: normal; font-family: var(--font-sans);
+    }
+    @media (max-width: 640px) {
+      .credits { padding: 24px 22px; }
+      .credits-tagline { margin-left: 0; }
+    }
 
     @media (max-width: 640px) {
       .flow { grid-template-columns: 1fr; }
@@ -280,11 +344,46 @@
     </section>
 
     <footer>
-      <p>
-        Built with caveman 🦴 ·
-        <a href="https://github.com/oratelecom/tokenwar">github.com/oratelecom/tokenwar</a> ·
-        MIT
-      </p>
+      <section class="credits" aria-label="Credits">
+        <div class="credits-head">
+          <span class="credits-kicker">Powered by</span>
+          <span class="credits-brand">
+            <a href="https://studio.oratelecom.net">Ora Studio</a>
+            <span style="color: var(--muted); font-weight: 400; margin: 0 6px;">·</span>
+            <a href="https://oratelecom.com">Ora Telecom</a>
+          </span>
+          <span class="credits-tagline">Token economics, productized.</span>
+        </div>
+
+        <h3 class="credits-section-title">Our open-source footprint on the 4-tool stack</h3>
+        <ul class="contrib-list">
+          <li>
+            <span class="contrib-mark done" aria-label="contributor">✓</span>
+            <span class="contrib-name">RTK</span>
+            <span class="contrib-role">upstream contributor</span>
+          </li>
+          <li>
+            <span class="contrib-mark done" aria-label="contributor">✓</span>
+            <span class="contrib-name">context-mode</span>
+            <span class="contrib-role">upstream contributor</span>
+          </li>
+          <li>
+            <span class="contrib-mark done" aria-label="contributor">✓</span>
+            <span class="contrib-name">claude-mem</span>
+            <span class="contrib-role">upstream contributor</span>
+          </li>
+          <li>
+            <span class="contrib-mark soon" aria-label="coming soon">✦</span>
+            <span class="contrib-name">caveman</span>
+            <span class="contrib-role">Ora maintenance landing soon</span>
+          </li>
+        </ul>
+
+        <div class="credits-foot">
+          <span><em>tokenwar</em> · MIT · <a href="https://github.com/oratelecom/tokenwar">github.com/oratelecom/tokenwar</a></span>
+          <span>Built with caveman 🦴</span>
+        </div>
+      </section>
     </footer>
   </div>
 </body>

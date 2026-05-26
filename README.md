@@ -108,6 +108,19 @@ bats tests/
 
 CI on every push to `main` and every PR — installs bats + shellcheck, runs full suite on `ubuntu-latest`.
 
+## Credits
+
+**Powered by [Ora Studio](https://studio.oratelecom.net) · [Ora Telecom](https://oratelecom.com)** — token economics, productized.
+
+Our open-source footprint on the 4-tool stack:
+
+| Status | Project | Role |
+| :----: | ------- | ---- |
+| ✓ | **RTK**          | upstream contributor |
+| ✓ | **context-mode** | upstream contributor |
+| ✓ | **claude-mem**   | upstream contributor |
+| ✦ | **caveman**      | Ora maintenance landing soon |
+
 ## License
 
-MIT
+[MIT](LICENSE) — © 2026 Ora Telecom. Use, fork, ship — no strings.
