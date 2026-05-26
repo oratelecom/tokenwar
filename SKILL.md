@@ -63,25 +63,25 @@ After every fix, re-run `status.sh` and report the new state. If anything is sti
 
 ## Subcommand: upgrade
 
-Two phases:
+Two phases: detect, then confirm + apply.
 
-**Phase 1 — collect current vs latest versions.**
+**Phase 1 — collect current vs latest.** Run `bash ~/.claude/skills/perfia/scripts/check-updates.sh --force` so the cache is fresh. The script:
 
-```bash
-# context-mode + claude-mem + caveman: query Claude marketplace for latest
-claude plugin list --json 2>/dev/null
+- Refreshes Claude marketplaces (`claude plugin marketplace update`) — non-fatal on network failure.
+- Reads installed plugin versions from `claude plugin list --json`.
+- Reads latest plugin versions from each marketplace's `marketplace.json`. Falls back to the marketplace clone's short git SHA (12 chars) when no `version` field exists — caveman is SHA-versioned.
+- For RTK: parses `cargo install --list` to detect path-installed dev builds; latest = `Cargo.toml` `version` on the tracked upstream branch (`git fetch` + `git show origin/<branch>:Cargo.toml`). Skips the public `cargo search rtk` registry — the public crate name belongs to a different project (Rust Type Kit) and gives wrong numbers.
+- Writes `~/.claude/perfia/upgrade-check.json` and exits `0` if all up-to-date, `2` if any update available.
 
-# RTK: parse cargo registry
-rtk --version
-cargo search rtk --limit 1 2>/dev/null | head -1
-```
+**Phase 2 — confirm + upgrade.** Read the cache, show a table `<tool>: <current> → <latest>` (skip tools already up-to-date), and use `AskUserQuestion` to confirm. On `Yes`:
 
-**Phase 2 — confirm + upgrade.** Show a table `<tool>: <current> → <latest>` and use `AskUserQuestion` to confirm. On `Yes`:
+- Plugins: `claude plugin update <slug>` per tool with an update. Restart is required for the new version to load.
+- RTK (path-installed): `cd <repo_path> && git pull && cargo install --path . --force`. Discover `<repo_path>` from `cargo install --list` (line `rtk vX.Y.Z (<repo_path>):`).
+- RTK (registry-installed, rare): `cargo install rtk --force` — only if `cargo install --list` shows no path.
 
-- Plugins: `claude plugin install <slug>` (re-install pulls latest tag) per upgraded tool
-- RTK: `cargo install rtk --force` (or whichever installer was used — `which rtk` will reveal `.cargo/bin` → cargo)
+After upgrade, re-run `check-updates.sh --force` then `status` so the version columns reflect the new state.
 
-After upgrade, re-run `status` so the version columns reflect the new state.
+**Passive surfacing.** `/perfia status` calls `check-updates.sh --quiet` at the end (uses the 24h cache, no network unless stale). If any update is available, status appends an `updates available (N):` block and a `→ Run /perfia upgrade to apply.` line. The user is never auto-upgraded — the trigger is always explicit. This matches the security principle of pinning versions: drift is reported, not silently applied.
 
 ## Subcommand: test
 

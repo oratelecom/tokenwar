@@ -1,13 +1,13 @@
 # Add INSIDE the `http://studio.oratelecom.net { ... }` block
 # in ~/www/private/ora/ora_callcenter/Caddyfile, then reload caddy.
 
-handle_path /slimstack/* {
-    root * /srv/ora-sites/slimstack
+handle_path /tokenwar/* {
+    root * /srv/ora-sites/tokenwar
     try_files {path} /index.html
     file_server
 }
-redir /slimstack /slimstack/ 301
+redir /tokenwar /tokenwar/ 301
 
 # Deploy on server side:
-#   rsync -a ~/www/public/slimstack/ user@studio.oratelecom.net:/srv/ora-sites/slimstack/
+#   rsync -a ~/www/public/tokenwar/ user@studio.oratelecom.net:/srv/ora-sites/tokenwar/
 #   sudo systemctl reload caddy

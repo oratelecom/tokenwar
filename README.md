@@ -1,10 +1,10 @@
-# slimstack
+# tokenwar
 
-[![CI](https://github.com/ousamabenyounes/slimstack/actions/workflows/ci.yml/badge.svg)](https://github.com/ousamabenyounes/slimstack/actions/workflows/ci.yml)
+[![CI](https://github.com/ousamabenyounes/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/ousamabenyounes/tokenwar/actions/workflows/ci.yml)
 
 **A 4-tool token-saving stack for Claude Code.** Each tool compresses a different buffer — they stack without overlap.
 
-Live preview: <https://studio.oratelecom.net/slimstack/>
+Live preview: <https://studio.oratelecom.net/tokenwar/>
 
 ## The 4 tools
 
@@ -48,7 +48,7 @@ Each tool acts on a **distinct buffer**. No buffer is double-processed, so the g
 
 ## Why complementary (not conflicting)
 
-The slimstack `check.sh` script enforces 4 rules:
+The tokenwar `check.sh` script enforces 4 rules:
 
 | Rule | What it verifies                                                                   | Status                  |
 | ---- | ---------------------------------------------------------------------------------- | ----------------------- |
@@ -62,17 +62,17 @@ When all four PASS, the verdict is `COMPLEMENTARY`.
 ## Quick start
 
 ```bash
-git clone https://github.com/ousamabenyounes/slimstack ~/.claude/skills/slimstack
-chmod +x ~/.claude/skills/slimstack/scripts/*.sh
+git clone https://github.com/ousamabenyounes/tokenwar ~/.claude/skills/tokenwar
+chmod +x ~/.claude/skills/tokenwar/scripts/*.sh
 
 # Diagnose current state
-bash ~/.claude/skills/slimstack/scripts/status.sh
+bash ~/.claude/skills/tokenwar/scripts/status.sh
 
 # Verify complementarity
-bash ~/.claude/skills/slimstack/scripts/check.sh
+bash ~/.claude/skills/tokenwar/scripts/check.sh
 
 # Token savings report
-bash ~/.claude/skills/slimstack/scripts/gain.sh
+bash ~/.claude/skills/tokenwar/scripts/gain.sh
 ```
 
 Wire the combined statusline (Claude Code, `~/.claude/settings.json`):
@@ -80,7 +80,7 @@ Wire the combined statusline (Claude Code, `~/.claude/settings.json`):
 ```json
 "statusLine": {
   "type": "command",
-  "command": "bash ~/.claude/skills/slimstack/scripts/perfia-statusline.sh"
+  "command": "bash ~/.claude/skills/tokenwar/scripts/perfia-statusline.sh"
 }
 ```
 
@@ -91,13 +91,13 @@ Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>]` — green i
 Claude Code can rewrite `~/.claude/settings.json` on session start (migration logic). A backup is kept at `~/.claude/settings.local.json` and a restore script merges it back:
 
 ```bash
-bash ~/.claude/skills/slimstack/scripts/restore-settings.sh
+bash ~/.claude/skills/tokenwar/scripts/restore-settings.sh
 ```
 
 Add to `~/.bashrc` to auto-restore before each Claude Code launch:
 
 ```bash
-alias claude='bash ~/.claude/skills/slimstack/scripts/restore-settings.sh && command claude'
+alias claude='bash ~/.claude/skills/tokenwar/scripts/restore-settings.sh && command claude'
 ```
 
 ## Tests + CI

@@ -12,6 +12,8 @@
 set -euo pipefail
 
 readonly INSTALLED_PLUGINS="${HOME}/.claude/plugins/installed_plugins.json"
+readonly USER_CLAUDE_MD="${HOME}/.claude/CLAUDE.md"
+readonly HOOK_DIR="${HOME}/.claude/hooks"
 readonly SETTINGS_FILE="${HOME}/.claude/settings.json"
 readonly CLAUDE_MEM_DATA="${HOME}/.claude-mem"
 

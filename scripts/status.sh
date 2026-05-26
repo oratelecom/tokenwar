@@ -134,6 +134,34 @@ format_line "rtk"          "$rtk_ver"  "$rtk_st"     "$rtk_extra"
 format_line "caveman"      "$cave_ver" "$cave_state" "$cave_extra"
 echo ""
 
+# Passive upgrade notice. The check is throttled to a 24h cache, so calling
+# this on every `/perfia status` is cheap. Failure here must not break status:
+# absorb any error and skip the section.
+readonly CHECK_UPDATES_SCRIPT="$(dirname "${BASH_SOURCE[0]}")/check-updates.sh"
+if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
+    update_count="$(
+        bash "$CHECK_UPDATES_SCRIPT" --quiet 2>/dev/null
+        echo "EXIT=$?"
+    )"
+    if [[ "$update_count" == *"EXIT=2"* ]]; then
+        readonly UPGRADE_CACHE_FILE="${HOME}/.claude/perfia/upgrade-check.json"
+        if [[ -f "$UPGRADE_CACHE_FILE" ]]; then
+            CACHE="$UPGRADE_CACHE_FILE" node --input-type=module -e "
+                import { readFileSync } from 'node:fs';
+                const d = JSON.parse(readFileSync(process.env.CACHE, 'utf8'));
+                const ups = Object.entries(d.tools).filter(([,v]) => v.state === 'update-available');
+                console.log(\`  updates available (\${ups.length}):\`);
+                for (const [n, v] of ups) {
+                    console.log(\`    - \${n.padEnd(14)} \${v.installed} → \${v.latest}\`);
+                }
+                console.log('');
+                console.log('  → Run \`/perfia upgrade\` to apply.');
+            " 2>/dev/null || true
+            echo ""
+        fi
+    fi
+fi
+
 # Exit code: 0 if all OK, 1 otherwise
 for s in "$ctx_state" "$mem_state" "$cave_state" "$rtk_st"; do
     [[ "$s" == "$STATUS_OK" ]] || exit 1
