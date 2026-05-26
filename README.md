@@ -4,7 +4,7 @@
 
 **A 4-tool token-saving stack for Claude Code.** Each tool compresses a different buffer — they stack without overlap.
 
-Live preview: <https://studio.oratelecom.net/tokenwar/>
+Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 
 ## The 4 tools
 
