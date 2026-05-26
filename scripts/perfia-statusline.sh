@@ -25,6 +25,15 @@ readonly VERSION_HASH_TRIM_LEN=7
 readonly SETTINGS_JSON="${HOME}/.claude/settings.json"
 readonly SETTINGS_LOCAL_JSON="${HOME}/.claude/settings.local.json"
 
+# Portable timeout: GNU coreutils ships `timeout`, BSD/macOS doesn't.
+if command -v timeout >/dev/null 2>&1; then
+    _TIMEOUT_CMD=timeout
+elif command -v gtimeout >/dev/null 2>&1; then
+    _TIMEOUT_CMD=gtimeout
+else
+    _TIMEOUT_CMD=""
+fi
+
 readonly COL_GREEN=$'\033[32m'
 readonly COL_RED=$'\033[31m'
 readonly COL_RESET=$'\033[0m'
@@ -40,15 +49,22 @@ cache_or_run() {
     local cache_file="$1" ttl="$2" timeout_secs="$3"
     shift 3
     if [[ -f "$cache_file" ]]; then
-        local age
-        age=$(( $(date +%s) - $(stat -c %Y "$cache_file") ))
+        local age mtime
+        # Portable stat: GNU is `-c %Y`, BSD/macOS is `-f %m`.
+        mtime=$(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file" 2>/dev/null || echo 0)
+        age=$(( $(date +%s) - mtime ))
         if (( age < ttl )); then
             cat "$cache_file"
             return 0
         fi
     fi
     local fresh
-    if fresh=$(timeout "$timeout_secs" "$@" 2>/dev/null) && [[ -n "$fresh" ]]; then
+    if [[ -n "$_TIMEOUT_CMD" ]]; then
+        fresh=$("$_TIMEOUT_CMD" "$timeout_secs" "$@" 2>/dev/null)
+    else
+        fresh=$("$@" 2>/dev/null)
+    fi
+    if [[ -n "$fresh" ]]; then
         local tmp
         if tmp=$(mktemp "${cache_file}.XXXXXX" 2>/dev/null); then
             printf '%s' "$fresh" > "$tmp"

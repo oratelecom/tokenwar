@@ -61,6 +61,26 @@ When all four PASS, the verdict is `COMPLEMENTARY`.
 
 ## Quick start
 
+One-liner install (clone + chmod + wire statusline):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash
+```
+
+Then activate the four tools from inside Claude Code:
+
+```
+/perfia activate
+```
+
+Uninstall:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/uninstall.sh | bash
+```
+
+### Manual install
+
 ```bash
 git clone https://github.com/oratelecom/tokenwar ~/.claude/skills/tokenwar
 chmod +x ~/.claude/skills/tokenwar/scripts/*.sh
