@@ -1,6 +1,6 @@
 # tokenwar
 
-[![CI](https://github.com/ousamabenyounes/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/ousamabenyounes/tokenwar/actions/workflows/ci.yml)
+[![CI](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml)
 
 **A 4-tool token-saving stack for Claude Code.** Each tool compresses a different buffer — they stack without overlap.
 
@@ -62,7 +62,7 @@ When all four PASS, the verdict is `COMPLEMENTARY`.
 ## Quick start
 
 ```bash
-git clone https://github.com/ousamabenyounes/tokenwar ~/.claude/skills/tokenwar
+git clone https://github.com/oratelecom/tokenwar ~/.claude/skills/tokenwar
 chmod +x ~/.claude/skills/tokenwar/scripts/*.sh
 
 # Diagnose current state
