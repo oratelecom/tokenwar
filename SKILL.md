@@ -1,10 +1,10 @@
 ---
-name: perfia
+name: tokenwar
 description: Activate, upgrade, test, and benchmark the 4-tool token-saving stack (context-mode, claude-mem, RTK, caveman). Reports per-tool + global token savings and detects conflicts that would erase the gains.
-trigger: /perfia
+trigger: /tokenwar
 ---
 
-# /perfia — Performance IA stack manager
+# /tokenwar — token-saving stack manager
 
 Manages the 4 complementary token-saving tools:
 
@@ -18,33 +18,33 @@ Manages the 4 complementary token-saving tools:
 ## Usage
 
 ```
-/perfia            # default → status
-/perfia status     # current state of the 4 tools (read-only)
-/perfia activate   # install missing + enable disabled (asks confirmation)
-/perfia upgrade    # bump each to latest (asks confirmation)
-/perfia test       # ping each one-by-one, verify it actually responds
-/perfia gain       # per-tool + global token-savings report
-/perfia check      # conflict detector — verifies the 4 are complementary
-/perfia doctor     # full pipeline: status → test → check → gain
+/tokenwar            # default → status
+/tokenwar status     # current state of the 4 tools (read-only)
+/tokenwar activate   # install missing + enable disabled (asks confirmation)
+/tokenwar upgrade    # bump each to latest (asks confirmation)
+/tokenwar test       # ping each one-by-one, verify it actually responds
+/tokenwar gain       # per-tool + global token-savings report
+/tokenwar check      # conflict detector — verifies the 4 are complementary
+/tokenwar doctor     # full pipeline: status → test → check → gain
 ```
 
 ## Routing
 
-Read the args after `/perfia`. If empty, treat as `status`. Always print a one-line header `# /perfia <subcommand>` before running so the user sees which path you took.
+Read the args after `/tokenwar`. If empty, treat as `status`. Always print a one-line header `# /tokenwar <subcommand>` before running so the user sees which path you took.
 
 ---
 
 ## Subcommand: status
 
-Run `bash ~/.claude/skills/perfia/scripts/status.sh` and report its output verbatim. The script returns exit code `0` if all 4 are healthy, `1` if any is missing/disabled.
+Run `bash ~/.claude/skills/tokenwar/scripts/status.sh` and report its output verbatim. The script returns exit code `0` if all 4 are healthy, `1` if any is missing/disabled.
 
-If exit code is `1`, end with a single line: `→ Run \`/perfia activate\` to fix.` (do not auto-fix from `status`).
+If exit code is `1`, end with a single line: `→ Run \`/tokenwar activate\` to fix.` (do not auto-fix from `status`).
 
 ## Subcommand: activate
 
 Two phases — detect, then fix with confirmation.
 
-**Phase 1 — detect.** Run `bash ~/.claude/skills/perfia/scripts/status.sh`. Parse which of the 4 are in state `not-installed` or `installed-disabled`.
+**Phase 1 — detect.** Run `bash ~/.claude/skills/tokenwar/scripts/status.sh`. Parse which of the 4 are in state `not-installed` or `installed-disabled`.
 
 **Phase 2 — fix.** If any are unhealthy, use `AskUserQuestion` to confirm the fix plan. Example phrasing:
 
@@ -65,13 +65,13 @@ After every fix, re-run `status.sh` and report the new state. If anything is sti
 
 Two phases: detect, then confirm + apply.
 
-**Phase 1 — collect current vs latest.** Run `bash ~/.claude/skills/perfia/scripts/check-updates.sh --force` so the cache is fresh. The script:
+**Phase 1 — collect current vs latest.** Run `bash ~/.claude/skills/tokenwar/scripts/check-updates.sh --force` so the cache is fresh. The script:
 
 - Refreshes Claude marketplaces (`claude plugin marketplace update`) — non-fatal on network failure.
 - Reads installed plugin versions from `claude plugin list --json`.
 - Reads latest plugin versions from each marketplace's `marketplace.json`. Falls back to the marketplace clone's short git SHA (12 chars) when no `version` field exists — caveman is SHA-versioned.
 - For RTK: parses `cargo install --list` to detect path-installed dev builds; latest = `Cargo.toml` `version` on the tracked upstream branch (`git fetch` + `git show origin/<branch>:Cargo.toml`). Skips the public `cargo search rtk` registry — the public crate name belongs to a different project (Rust Type Kit) and gives wrong numbers.
-- Writes `~/.claude/perfia/upgrade-check.json` and exits `0` if all up-to-date, `2` if any update available.
+- Writes `~/.claude/tokenwar/upgrade-check.json` and exits `0` if all up-to-date, `2` if any update available.
 
 **Phase 2 — confirm + upgrade.** Read the cache, show a table `<tool>: <current> → <latest>` (skip tools already up-to-date), and use `AskUserQuestion` to confirm. On `Yes`:
 
@@ -81,11 +81,11 @@ Two phases: detect, then confirm + apply.
 
 After upgrade, re-run `check-updates.sh --force` then `status` so the version columns reflect the new state.
 
-**Passive surfacing.** `/perfia status` calls `check-updates.sh --quiet` at the end (uses the 24h cache, no network unless stale). If any update is available, status appends an `updates available (N):` block and a `→ Run /perfia upgrade to apply.` line. The user is never auto-upgraded — the trigger is always explicit. This matches the security principle of pinning versions: drift is reported, not silently applied.
+**Passive surfacing.** `/tokenwar status` calls `check-updates.sh --quiet` at the end (uses the 24h cache, no network unless stale). If any update is available, status appends an `updates available (N):` block and a `→ Run /tokenwar upgrade to apply.` line. The user is never auto-upgraded — the trigger is always explicit. This matches the security principle of pinning versions: drift is reported, not silently applied.
 
 ## Subcommand: test
 
-Run `bash ~/.claude/skills/perfia/scripts/status.sh --test`. For each of the 4 tools, the script issues a minimal end-to-end ping:
+Run `bash ~/.claude/skills/tokenwar/scripts/status.sh --test`. For each of the 4 tools, the script issues a minimal end-to-end ping:
 
 - **context-mode**: call the `ctx_stats` MCP tool. Alive iff it returns a JSON-shaped reply.
 - **claude-mem**: `claude-mem --version` exits 0.
@@ -100,42 +100,55 @@ Report a table `<tool> | alive | version | latency_ms`. **Do not infer aliveness
 
 This is the main report. Two parts: per-tool, then global.
 
-Run `bash ~/.claude/skills/perfia/scripts/gain.sh`. It aggregates from:
+Run `bash ~/.claude/skills/tokenwar/scripts/gain.sh`. It aggregates from:
 
 | Tool         | Source of truth                                                |
 | ------------ | -------------------------------------------------------------- |
 | RTK          | `rtk gain` (parse `Tokens saved:` line + per-command table)    |
 | context-mode | `ctx_stats` MCP tool (KB stored × 0.25 = approx tokens saved)  |
-| claude-mem   | `~/.claude/perfia/gain.jsonl` (entries with `tool=claude-mem`) |
-| caveman      | `~/.claude/perfia/gain.jsonl` (entries with `tool=caveman`)    |
+| claude-mem   | `~/.claude-mem/chroma-sync-state.json` — real per-project counts of stored observations + summaries, × `MEM_EST_TOKENS_PER_ITEM` (est.) |
+| caveman      | none — a SessionStart style nudge with no buffer transform, so no measurable byte delta → honest `N/A` |
 
 For `context-mode`: invoke the `ctx_stats` MCP tool and parse the `total_size_kb` field, multiply by `1024 / TOKEN_CHARS_PER_TOKEN` (~4) to estimate tokens kept out of the context window.
+
+**Monthly $ value.** After the per-tool table, `gain.sh` renders a per-month financial breakdown driven by `rtk gain --monthly` (RTK's `history.db` is the only timestamped source — claude-mem/caveman `gain.jsonl` has no history, context-mode reports a single total). Each month's saved tokens are valued at two providers' **input** list prices (savings are input-side context offload, so output price is not applied):
+
+- `CLAUDE_INPUT_USD_PER_MTOK` — Claude Opus 4.8, `$5.00`/M (per the `claude-api` skill).
+- `CODEX_INPUT_USD_PER_MTOK` — OpenAI Codex placeholder, `$1.25`/M — **verify and edit in `gain.sh`** against openai.com/pricing.
+
+The `$` figure is the API-equivalent value of the savings (what those tokens would have cost at list price), not a subscription invoice. If `rtk` is absent or has no monthly rows, the section is omitted.
 
 **Output format** (render in the response, do not write to a file):
 
 ```
-# /perfia gain — token savings
+# /tokenwar gain — token savings
 
-Per tool
-─────────────────────────────────────
-  RTK            44.7M tokens (68.3%)   18956 commands
-  context-mode    X.XM tokens (~est.)   N entries indexed
-  claude-mem      X.XM tokens (~est.)   N compactions logged
-  caveman         X.XM tokens (~est.)   N compressions logged
-─────────────────────────────────────
-  TOTAL          XX.XM tokens saved
+  tool            saved       note
+  ─────────────────────────────────────────────────────────────
+  RTK             42.8M       16635 commands (72.0%)
+  context-mode    X.XM        N entries indexed
+  claude-mem      N/A         gain hook not installed
+  caveman         N/A         gain hook not installed
+  ─────────────────────────────────────────────────────────────
+  TOTAL           42.8M       summed across tools with telemetry
 
-Complementary check: <PASS|WARN|FAIL>   ← from check.sh
-  - <one line per detected conflict, or "no conflicts">
+Monthly value — API-equivalent $ saved (RTK)
+  saved tokens × input list price · Claude Opus 4.8 $5.00/M · Codex (gpt-5-codex) $1.25/M
+  month      saved       claude $      codex $
+  ─────────────────────────────────────────────────────────────
+  2026-03    18.4M       $92.00        $23.00
+  2026-04    23.9M       $119.50       $29.88
+  ─────────────────────────────────────────────────────────────
+  TOTAL      42.8M       $214.36       $53.59
 ```
 
-If the complementary check is `FAIL`, prefix the TOTAL line with `⚠️` and add `effective gain may be lower than reported — see /perfia check`. The user MUST not be told they're winning when two tools are double-processing the same buffer.
+If the complementary check is `FAIL`, prefix the TOTAL line with `⚠️` and add `effective gain may be lower than reported — see /tokenwar check`. The user MUST not be told they're winning when two tools are double-processing the same buffer.
 
-If `~/.claude/perfia/gain.jsonl` does not exist, claude-mem and caveman columns show `N/A — install gain hook via /perfia activate`. Do not fabricate numbers.
+Each tool is read from its OWN native telemetry — never fabricate. If a source is missing (no `~/.claude-mem/chroma-sync-state.json`, no `CTX_STATS_JSON`, no `rtk`), that tool shows `N/A`, never `0`. caveman is always `N/A` by design — it has no telemetry surface.
 
 ## Subcommand: check
 
-Run `bash ~/.claude/skills/perfia/scripts/check.sh`. The script encodes the following conflict rules:
+Run `bash ~/.claude/skills/tokenwar/scripts/check.sh`. The script encodes the following conflict rules:
 
 ### Rule R1 — bash interception double-hook
 
@@ -156,7 +169,7 @@ If any of the 4 is more than one minor version behind its latest, report as `WAR
 Output format:
 
 ```
-# /perfia check
+# /tokenwar check
 
 R1 bash double-hook       : <PASS|WARN|FAIL>  <evidence>
 R2 memory source overlap  : <PASS|WARN|FAIL>  <evidence>
@@ -176,13 +189,18 @@ Run, in order: `status` → `test` → `check` → `gain`. Print each section's 
 Verdict: <ALL GREEN | ATTENTION NEEDED — see <section>>
 ```
 
-Stop at the first `FAIL` if the user typed `/perfia doctor --strict`; otherwise run all four sections regardless.
+Stop at the first `FAIL` if the user typed `/tokenwar doctor --strict`; otherwise run all four sections regardless.
 
 ---
 
-## Gain-telemetry hook (installable)
+## Telemetry sources (per tool)
 
-claude-mem and caveman expose no native gain numbers. `~/.claude/skills/perfia/scripts/perfia-gain-hook.sh` is a wrapper that the user can install (via `/perfia activate`) which logs `{tool, ts, bytes_in, bytes_out}` to `~/.claude/perfia/gain.jsonl` whenever those tools run. **Never install the hook without explicit user confirmation** — it modifies global hook config.
+Each tool is read from its own native telemetry — `gain.sh` never fabricates:
+
+- **RTK** — `rtk gain` / `rtk gain --monthly` (from its `history.db`).
+- **context-mode** — the `ctx_stats` MCP tool (caller injects `CTX_STATS_JSON`).
+- **claude-mem** — `~/.claude-mem/chroma-sync-state.json` (real stored-memory counts).
+- **caveman** — none. It's a SessionStart prompt-style nudge with no buffer transform, so there is no before/after byte delta to measure. It is always `N/A` — do not wire a byte-logging hook for it; that would only fabricate numbers.
 
 ---
 
@@ -192,5 +210,5 @@ After any subcommand:
 
 1. Did every CLI call return exit code 0? If not, surface the failure — do not silently swallow.
 2. Did you actually call `ctx_stats` (MCP tool), or did you skip context-mode because shell scripts can't reach it? Calling it is mandatory whenever the subcommand needs context-mode numbers.
-3. Are the numbers you printed derived from real telemetry, or fabricated? If telemetry is missing (e.g., gain.jsonl empty), say `N/A`, not `0`.
+3. Are the numbers you printed derived from real telemetry, or fabricated? If a tool's native source is missing, say `N/A`, not `0`.
 4. Did you propose any auto-fix without asking via `AskUserQuestion`? That's a bug — every fix path goes through confirmation.

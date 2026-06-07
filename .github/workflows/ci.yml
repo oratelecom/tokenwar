@@ -34,6 +34,6 @@ jobs:
 
       - name: Run scripts smoke-check (statusline + gain print output)
         run: |
-          echo '{}' | bash scripts/perfia-statusline.sh
+          echo '{}' | bash scripts/tokenwar-statusline.sh
           bash scripts/gain.sh || true
           bash scripts/status.sh || true

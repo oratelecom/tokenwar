@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# perfia restore-settings — merge ~/.claude/settings.local.json INTO
+# tokenwar restore-settings — merge ~/.claude/settings.local.json INTO
 # ~/.claude/settings.json. Run before `claude` if Claude Code wiped your
 # settings on session start (known regression with new model migrations).
 #
@@ -12,15 +12,15 @@ set -euo pipefail
 
 readonly SETTINGS="${HOME}/.claude/settings.json"
 readonly LOCAL="${HOME}/.claude/settings.local.json"
-readonly BACKUP="${SETTINGS}.perfia-bak"
+readonly BACKUP="${SETTINGS}.tokenwar-bak"
 
 if [[ ! -f "$LOCAL" ]]; then
-    echo "[perfia restore] no settings.local.json at $LOCAL — nothing to merge" >&2
+    echo "[tokenwar restore] no settings.local.json at $LOCAL — nothing to merge" >&2
     exit 1
 fi
 
 if [[ ! -f "$SETTINGS" ]]; then
-    echo "[perfia restore] settings.json missing — copying local as fresh"
+    echo "[tokenwar restore] settings.json missing — copying local as fresh"
     cp "$LOCAL" "$SETTINGS"
     chmod 600 "$SETTINGS"
     exit 0
@@ -35,5 +35,5 @@ SETTINGS_PATH="$SETTINGS" LOCAL_PATH="$LOCAL" node --input-type=module -e '
     const merged = { ...cur, ...local };  // local wins on conflict
     writeFileSync(process.env.SETTINGS_PATH, JSON.stringify(merged, null, 2) + "\n", "utf8");
     const restored = Object.keys(local).filter(k => !cur[k]);
-    console.log("[perfia restore] restored keys:", restored.length ? restored.join(", ") : "(all present, no-op)");
+    console.log("[tokenwar restore] restored keys:", restored.length ? restored.join(", ") : "(all present, no-op)");
 '

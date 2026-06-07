@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# perfia status — report state of the 4 token-saving tools
+# tokenwar status — report state of the 4 token-saving tools
 #
 # Exit 0 if all 4 are healthy, 1 otherwise.
 # Pass --test to additionally run a liveness ping for each tool
@@ -110,7 +110,7 @@ ping_caveman() {
 }
 
 # === report ===
-echo "# /perfia status"
+echo "# /tokenwar status"
 echo ""
 printf "  %s  %-14s  %-10s  %-22s  %s\n" "·" "tool" "version" "state" "note"
 printf "  ─────────────────────────────────────────────────────────────────\n"
@@ -135,7 +135,7 @@ format_line "caveman"      "$cave_ver" "$cave_state" "$cave_extra"
 echo ""
 
 # Passive upgrade notice. The check is throttled to a 24h cache, so calling
-# this on every `/perfia status` is cheap. Failure here must not break status:
+# this on every `/tokenwar status` is cheap. Failure here must not break status:
 # absorb any error and skip the section.
 readonly CHECK_UPDATES_SCRIPT="$(dirname "${BASH_SOURCE[0]}")/check-updates.sh"
 if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
@@ -144,7 +144,7 @@ if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
         echo "EXIT=$?"
     )"
     if [[ "$update_count" == *"EXIT=2"* ]]; then
-        readonly UPGRADE_CACHE_FILE="${HOME}/.claude/perfia/upgrade-check.json"
+        readonly UPGRADE_CACHE_FILE="${HOME}/.claude/tokenwar/upgrade-check.json"
         if [[ -f "$UPGRADE_CACHE_FILE" ]]; then
             CACHE="$UPGRADE_CACHE_FILE" node --input-type=module -e "
                 import { readFileSync } from 'node:fs';
@@ -155,7 +155,7 @@ if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
                     console.log(\`    - \${n.padEnd(14)} \${v.installed} → \${v.latest}\`);
                 }
                 console.log('');
-                console.log('  → Run \`/perfia upgrade\` to apply.');
+                console.log('  → Run \`/tokenwar upgrade\` to apply.');
             " 2>/dev/null || true
             echo ""
         fi

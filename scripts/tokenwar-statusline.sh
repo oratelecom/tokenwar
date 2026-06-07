@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# perfia statusline — combined badge for the 4-tool token-saving stack.
+# tokenwar statusline — combined badge for the 4-tool token-saving stack.
 # Emits: [ctx vX] [mem vY] [rtk SAVED] [caveman vZ]
-# Each badge: GREEN if active, RED if inactive.
+# Each badge: GREEN if active, RED if inactive. A yellow ⬆ is appended to any
+# tool with an available update (per the check-updates.sh cache), and when at
+# least one update exists the bar ends with a "⬆ N updates · /tokenwar upgrade"
+# call-to-action.
 # Stdin: receives Claude Code statusline JSON (ignored).
 #
 # Cache strategy: `claude plugin list --json` and `rtk gain` are spawned at
@@ -14,8 +17,8 @@ set -uo pipefail
 readonly LOOKUP_TIMEOUT_SECS=1
 readonly CACHE_TTL_SECS=30
 readonly CACHE_DIR="${TMPDIR:-/tmp}"
-readonly PLUGIN_CACHE="${CACHE_DIR}/perfia-plugins-${USER}.json"
-readonly RTK_GAIN_CACHE="${CACHE_DIR}/perfia-rtk-gain-${USER}.txt"
+readonly PLUGIN_CACHE="${CACHE_DIR}/tokenwar-plugins-${USER}.json"
+readonly RTK_GAIN_CACHE="${CACHE_DIR}/tokenwar-rtk-gain-${USER}.txt"
 readonly RTK_BIN="rtk"
 readonly CLAUDE_BIN="claude"
 readonly SLUG_CTX="context-mode@context-mode"
@@ -34,8 +37,29 @@ else
     _TIMEOUT_CMD=""
 fi
 
+# Update badge: read the throttled upgrade-check cache (written by
+# check-updates.sh) and append a ⬆ marker to any tool with an available update.
+# Read-only at render time; a background refresh is kicked off only when the
+# cache is older than UPDATE_CACHE_TTL_SECS, never blocking the bar.
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly UPDATE_CACHE="${HOME}/.claude/tokenwar/upgrade-check.json"
+readonly UPDATE_CHECK_SCRIPT="${SCRIPT_DIR}/check-updates.sh"
+readonly UPDATE_REFRESH_LOCK="${UPDATE_CACHE}.refresh.lock"
+readonly UPDATE_CACHE_TTL_SECS=86400      # 24h — match check-updates.sh
+readonly UPDATE_REFRESH_LOCK_TTL_SECS=600 # don't re-spawn a refresh within 10m
+readonly UPDATE_STATE_AVAILABLE="update-available" # cross-script contract w/ check-updates.sh
+readonly UPDATE_MARKER="⬆"
+readonly UPDATE_CTA_CMD="/tokenwar upgrade"
+readonly UPDATE_WORD_SINGULAR="update"
+readonly UPDATE_WORD_PLURAL="updates"
+readonly KEY_CTX="context-mode"
+readonly KEY_MEM="claude-mem"
+readonly KEY_RTK="rtk"
+readonly KEY_CAVE="caveman"
+
 readonly COL_GREEN=$'\033[32m'
 readonly COL_RED=$'\033[31m'
+readonly COL_YELLOW=$'\033[33m'
 readonly COL_RESET=$'\033[0m'
 
 # Drain stdin (Claude Code passes session JSON we don't need)
@@ -79,6 +103,43 @@ cache_or_run() {
     fi
 }
 
+# Kick a background refresh of the upgrade-check cache when it's stale, guarded
+# by a short-lived lock so concurrent renders don't spawn a storm. Detached —
+# the render never waits on it.
+maybe_refresh_updates() {
+    local now cache_age lock_age
+    now=$(date +%s)
+    if [[ -f "$UPDATE_CACHE" ]]; then
+        cache_age=$(( now - $(stat -c %Y "$UPDATE_CACHE" 2>/dev/null || echo 0) ))
+        (( cache_age < UPDATE_CACHE_TTL_SECS )) && return 0
+    fi
+    if [[ -f "$UPDATE_REFRESH_LOCK" ]]; then
+        lock_age=$(( now - $(stat -c %Y "$UPDATE_REFRESH_LOCK" 2>/dev/null || echo 0) ))
+        (( lock_age < UPDATE_REFRESH_LOCK_TTL_SECS )) && return 0
+    fi
+    [[ -f "$UPDATE_CHECK_SCRIPT" ]] || return 0
+    : > "$UPDATE_REFRESH_LOCK" 2>/dev/null || true
+    ( nohup bash "$UPDATE_CHECK_SCRIPT" --quiet --force >/dev/null 2>&1; rm -f "$UPDATE_REFRESH_LOCK" ) >/dev/null 2>&1 &
+    disown 2>/dev/null || true
+}
+
+# Echo "ctx|mem|rtk|caveman", each "true"/"false" for update-available, from the
+# cache only (no network). Missing/corrupt cache → all "false".
+update_states() {
+    UPD_CACHE="$UPDATE_CACHE" STATE_AVAIL="$UPDATE_STATE_AVAILABLE" \
+    K_CTX="$KEY_CTX" K_MEM="$KEY_MEM" K_RTK="$KEY_RTK" K_CAVE="$KEY_CAVE" \
+    node --input-type=module -e '
+        import { readFileSync } from "fs";
+        let tools = {};
+        try { tools = (JSON.parse(readFileSync(process.env.UPD_CACHE, "utf8")).tools) || {}; } catch {}
+        const up = (k) => (tools[k] && tools[k].state === process.env.STATE_AVAIL) ? "true" : "false";
+        console.log([up(process.env.K_CTX), up(process.env.K_MEM), up(process.env.K_RTK), up(process.env.K_CAVE)].join("|"));
+    ' 2>/dev/null || echo "false|false|false|false"
+}
+
+maybe_refresh_updates
+IFS='|' read -r ctx_upd mem_upd rtk_upd cave_upd <<<"$(update_states)"
+
 plugin_list_json=$(cache_or_run "$PLUGIN_CACHE" "$CACHE_TTL_SECS" "$LOOKUP_TIMEOUT_SECS" "$CLAUDE_BIN" plugin list --json)
 plugin_list_json="${plugin_list_json:-[]}"
 
@@ -113,10 +174,12 @@ plugin_lookup() {
 }
 
 badge() {
-    local label="$1" value="$2" active="$3"
+    local label="$1" value="$2" active="$3" update="${4:-false}"
     local color="$COL_RED"
     [[ "$active" == "true" ]] && color="$COL_GREEN"
-    printf "%s[%s %s]%s" "$color" "$label" "$value" "$COL_RESET"
+    local marker=""
+    [[ "$update" == "true" ]] && marker=" ${COL_YELLOW}${UPDATE_MARKER}${color}"
+    printf "%s[%s %s%s]%s" "$color" "$label" "$value" "$marker" "$COL_RESET"
 }
 
 IFS='|' read -r ctx_ver ctx_enabled <<<"$(plugin_lookup "$SLUG_CTX")"
@@ -148,8 +211,23 @@ if command -v "$RTK_BIN" >/dev/null 2>&1; then
     fi
 fi
 
-printf "%s %s %s %s" \
-    "$(badge ctx     "$ctx_ver"  "$ctx_enabled")" \
-    "$(badge mem     "$mem_ver"  "$mem_enabled")" \
-    "$(badge rtk     "$rtk_saved" "$rtk_active")" \
-    "$(badge caveman "$cave_ver" "$cave_enabled")"
+# Aggregate call-to-action: when ≥1 tool has an update, append a single hint
+# pointing at the upgrade command. Clean bar (no suffix) when all up-to-date.
+update_count=0
+for u in "$ctx_upd" "$mem_upd" "$rtk_upd" "$cave_upd"; do
+    [[ "$u" == "true" ]] && update_count=$((update_count + 1))
+done
+summary=""
+if (( update_count > 0 )); then
+    word="$UPDATE_WORD_PLURAL"
+    (( update_count == 1 )) && word="$UPDATE_WORD_SINGULAR"
+    summary=$(printf "  %s%s %d %s · %s%s" \
+        "$COL_YELLOW" "$UPDATE_MARKER" "$update_count" "$word" "$UPDATE_CTA_CMD" "$COL_RESET")
+fi
+
+printf "%s %s %s %s%s" \
+    "$(badge ctx     "$ctx_ver"  "$ctx_enabled"  "$ctx_upd")" \
+    "$(badge mem     "$mem_ver"  "$mem_enabled"  "$mem_upd")" \
+    "$(badge rtk     "$rtk_saved" "$rtk_active"  "$rtk_upd")" \
+    "$(badge caveman "$cave_ver" "$cave_enabled" "$cave_upd")" \
+    "$summary"

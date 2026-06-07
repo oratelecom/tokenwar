@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# perfia check-updates — detect available upgrades for the 4-tool stack.
+# tokenwar check-updates — detect available upgrades for the 4-tool stack.
 #
 # Strategy: refresh marketplace manifests (throttled, 24h cache), then compare
 # installed version vs marketplace `version` field for each plugin. For RTK,
@@ -8,12 +8,12 @@
 # Output: one line per tool with status `up-to-date | update-available | ahead | unknown`.
 # Exit codes: 0 = all up-to-date, 2 = at least one update available, 1 = error.
 #
-# Cache: ~/.claude/perfia/upgrade-check.json — refreshed when older than CACHE_TTL_SECONDS.
+# Cache: ~/.claude/tokenwar/upgrade-check.json — refreshed when older than CACHE_TTL_SECONDS.
 # Force refresh: pass --force.
 
 set -euo pipefail
 
-readonly CACHE_DIR="${HOME}/.claude/perfia"
+readonly CACHE_DIR="${HOME}/.claude/tokenwar"
 readonly CACHE_FILE="${CACHE_DIR}/upgrade-check.json"
 readonly CACHE_TTL_SECONDS=86400  # 24h
 
@@ -26,6 +26,7 @@ readonly MARKETPLACE_MEM="thedotmack"
 readonly MARKETPLACE_CAVE="caveman"
 
 readonly MARKETPLACE_ROOT="${HOME}/.claude/plugins/marketplaces"
+readonly MARKETPLACE_MANIFEST_REL=".claude-plugin/marketplace.json"
 readonly RTK_BIN="rtk"
 readonly CLAUDE_BIN="claude"
 
@@ -55,17 +56,19 @@ cache_is_fresh() {
     (( age < CACHE_TTL_SECONDS ))
 }
 
-# Refresh marketplaces (network call). Per-marketplace `git fetch && git pull
-# --ff-only` so stale clones don't poison the cache with phantom "up-to-date"
-# verdicts. Failures are surfaced on stderr (unless --quiet) but never abort —
-# we still emit a cache below using whatever the clones currently hold, and
-# the global `refresh_ok` flag tells consumers the cache may be stale.
+# Refresh marketplaces (network call). Per-marketplace `git fetch` only — we
+# read the latest `marketplace.json` from the fetched upstream ref
+# (`marketplace_version` below), so we never `git pull`/`git checkout` and never
+# need a clean working tree. This is critical: a locally-customized clone (e.g.
+# a `plugin.json` rewritten to point at a bun binary + absolute paths) would
+# make `git pull --ff-only` fail forever and poison the cache with phantom
+# "up-to-date" verdicts. Failures are surfaced on stderr (unless --quiet) but
+# never abort — we still emit a cache below, and the global `refresh_ok` flag
+# tells consumers the cache may be stale.
 #
 # We intentionally do NOT call `claude plugin marketplace update` here: it
 # races against the subsequent `claude plugin list --json` invocations (the
-# CLI briefly returns an empty list while it rewrites its registry), and the
-# per-clone `git pull --ff-only` above already refreshes every
-# `marketplace.json` we read.
+# CLI briefly returns an empty list while it rewrites its registry).
 readonly REFRESHABLE_MARKETPLACES=(
     "$MARKETPLACE_CTX"
     "$MARKETPLACE_MEM"
@@ -76,17 +79,12 @@ refresh_marketplaces() {
     for mp in "${REFRESHABLE_MARKETPLACES[@]}"; do
         dir="${MARKETPLACE_ROOT}/${mp}"
         if [[ ! -d "${dir}/.git" ]]; then
-            $quiet || echo "perfia: marketplace clone missing: $dir" >&2
+            $quiet || echo "tokenwar: marketplace clone missing: $dir" >&2
             rc=1
             continue
         fi
         if ! git -C "$dir" fetch --quiet 2>/dev/null; then
-            $quiet || echo "perfia: git fetch failed for marketplace '$mp'" >&2
-            rc=1
-            continue
-        fi
-        if ! git -C "$dir" pull --ff-only --quiet 2>/dev/null; then
-            $quiet || echo "perfia: git pull --ff-only failed for marketplace '$mp' (non-ff or conflict)" >&2
+            $quiet || echo "tokenwar: git fetch failed for marketplace '$mp'" >&2
             rc=1
             continue
         fi
@@ -95,18 +93,29 @@ refresh_marketplaces() {
 }
 
 # Read `version` from a marketplace.json's plugins[] entry matching `name`.
-# Falls back to the marketplace clone's short git SHA (12 chars) when the
-# manifest has no `version` field — caveman, e.g., versions by SHA only.
+# Reads the manifest from the fetched upstream ref (origin/<branch>) first, so
+# a clone that is behind upstream — or has local working-tree edits — never
+# reports a stale "latest". Falls back to the on-disk manifest (no upstream),
+# then to the upstream/local short git SHA when the manifest carries no
+# `version` field — caveman, e.g., versions by SHA only.
 readonly MARKETPLACE_GIT_SHA_LEN=12
 marketplace_version() {
     local marketplace="$1" plugin_name="$2"
     local marketplace_dir="${MARKETPLACE_ROOT}/${marketplace}"
-    local manifest="${marketplace_dir}/.claude-plugin/marketplace.json"
-    if [[ -f "$manifest" ]]; then
-        local v
-        v=$(MANIFEST_PATH="$manifest" PLUGIN_NAME="$plugin_name" node --input-type=module -e "
-            import { readFileSync } from 'node:fs';
-            const m = JSON.parse(readFileSync(process.env.MANIFEST_PATH, 'utf8'));
+    local upstream="" manifest_json="" v=""
+
+    if [[ -d "${marketplace_dir}/.git" ]]; then
+        upstream=$(git -C "$marketplace_dir" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo "")
+        if [[ -n "$upstream" ]]; then
+            manifest_json=$(git -C "$marketplace_dir" show "${upstream}:${MARKETPLACE_MANIFEST_REL}" 2>/dev/null || echo "")
+        fi
+    fi
+    if [[ -z "$manifest_json" && -f "${marketplace_dir}/${MARKETPLACE_MANIFEST_REL}" ]]; then
+        manifest_json=$(cat "${marketplace_dir}/${MARKETPLACE_MANIFEST_REL}" 2>/dev/null || echo "")
+    fi
+    if [[ -n "$manifest_json" ]]; then
+        v=$(MANIFEST_JSON="$manifest_json" PLUGIN_NAME="$plugin_name" node --input-type=module -e "
+            const m = JSON.parse(process.env.MANIFEST_JSON);
             const list = Array.isArray(m.plugins) ? m.plugins : [];
             const entry = list.find(p => p.name === process.env.PLUGIN_NAME);
             process.stdout.write(entry?.version || '');
@@ -114,7 +123,7 @@ marketplace_version() {
         if [[ -n "$v" ]]; then echo "$v"; return; fi
     fi
     if [[ -d "${marketplace_dir}/.git" ]]; then
-        git -C "$marketplace_dir" rev-parse --short="$MARKETPLACE_GIT_SHA_LEN" HEAD 2>/dev/null || echo ""
+        git -C "$marketplace_dir" rev-parse --short="$MARKETPLACE_GIT_SHA_LEN" "${upstream:-HEAD}" 2>/dev/null || echo ""
         return
     fi
     echo ""
@@ -212,7 +221,7 @@ if $force_refresh || ! cache_is_fresh; then
     rtk_state=$(classify "$rtk_installed" "$rtk_latest")
 
     now=$(date +%s)
-    PERFIA_CACHE_FILE="$CACHE_FILE" \
+    TOKENWAR_CACHE_FILE="$CACHE_FILE" \
     NOW="$now" \
     REFRESH_OK="$($refresh_ok && echo 1 || echo 0)" \
     CTX_I="$ctx_installed" CTX_L="$ctx_latest" CTX_S="$ctx_state" \
@@ -232,15 +241,15 @@ if $force_refresh || ! cache_is_fresh; then
                 'rtk':          { installed: e.RTK_I, latest: e.RTK_L, state: e.RTK_S, slug: 'cargo:rtk' }
             }
         };
-        writeFileSync(e.PERFIA_CACHE_FILE, JSON.stringify(data, null, 2));
+        writeFileSync(e.TOKENWAR_CACHE_FILE, JSON.stringify(data, null, 2));
     "
 fi
 
 # Render cache → stdout (unless --quiet, in which case only set exit code).
-PERFIA_CACHE_FILE="$CACHE_FILE" QUIET="$($quiet && echo 1 || echo 0)" \
+TOKENWAR_CACHE_FILE="$CACHE_FILE" QUIET="$($quiet && echo 1 || echo 0)" \
 node --input-type=module -e "
     import { readFileSync } from 'node:fs';
-    const data = JSON.parse(readFileSync(process.env.PERFIA_CACHE_FILE, 'utf8'));
+    const data = JSON.parse(readFileSync(process.env.TOKENWAR_CACHE_FILE, 'utf8'));
     const entries = Object.entries(data.tools);
     const updates = entries.filter(([,v]) => v.state === '$STATUS_UPDATE');
     if (process.env.QUIET !== '1') {
@@ -254,7 +263,7 @@ node --input-type=module -e "
         }
         if (updates.length > 0) {
             console.log('');
-            console.log(\`  → \${updates.length} update(s) available. Run \\\`/perfia upgrade\\\` to apply.\`);
+            console.log(\`  → \${updates.length} update(s) available. Run \\\`/tokenwar upgrade\\\` to apply.\`);
         }
     }
     process.exit(updates.length > 0 ? 2 : 0);

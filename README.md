@@ -91,20 +91,27 @@ bash ~/.claude/skills/tokenwar/scripts/status.sh
 # Verify complementarity
 bash ~/.claude/skills/tokenwar/scripts/check.sh
 
-# Token savings report
+# Token savings report (per-tool + monthly $ value)
 bash ~/.claude/skills/tokenwar/scripts/gain.sh
 ```
+
+`gain.sh` reads each tool from its **own native telemetry** — never fabricated:
+RTK (`rtk gain`), context-mode (`ctx_stats`), claude-mem
+(`~/.claude-mem/chroma-sync-state.json` stored-memory counts). caveman is a
+style-only nudge with no measurable buffer, so it is always `N/A`. It also
+prints a per-month breakdown from `rtk gain --monthly`, valuing each month's
+saved tokens at Claude and Codex input list prices (the API-equivalent $ saved).
 
 Wire the combined statusline (Claude Code, `~/.claude/settings.json`):
 
 ```json
 "statusLine": {
   "type": "command",
-  "command": "bash ~/.claude/skills/tokenwar/scripts/perfia-statusline.sh"
+  "command": "bash ~/.claude/skills/tokenwar/scripts/tokenwar-statusline.sh"
 }
 ```
 
-Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>]` — green if active, red if down.
+Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>]` — green if active, red if down. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action.
 
 ## Settings.json wipe protection
 
