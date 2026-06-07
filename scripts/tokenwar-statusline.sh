@@ -41,7 +41,8 @@ fi
 # check-updates.sh) and append a ⬆ marker to any tool with an available update.
 # Read-only at render time; a background refresh is kicked off only when the
 # cache is older than UPDATE_CACHE_TTL_SECS, never blocking the bar.
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 readonly UPDATE_CACHE="${HOME}/.claude/tokenwar/upgrade-check.json"
 readonly UPDATE_CHECK_SCRIPT="${SCRIPT_DIR}/check-updates.sh"
 readonly UPDATE_REFRESH_LOCK="${UPDATE_CACHE}.refresh.lock"

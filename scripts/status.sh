@@ -137,7 +137,8 @@ echo ""
 # Passive upgrade notice. The check is throttled to a 24h cache, so calling
 # this on every `/tokenwar status` is cheap. Failure here must not break status:
 # absorb any error and skip the section.
-readonly CHECK_UPDATES_SCRIPT="$(dirname "${BASH_SOURCE[0]}")/check-updates.sh"
+CHECK_UPDATES_SCRIPT="$(dirname "${BASH_SOURCE[0]}")/check-updates.sh"
+readonly CHECK_UPDATES_SCRIPT
 if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
     update_count="$(
         bash "$CHECK_UPDATES_SCRIPT" --quiet 2>/dev/null

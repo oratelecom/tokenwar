@@ -12,8 +12,6 @@
 set -euo pipefail
 
 readonly INSTALLED_PLUGINS="${HOME}/.claude/plugins/installed_plugins.json"
-readonly USER_CLAUDE_MD="${HOME}/.claude/CLAUDE.md"
-readonly HOOK_DIR="${HOME}/.claude/hooks"
 readonly SETTINGS_FILE="${HOME}/.claude/settings.json"
 readonly CLAUDE_MEM_DATA="${HOME}/.claude-mem"
 
@@ -44,7 +42,7 @@ emit() {
 # === R1 — bash double-hook ===
 # RTK installs a PreToolUse hook for Bash that rewrites commands.
 # context-mode redirects bash via skill rules (CLAUDE.md). Other context-mode
-# hooks may live in $HOOK_DIR but they target DIFFERENT events (SessionStart
+# hooks may live in ~/.claude/hooks but they target DIFFERENT events (SessionStart
 # cache-heal etc). Real conflict = two hooks both registered for PreToolUse on
 # the same matcher in settings.json.
 #

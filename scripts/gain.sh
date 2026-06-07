@@ -33,7 +33,6 @@ readonly CLAUDE_LABEL="Claude Opus 4.8"
 # OpenAI Codex (gpt-5-codex) input list price — VERIFY at openai.com/pricing and
 # adjust; placeholder as of 2026-06.
 readonly CODEX_INPUT_USD_PER_MTOK="1.25"
-readonly CODEX_OUTPUT_USD_PER_MTOK="10.00"    # reference only
 readonly CODEX_LABEL="Codex (gpt-5-codex)"
 readonly MONTH_ROW_RE='^[0-9]{4}-[0-9]{2}[[:space:]]'
 

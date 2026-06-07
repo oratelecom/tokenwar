@@ -28,7 +28,6 @@ readonly MARKETPLACE_CAVE="caveman"
 readonly MARKETPLACE_ROOT="${HOME}/.claude/plugins/marketplaces"
 readonly MARKETPLACE_MANIFEST_REL=".claude-plugin/marketplace.json"
 readonly RTK_BIN="rtk"
-readonly CLAUDE_BIN="claude"
 
 readonly STATUS_UPTODATE="up-to-date"
 readonly STATUS_UPDATE="update-available"
