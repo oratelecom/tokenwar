@@ -17,7 +17,7 @@ set -euo pipefail
 REPO_URL="${TOKENWAR_REPO_URL:-https://github.com/oratelecom/tokenwar}"
 INSTALL_DIR="${TOKENWAR_DIR:-$HOME/.claude/skills/tokenwar}"
 SETTINGS_JSON="$HOME/.claude/settings.json"
-STATUSLINE_CMD='bash ~/.claude/skills/tokenwar/scripts/perfia-statusline.sh'
+STATUSLINE_CMD='bash ~/.claude/skills/tokenwar/scripts/tokenwar-statusline.sh'
 
 color()  { printf '\033[%sm%s\033[0m' "$1" "$2"; }
 green()  { color 32 "$1"; }
@@ -79,7 +79,7 @@ Sanity check now:
 Statusline appears after restarting Claude Code.
 
 Activate the other three tools and the RTK hook via the tokenwar skill:
-  /perfia activate
+  /tokenwar activate
 
 To uninstall:
   bash $INSTALL_DIR/uninstall.sh

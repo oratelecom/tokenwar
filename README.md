@@ -70,7 +70,7 @@ curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh
 Then activate the four tools from inside Claude Code:
 
 ```
-/perfia activate
+/tokenwar activate
 ```
 
 Uninstall:

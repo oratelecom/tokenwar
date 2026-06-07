@@ -16,7 +16,7 @@ set -euo pipefail
 
 INSTALL_DIR="${TOKENWAR_DIR:-$HOME/.claude/skills/tokenwar}"
 SETTINGS_JSON="$HOME/.claude/settings.json"
-STATUSLINE_CMD='bash ~/.claude/skills/tokenwar/scripts/perfia-statusline.sh'
+STATUSLINE_CMD='bash ~/.claude/skills/tokenwar/scripts/tokenwar-statusline.sh'
 
 color()  { printf '\033[%sm%s\033[0m' "$1" "$2"; }
 green()  { color 32 "$1"; }
