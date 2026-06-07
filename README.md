@@ -59,6 +59,19 @@ The tokenwar `check.sh` script enforces 4 rules:
 
 When all four PASS, the verdict is `COMPLEMENTARY`.
 
+## Commands
+
+Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/skills/tokenwar/scripts/<script>.sh`):
+
+| Command | What it does |
+| --- | --- |
+| `/tokenwar status` | Health of the 4 tools — installed, enabled, version |
+| `/tokenwar gain` | Per-tool token savings + **monthly $ value** (Claude/Codex) |
+| `/tokenwar upgrade` | Bump each tool to latest (asks confirmation) |
+| `/tokenwar check` | Conflict detector — verifies the 4 stack additively |
+| `/tokenwar test` | End-to-end ping: is each tool actually working? |
+| `/tokenwar doctor` | Full pipeline: status → test → check → gain |
+
 ## Quick start
 
 One-liner install (clone + chmod + wire statusline):
