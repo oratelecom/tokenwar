@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>tokenwar — 4-tool token-saving stack for Claude Code</title>
-  <meta name="description" content="caveman + RTK + context-mode + claude-mem — each compresses a different buffer, so the gains stack." />
+  <meta name="description" content="Token savings report per tool + monthly $ value (Claude/Codex). RTK saved $214 in API-equivalent Opus 4.8 tokens. caveman + context-mode + claude-mem." />
   <style>
     :root {
       --bg: #0b0d12;
@@ -243,10 +243,10 @@
       <h1>tokenwar</h1>
       <p class="tag">4 tools. 4 buffers. Zero overlap. Token savings <strong>stack</strong> instead of fighting.</p>
       <div class="badges">
-        <span class="badge ctx">[ctx 1.0.107]</span>
-        <span class="badge mem">[mem 12.1.4]</span>
-        <span class="badge rtk">[rtk 44.7M]</span>
-        <span class="badge cave">[caveman 84cc3c1]</span>
+        <span class="badge ctx">[ctx 1.0.162]</span>
+        <span class="badge mem">[mem 13.4.0]</span>
+        <span class="badge rtk">[rtk 42.8M]</span>
+        <span class="badge cave">[caveman 655b7d9]</span>
       </div>
     </header>
 
@@ -340,6 +340,52 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Quick start</h2>
+      <div class="panel">
+        <p style="margin:0 0 12px;font-family:var(--font-mono);font-size:0.92rem;color:var(--muted)">Inside Claude Code:</p>
+        <div style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:0.92rem">
+          <div><code style="color:var(--accent)">/tokenwar status</code> <span style="color:var(--muted)">— health of the 4 tools</span></div>
+          <div><code style="color:var(--accent)">/tokenwar upgrade</code> <span style="color:var(--muted)">— bump each to latest</span></div>
+          <div><code style="color:var(--accent)">/tokenwar gain</code> <span style="color:var(--muted)">— token savings + monthly $ value</span></div>
+          <div><code style="color:var(--accent)">/tokenwar doctor</code> <span style="color:var(--muted)">— full pipeline: status → check → gain</span></div>
+        </div>
+        <p style="margin:16px 0 0;font-family:var(--font-mono);font-size:0.82rem;color:var(--muted)">
+          Statusline: <code style="color:var(--ink)">[ctx 1.0.162] [mem 13.4.0] [rtk 42.8M] [caveman 655b7d9] &#x26A0; 3 updates · /tokenwar upgrade</code>
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>/tokenwar gain — real savings, real $</h2>
+      <div class="panel">
+        <p style="margin:0 0 18px;font-size:0.93rem">
+          Each tool is read from its <strong>own native telemetry</strong>—never fabricated.
+          RTK alone saved <strong>$214.36</strong> in API-equivalent Claude Opus 4.8 tokens (input-side, Mar–Jun 2026).
+        </p>
+        <div style="font-family:var(--font-mono);font-size:0.88rem;line-height:1.7;overflow-x:auto">
+          <div style="color:var(--muted)">  tool            saved       note</div>
+          <div style="color:var(--muted)">  ─────────────────────────────────────────────────────────────</div>
+          <div><span style="color:var(--rtk)">  RTK</span>             42.8M       16635 commands (72.0%)</div>
+          <div><span style="color:var(--ctx)">  context-mode</span>    4.9M        12660 entries indexed</div>
+          <div><span style="color:var(--mem)">  claude-mem</span>      2.8M        ~est: 55K obs + 15K summaries · 31 projects</div>
+          <div><span style="color:var(--muted)">  caveman</span>         N/A         style-only hook — no measurable buffer</div>
+          <div style="color:var(--muted)">  ─────────────────────────────────────────────────────────────</div>
+          <div>  <strong>TOTAL</strong>           50.6M       summed across tools with telemetry</div>
+          <div style="margin-top:16px;color:var(--muted)">Monthly value — API-equivalent $ saved (RTK)</div>
+          <div style="color:var(--muted)">  month      saved       claude $      codex $</div>
+          <div>  2026-03    18.4M       $92.00        $23.00</div>
+          <div>  2026-04    23.9M       $119.50       $29.88</div>
+          <div>  2026-05    552.9K      $2.76         $0.69</div>
+          <div>  2026-06    19.0K       $0.10         $0.02</div>
+        </div>
+        <p style="margin:14px 0 0;font-size:0.82rem;color:var(--muted)">
+          Savings are input-side (context offload). Valued at Claude Opus 4.8 $5/M + Codex $1.25/M input list prices.
+          Codex placeholder — edit <code>gain.sh</code> constants to match openai.com/pricing.
+        </p>
       </div>
     </section>
 
