@@ -39,6 +39,16 @@ command -v node >/dev/null || die "node is required (used to patch settings.json
 if [[ -d "$INSTALL_DIR/.git" ]]; then
     say "Updating existing tokenwar checkout at $INSTALL_DIR"
     git -C "$INSTALL_DIR" pull --ff-only
+elif [[ -e "$INSTALL_DIR" ]]; then
+    # Directory (or file) exists but is NOT a git checkout — e.g. an older
+    # manual copy. `git clone` refuses a non-empty target, so move the old
+    # one aside (never silently delete the user's data) and clone fresh.
+    backup="${INSTALL_DIR}.bak-$(date +%Y%m%d-%H%M%S)"
+    warn "$INSTALL_DIR exists but is not a git checkout — backing it up to $backup"
+    mv "$INSTALL_DIR" "$backup" || die "could not move $INSTALL_DIR aside"
+    say "Cloning tokenwar into $INSTALL_DIR"
+    mkdir -p "$(dirname "$INSTALL_DIR")"
+    git clone "$REPO_URL" "$INSTALL_DIR"
 else
     say "Cloning tokenwar into $INSTALL_DIR"
     mkdir -p "$(dirname "$INSTALL_DIR")"
