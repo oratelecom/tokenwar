@@ -18,6 +18,9 @@ INSTALL_DIR="${TOKENWAR_DIR:-$HOME/.claude/skills/tokenwar}"
 SETTINGS_JSON="$HOME/.claude/settings.json"
 STATUSLINE_CMD='bash ~/.claude/skills/tokenwar/scripts/tokenwar-statusline.sh'
 
+readonly TW_RC_BEGIN="# >>> tokenwar shell integration >>>"
+readonly TW_RC_END="# <<< tokenwar shell integration <<<"
+
 color()  { printf '\033[%sm%s\033[0m' "$1" "$2"; }
 green()  { color 32 "$1"; }
 yellow() { color 33 "$1"; }
@@ -45,6 +48,30 @@ if (cfg.statusLine && cfg.statusLine.command === desired) {
 else
     warn "$SETTINGS_JSON does not exist — skipping settings patch"
 fi
+
+# Strip the shell-integration block (tokenwar/codex/gemini functions) from rc.
+unwire_shell_rc() {
+    local rc_file="$1"
+    [[ -f "$rc_file" ]] || return 0
+    grep -qF "$TW_RC_BEGIN" "$rc_file" 2>/dev/null || return 0
+    local tmp
+    tmp="$(mktemp "${rc_file}.tokenwar.XXXXXX")" || { warn "mktemp failed for $rc_file"; return 1; }
+    TW_BEGIN="$TW_RC_BEGIN" TW_END="$TW_RC_END" awk '
+        $0 == ENVIRON["TW_BEGIN"] { skip = 1 }
+        skip != 1 { print }
+        $0 == ENVIRON["TW_END"]   { skip = 0 }
+    ' "$rc_file" > "$tmp" || { warn "could not rewrite $rc_file"; rm -f "$tmp"; return 1; }
+    if mv -f "$tmp" "$rc_file"; then
+        say "Removed tokenwar shell integration from $rc_file"
+    else
+        warn "could not write $rc_file"; rm -f "$tmp"; return 1
+    fi
+}
+
+say "Removing shell integration"
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    unwire_shell_rc "$rc"
+done
 
 if [[ -d "$INSTALL_DIR" ]]; then
     say "Removing $INSTALL_DIR"

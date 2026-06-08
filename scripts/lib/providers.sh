@@ -11,10 +11,14 @@
 
 set -euo pipefail
 
+# These constants form the registry's public API — they are read by the scripts
+# that source this file (gain.sh, status.sh, check.sh, check-updates.sh,
+# tokenwar-statusline.sh), not within this file, hence the SC2034 suppressions.
+# shellcheck disable=SC2034
 readonly PROVIDER_COUNT=3
-
-readonly PROVIDER_IDX_CLAUDE=0
+# shellcheck disable=SC2034
 readonly PROVIDER_IDX_CODEX=1
+# shellcheck disable=SC2034
 readonly PROVIDER_IDX_GEMINI=2
 
 readonly CODEX_STATE_DB="${HOME}/.codex/state_5.sqlite"
@@ -51,14 +55,6 @@ provider_input_usd_per_mtok() {
         0) echo "5.00"  ;;  # Claude Opus 4.8 input (claude-api skill, 2026-05-26)
         1) echo "1.25"  ;;  # Codex (gpt-5-codex) input — VERIFY at openai.com/pricing
         2) echo "1.25"  ;;  # Gemini 2.5 Pro input — VERIFY at ai.google.dev/pricing
-    esac
-}
-
-provider_output_usd_per_mtok() {
-    case "$1" in
-        0) echo "25.00" ;;  # Claude Opus 4.8 output
-        1) echo "10.00" ;;  # Codex (gpt-5-codex) output — VERIFY at openai.com/pricing
-        2) echo "10.00" ;;  # Gemini 2.5 Pro output — VERIFY at ai.google.dev/pricing
     esac
 }
 

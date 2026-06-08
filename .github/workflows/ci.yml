@@ -24,7 +24,7 @@ jobs:
 
       - name: shellcheck all .sh files
         run: |
-          shellcheck -S warning scripts/*.sh
+          shellcheck -S warning scripts/*.sh scripts/lib/*.sh
 
       - name: Make scripts executable
         run: chmod +x scripts/*.sh
@@ -37,3 +37,6 @@ jobs:
           echo '{}' | bash scripts/tokenwar-statusline.sh
           bash scripts/gain.sh || true
           bash scripts/status.sh || true
+          bash scripts/tokenwar.sh help
+          bash scripts/upgrade.sh </dev/null || true
+          bash scripts/tokenwar-launch.sh codex </dev/null

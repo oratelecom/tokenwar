@@ -36,7 +36,6 @@ readonly MEM_EST_TOKENS_PER_ITEM=40
 # These are kept here for the tool-level (RTK) monthly section which is
 # Claude-specific.
 readonly CLAUDE_INPUT_USD_PER_MTOK="5.00"
-readonly CLAUDE_OUTPUT_USD_PER_MTOK="25.00"   # reference only; savings are input-side
 readonly CLAUDE_LABEL="Claude Opus 4.8"
 readonly MONTH_ROW_RE='^[0-9]{4}-[0-9]{2}[[:space:]]'
 

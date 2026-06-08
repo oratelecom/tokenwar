@@ -30,6 +30,30 @@ Each provider's token counts are valued at their own list prices (input-side).
 Provider prices are defined in `scripts/lib/providers.sh` — verify against
 official pricing pages.
 
+## Cross-CLI status (Claude vs Codex/Gemini)
+
+The persistent **status bar** is a Claude Code feature (its `statusLine` API).
+Codex and Gemini do **not** expose a status-bar API — their footers are
+hardcoded in their TUIs, and their hooks only inject into the *model* context,
+never the screen. So tokenwar surfaces the stack differently per CLI:
+
+| CLI        | How the stack is surfaced                                              |
+| ---------- | --------------------------------------------------------------------- |
+| Claude Code | Native persistent bottom bar via `statusLine` (auto, always visible)  |
+| Codex      | **Launch banner** + reminder + upgrade prompt (via shell wrapper)     |
+| Gemini CLI | **Launch banner** + reminder + upgrade prompt (via shell wrapper)     |
+
+`install.sh` wires three shell functions (one-time, then zero effort):
+
+- `tokenwar <cmd>` — the dispatcher; `tokenwar status` / `gain` / `check` /
+  `upgrade` work in **any** shell (Codex, Gemini, plain terminal).
+- `codex` / `gemini` — wrapped so that launching either prints the tokenwar
+  banner (`scripts/tokenwar-launch.sh`), reminds the user to run
+  `tokenwar status`, and — if the throttled cache shows pending updates —
+  offers an inline **"Upgrade now? [y/N]"** that runs `scripts/upgrade.sh` for
+  the 4 tools. The banner is silent for non-interactive launches
+  (`codex exec`, `gemini -p …`, pipes) so it never pollutes scripted output.
+
 ## Usage
 
 ```

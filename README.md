@@ -72,6 +72,34 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 | `/tokenwar test` | End-to-end ping: is each tool actually working? |
 | `/tokenwar doctor` | Full pipeline: status → test → check → gain |
 
+## Status in every CLI (Claude, Codex, Gemini)
+
+The persistent **bottom status bar** is a Claude Code feature — it ships a
+`statusLine` API and tokenwar wires it automatically. **Codex and Gemini do not
+expose a status-bar API** (their footers are hardcoded; their hooks inject only
+into the model context, not the screen). So tokenwar surfaces the stack the best
+way each CLI allows, with **zero daily effort** — `install.sh` wires it once:
+
+| CLI         | What you get                                                          |
+| ----------- | --------------------------------------------------------------------- |
+| Claude Code | Native persistent bottom bar (always visible)                         |
+| Codex       | Launch banner + `tokenwar status` reminder + inline upgrade prompt    |
+| Gemini CLI  | Launch banner + `tokenwar status` reminder + inline upgrade prompt    |
+
+After install you simply type `codex` or `gemini` as usual — the banner prints,
+and if updates are pending you get **"⬆ N updates available. Upgrade now? [y/N]"**
+which bumps the 4 tools. A `tokenwar` command also works in any shell:
+
+```bash
+tokenwar status     # state of the 4 tools + providers
+tokenwar gain       # token savings + monthly $ value
+tokenwar upgrade    # bump the 4 tools (asks confirmation)
+tokenwar doctor     # status → check → gain
+```
+
+> The banner is silent for non-interactive launches (`codex exec`,
+> `gemini -p …`, pipes) so it never pollutes scripted output.
+
 ## Quick start
 
 One-liner install (clone + chmod + wire statusline):
