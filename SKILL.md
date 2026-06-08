@@ -1,6 +1,6 @@
 ---
 name: tokenwar
-description: Activate, upgrade, test, and benchmark the 4-tool token-saving stack (context-mode, claude-mem, RTK, caveman). Reports per-tool + global token savings and detects conflicts that would erase the gains.
+description: Activate, upgrade, test, and benchmark the 4-tool token-saving stack (context-mode, claude-mem, RTK, caveman). Reports per-tool + per-provider (Codex, Gemini) token savings and detects conflicts that would erase the gains.
 trigger: /tokenwar
 ---
 
@@ -14,6 +14,21 @@ Manages the 4 complementary token-saving tools:
 | claude-mem   | session memory + compaction | `claude-mem@thedotmack`           | `claude-mem` CLI  |
 | RTK          | bash output compression     | (CLI only, hook in `~/.claude`)   | `rtk` (Rust)      |
 | caveman      | response-style compression  | `caveman@caveman`                 | hook              |
+
+## Multi-provider support
+
+tokenwar now tracks token usage across AI coding agents, each from its own
+**native telemetry** — never fabricated:
+
+| Provider     | Telemetry source                                | Token data            |
+| ------------ | ----------------------------------------------- | --------------------- |
+| Claude Code  | RTK (`rtk gain`) + context-mode + claude-mem    | per-command + monthly |
+| Codex        | `~/.codex/state_5.sqlite` → `threads.tokens_used` | per-session + monthly |
+| Gemini CLI   | N/A (server-side sessions — no local store)      | —                     |
+
+Each provider's token counts are valued at their own list prices (input-side).
+Provider prices are defined in `scripts/lib/providers.sh` — verify against
+official pricing pages.
 
 ## Usage
 

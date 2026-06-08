@@ -24,6 +24,7 @@ readonly CLAUDE_BIN="claude"
 readonly SLUG_CTX="context-mode@context-mode"
 readonly SLUG_MEM="claude-mem@thedotmack"
 readonly SLUG_CAVE="caveman@caveman"
+
 readonly VERSION_HASH_TRIM_LEN=7
 readonly SETTINGS_JSON="${HOME}/.claude/settings.json"
 readonly SETTINGS_LOCAL_JSON="${HOME}/.claude/settings.local.json"
@@ -43,6 +44,11 @@ fi
 # cache is older than UPDATE_CACHE_TTL_SECS, never blocking the bar.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
+
+# Provider registry for statusline badges
+# shellcheck source=lib/providers.sh
+source "${SCRIPT_DIR}/lib/providers.sh"
+
 readonly UPDATE_CACHE="${HOME}/.claude/tokenwar/upgrade-check.json"
 readonly UPDATE_CHECK_SCRIPT="${SCRIPT_DIR}/check-updates.sh"
 readonly UPDATE_REFRESH_LOCK="${UPDATE_CACHE}.refresh.lock"
@@ -212,6 +218,25 @@ if command -v "$RTK_BIN" >/dev/null 2>&1; then
     fi
 fi
 
+# Provider detection (skip Claude — the 4 tools already cover it)
+codex_ver="-";  codex_active="false"
+gemini_ver="-"; gemini_active="false"
+for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
+    pid=$(provider_id "$i")
+    pver=$(provider_version "$i")
+    case "$pid" in
+        claude) ;;  # Claude is the host, covered by the 4 tools
+        codex)
+            codex_ver="$pver"
+            provider_is_installed "$i" && codex_active="true"
+            ;;
+        gemini)
+            gemini_ver="$pver"
+            provider_is_installed "$i" && gemini_active="true"
+            ;;
+    esac
+done
+
 # Aggregate call-to-action: when ≥1 tool has an update, append a single hint
 # pointing at the upgrade command. Clean bar (no suffix) when all up-to-date.
 update_count=0
@@ -226,9 +251,11 @@ if (( update_count > 0 )); then
         "$COL_YELLOW" "$UPDATE_MARKER" "$update_count" "$word" "$UPDATE_CTA_CMD" "$COL_RESET")
 fi
 
-printf "%s %s %s %s%s" \
+printf "%s %s %s %s %s %s%s" \
     "$(badge ctx     "$ctx_ver"  "$ctx_enabled"  "$ctx_upd")" \
     "$(badge mem     "$mem_ver"  "$mem_enabled"  "$mem_upd")" \
     "$(badge rtk     "$rtk_saved" "$rtk_active"  "$rtk_upd")" \
     "$(badge caveman "$cave_ver" "$cave_enabled" "$cave_upd")" \
+    "$(badge codex   "$codex_ver" "$codex_active" "false")" \
+    "$(badge gemini  "$gemini_ver" "$gemini_active" "false")" \
     "$summary"

@@ -109,10 +109,12 @@ EOF
     mock_rtk_monthly
     run bash "$SCRIPT"
     [ "$status" -eq 0 ]
-    # 18.4M saved → Claude $5/M = $92.00, Codex $1.25/M = $23.00
-    [[ "$output" == *"2026-03"*'$92.00'*'$23.00'* ]]
+    # 18.4M saved → Claude $5/M = $92.00
+    [[ "$output" == *"2026-03"*'$92.00'* ]]
     # 23.9M saved → Claude = $119.50
     [[ "$output" == *"2026-04"*'$119.50'* ]]
+    # Codex monthly is now separate (native SQLite telemetry, not RTK-based)
+    # — not tested here since Codex DB is not mocked
 }
 
 @test "monthly total sums saved-token \$ value, not the rtk TOTAL row" {

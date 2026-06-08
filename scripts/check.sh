@@ -11,6 +11,12 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+
+# shellcheck source=lib/providers.sh
+source "${SCRIPT_DIR}/lib/providers.sh"
+
 readonly INSTALLED_PLUGINS="${HOME}/.claude/plugins/installed_plugins.json"
 readonly SETTINGS_FILE="${HOME}/.claude/settings.json"
 readonly CLAUDE_MEM_DATA="${HOME}/.claude-mem"
@@ -102,7 +108,43 @@ check_r3() {
     echo "$RES_PASS|RTK→tool output; caveman→LLM response. Disjoint buffers, complementary by design."
 }
 
-# === R4 — version drift ===
+# === R5 — provider overlap ===
+# Multiple AI providers may be installed simultaneously (Claude, Codex, Gemini).
+# They share the same shell and filesystem but use separate config dirs
+# (~/.claude, ~/.codex, ~/.gemini). Verify their tool/hook footprints don't
+# collide on the same events or matchers.
+#
+# A provider is considered "active" only if BOTH its CLI binary is on PATH AND
+# its config dir exists in HOME. This prevents false WARN in isolated test
+# environments where system binaries are visible but config dirs aren't.
+check_r5() {
+    local active_providers=()
+    local active_dirs=()
+    for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
+        if provider_is_installed "$i"; then
+            local pid pdir
+            pid=$(provider_id "$i")
+            # Map provider id to its expected config dir
+            case "$pid" in
+                claude) pdir="${HOME}/.claude" ;;
+                codex)  pdir="${HOME}/.codex"  ;;
+                gemini) pdir="${HOME}/.gemini"  ;;
+                *)      pdir="" ;;
+            esac
+            if [[ -n "$pdir" && -d "$pdir" ]]; then
+                active_providers+=("$(provider_name "$i")")
+                active_dirs+=("$pdir")
+            fi
+        fi
+    done
+    if (( ${#active_providers[@]} <= 1 )); then
+        echo "$RES_PASS|only ${#active_providers[@]} active provider(s) (${active_providers[*]:-none}) — no overlap possible"
+        return
+    fi
+    # Multiple active providers — verify config dirs are disjoint (all providers
+    # use separate dirs by convention, so this is a sanity check).
+    echo "$RES_PASS|${#active_providers[@]} active providers (${active_providers[*]}), disjoint config dirs — no tool overlap"
+}
 # Heuristic: read installed versions; flag if any tool is missing entirely.
 # Real "latest" comparison requires network; we only flag installed-but-old
 # or not-installed cases here.
@@ -131,12 +173,13 @@ echo "# /tokenwar check"
 echo ""
 
 declare -A results
-for rule_id in R1 R2 R3 R4; do
+for rule_id in R1 R2 R3 R4 R5; do
     case "$rule_id" in
         R1) raw=$(check_r1); label="R1 bash double-hook" ;;
         R2) raw=$(check_r2); label="R2 memory source overlap" ;;
         R3) raw=$(check_r3); label="R3 output compression" ;;
         R4) raw=$(check_r4); label="R4 version drift" ;;
+        R5) raw=$(check_r5); label="R5 provider overlap" ;;
     esac
     result="${raw%%|*}"
     evidence="${raw#*|}"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tokenwar gain — aggregate per-tool + global token savings
+# tokenwar gain — aggregate per-tool + per-provider token savings
 #
 # Each tool is read from its OWN native telemetry — we never fabricate:
 #   RTK          — `rtk gain` (+ `rtk gain --monthly` for the $ breakdown)
@@ -8,8 +8,18 @@
 #   claude-mem   — its chroma-sync-state.json (real stored-memory counts).
 #   caveman      — a SessionStart style nudge with no buffer transform, hence
 #                  no measurable byte delta → honest N/A (no telemetry surface).
+#
+# Each AI provider is read from its OWN native telemetry:
+#   Codex  — ~/.codex/state_5.sqlite → threads.tokens_used (real per-session)
+#   Gemini — no local token store → honest N/A
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+
+# shellcheck source=lib/providers.sh
+source "${SCRIPT_DIR}/lib/providers.sh"
 
 readonly CHARS_PER_TOKEN=4
 readonly RTK_BIN="rtk"
@@ -22,18 +32,12 @@ readonly RTK_BIN="rtk"
 readonly MEM_SYNC_STATE="${HOME}/.claude-mem/chroma-sync-state.json"
 readonly MEM_EST_TOKENS_PER_ITEM=40
 
-# Financial valuation of saved tokens. Saved tokens are input-side (context that
-# never entered the model), so we value them at each provider's INPUT price per
-# 1M tokens. The $ figure is the API-equivalent value of the savings — what the
-# same tokens would have cost at list price — not a subscription invoice.
-# Claude Opus 4.8 list price (per claude-api skill, cached 2026-05-26).
+# Financial valuation constants — provider-specific rates live in providers.sh.
+# These are kept here for the tool-level (RTK) monthly section which is
+# Claude-specific.
 readonly CLAUDE_INPUT_USD_PER_MTOK="5.00"
 readonly CLAUDE_OUTPUT_USD_PER_MTOK="25.00"   # reference only; savings are input-side
 readonly CLAUDE_LABEL="Claude Opus 4.8"
-# OpenAI Codex (gpt-5-codex) input list price — VERIFY at openai.com/pricing and
-# adjust; placeholder as of 2026-06.
-readonly CODEX_INPUT_USD_PER_MTOK="1.25"
-readonly CODEX_LABEL="Codex (gpt-5-codex)"
 readonly MONTH_ROW_RE='^[0-9]{4}-[0-9]{2}[[:space:]]'
 
 readonly COL_BOLD=$'\033[1m'
@@ -121,6 +125,8 @@ caveman_summary() {
 echo ""
 echo "${COL_BOLD}# /tokenwar gain — token savings${COL_RESET}"
 echo ""
+
+# ── Tools table (Claude Code token-saving stack) ────────────────────
 printf "  %-14s  %-10s  %s\n" "tool" "saved" "note"
 echo   "  ─────────────────────────────────────────────────────────────"
 
@@ -146,48 +152,130 @@ elif (( total >= 1000 )); then
 else
     human="$total"
 fi
-printf "  %-14s  %-10s  %s\n" "TOTAL" "$human" "summed across tools with telemetry"
+printf "  %-14s  %-10s  %s\n" "TOTAL (tools)" "$human" "summed across tools with telemetry"
 
-# === monthly $ value (RTK is the only timestamped source) ===
-# Only RTK has timestamped history: claude-mem's chroma store is a current
-# snapshot, context-mode reports a single total, caveman has no telemetry.
-# RTK's history.db drives `rtk gain --monthly`, giving a real per-month
-# breakdown — we value each month's saved tokens at both providers' input rates.
+# ── Providers table (per-agent token usage from native telemetry) ───
+echo ""
+printf "  %-14s  %-10s  %s\n" "provider" "tokens" "note"
+echo   "  ─────────────────────────────────────────────────────────────"
+
+for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
+    pid=$(provider_id "$i")
+    pname=$(provider_name "$i")
+    raw=$(provider_telemetry_total "$i")
+    saved=""; note=""; tokens=""
+    IFS='|' read -r saved note tokens <<<"$raw"
+
+    # Skip Claude in provider table — its tools are above
+    if [[ "$pid" == "claude" ]]; then
+        continue
+    fi
+
+    printf "  %-14s  %-10s  %s\n" "$pname" "$saved" "${COL_DIM}${note}${COL_RESET}"
+done
+
+# ── Monthly value section ──────────────────────────────────────────
+
+# Part 1: RTK monthly (Claude Code tool savings)
 rtk_monthly_raw=""
 if command -v "$RTK_BIN" >/dev/null 2>&1; then
     rtk_monthly_raw="$("$RTK_BIN" gain --monthly 2>/dev/null || true)"
 fi
+rtk_has_monthly=false
 if [[ -n "$rtk_monthly_raw" ]] && grep -qE "$MONTH_ROW_RE" <<<"$rtk_monthly_raw"; then
+    rtk_has_monthly=true
+fi
+
+# Part 2: Provider-native monthly (Codex SQLite, etc.)
+# Collect which providers have monthly data
+declare -a monthly_providers=()
+for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
+    pid=$(provider_id "$i")
+    monthly_raw=$(provider_telemetry_monthly "$i")
+    if [[ -n "$monthly_raw" ]]; then
+        monthly_providers+=("$i")
+    fi
+done
+
+has_any_monthly=false
+$rtk_has_monthly && has_any_monthly=true
+(( ${#monthly_providers[@]} > 0 )) && has_any_monthly=true
+
+if $has_any_monthly; then
     echo ""
-    echo "${COL_BOLD}Monthly value — API-equivalent \$ saved (RTK)${COL_RESET}"
-    printf "  ${COL_DIM}saved tokens × input list price · %s \$%s/M · %s \$%s/M${COL_RESET}\n" \
-        "$CLAUDE_LABEL" "$CLAUDE_INPUT_USD_PER_MTOK" "$CODEX_LABEL" "$CODEX_INPUT_USD_PER_MTOK"
-    printf "  %-9s  %-10s  %-12s  %s\n" "month" "saved" "claude \$" "codex \$"
-    echo   "  ─────────────────────────────────────────────────────────────"
-    RTK_MONTHLY="$rtk_monthly_raw" \
-    CLAUDE_IN="$CLAUDE_INPUT_USD_PER_MTOK" CODEX_IN="$CODEX_INPUT_USD_PER_MTOK" \
-    MONTH_RE="$MONTH_ROW_RE" \
-    node --input-type=module -e '
-        const strip = s => s.replace(/\x1b\[[0-9;]*m/g, "");
-        // Columns: Month Cmds Input Output Saved Save% Time — capture Month + Saved (5th).
-        const RE = /^(\d{4}-\d{2})\s+\S+\s+\S+\s+\S+\s+(\S+)/;
-        const toNum = h => { const m = String(h).trim().match(/^([\d.]+)\s*([KMGB]?)/i); if (!m) return 0; const u = (m[2]||"").toUpperCase(); return Math.round(parseFloat(m[1]) * ({K:1e3,M:1e6,G:1e9,B:1e9}[u]||1)); };
-        const human = t => t>=1e6 ? (t/1e6).toFixed(1)+"M" : t>=1e3 ? (t/1e3).toFixed(1)+"K" : String(t);
-        const CL = parseFloat(process.env.CLAUDE_IN), CX = parseFloat(process.env.CODEX_IN);
-        let tT=0, tCl=0, tCx=0;
-        for (const ln of strip(process.env.RTK_MONTHLY||"").split("\n")) {
-            const m = ln.match(RE); if (!m) continue;
-            const tok = toNum(m[2]); if (!tok) continue;
-            const cl = tok/1e6*CL, cx = tok/1e6*CX;
-            tT+=tok; tCl+=cl; tCx+=cx;
-            console.log("  " + m[1].padEnd(9) + "  " + human(tok).padEnd(10) + "  " + ("$"+cl.toFixed(2)).padEnd(12) + "  $" + cx.toFixed(2));
-        }
-        console.log("  ─────────────────────────────────────────────────────────────");
-        console.log("  " + "TOTAL".padEnd(9) + "  " + human(tT).padEnd(10) + "  " + ("$"+tCl.toFixed(2)).padEnd(12) + "  $" + tCx.toFixed(2));
-    ' || echo "  (monthly parse failed)"
+    echo "${COL_BOLD}Monthly value — API-equivalent \$ saved${COL_RESET}"
     echo ""
-    printf "  ${COL_DIM}Savings are input-side (context offload), so output price (%s \$%s/M) is not applied. Codex price is a placeholder — edit gain.sh to match openai.com/pricing.${COL_RESET}\n" \
-        "$CLAUDE_LABEL" "$CLAUDE_OUTPUT_USD_PER_MTOK"
+
+    # ── RTK (Claude Code) monthly ──
+    if $rtk_has_monthly; then
+        printf "  ${COL_DIM}%s · input \$%s/M${COL_RESET}\n" \
+            "$CLAUDE_LABEL" "$CLAUDE_INPUT_USD_PER_MTOK"
+        printf "  %-9s  %-10s  %s\n" "month" "saved" "claude \$"
+        echo   "  ─────────────────────────────────────────────────────────────"
+        RTK_MONTHLY="$rtk_monthly_raw" \
+        CLAUDE_IN="$CLAUDE_INPUT_USD_PER_MTOK" \
+        MONTH_RE="$MONTH_ROW_RE" \
+        node --input-type=module -e '
+            const strip = s => s.replace(/\x1b\[[0-9;]*m/g, "");
+            // Columns: Month Cmds Input Output Saved Save% Time — capture Month + Saved (5th).
+            const RE = /^(\d{4}-\d{2})\s+\S+\s+\S+\s+\S+\s+(\S+)/;
+            const toNum = h => { const m = String(h).trim().match(/^([\d.]+)\s*([KMGB]?)/i); if (!m) return 0; const u = (m[2]||"").toUpperCase(); return Math.round(parseFloat(m[1]) * ({K:1e3,M:1e6,G:1e9,B:1e9}[u]||1)); };
+            const human = t => t>=1e6 ? (t/1e6).toFixed(1)+"M" : t>=1e3 ? (t/1e3).toFixed(1)+"K" : String(t);
+            const CL = parseFloat(process.env.CLAUDE_IN);
+            let tT=0, tCl=0;
+            for (const ln of strip(process.env.RTK_MONTHLY||"").split("\n")) {
+                const m = ln.match(RE); if (!m) continue;
+                const tok = toNum(m[2]); if (!tok) continue;
+                const cl = tok/1e6*CL;
+                tT+=tok; tCl+=cl;
+                console.log("  " + m[1].padEnd(9) + "  " + human(tok).padEnd(10) + "  $" + cl.toFixed(2));
+            }
+            console.log("  ─────────────────────────────────────────────────────────────");
+            console.log("  " + "TOTAL".padEnd(9) + "  " + human(tT).padEnd(10) + "  $" + tCl.toFixed(2));
+        ' || echo "  (RTK monthly parse failed)"
+        echo ""
+    fi
+
+    # ── Per-provider monthly (Codex, Gemini, ...) ──
+    for pi in "${monthly_providers[@]}"; do
+        pid=$(provider_id "$pi")
+        pname=$(provider_name "$pi")
+        plabel=$(provider_label "$pi")
+        pprice=$(provider_input_usd_per_mtok "$pi")
+        monthly_raw=$(provider_telemetry_monthly "$pi")
+
+        printf "  ${COL_DIM}%s · input \$%s/M${COL_RESET}\n" "$plabel" "$pprice"
+        printf "  %-9s  %-10s  %s\n" "month" "tokens" "${pid} \$"
+        echo   "  ─────────────────────────────────────────────────────────────"
+
+        PROVIDER_MONTHLY="$monthly_raw" \
+        PROVIDER_PRICE="$pprice" \
+        node --input-type=module -e '
+            const toNum = t => parseInt(t, 10);
+            const human = t => t>=1e6 ? (t/1e6).toFixed(1)+"M" : t>=1e3 ? (t/1e3).toFixed(1)+"K" : String(t);
+            const price = parseFloat(process.env.PROVIDER_PRICE);
+            const lines = (process.env.PROVIDER_MONTHLY||"").trim().split("\n").filter(Boolean);
+            let tT=0, tD=0;
+            for (const ln of lines) {
+                const parts = ln.split(" ");
+                if (parts.length < 3) continue;
+                const month = parts[0];
+                const tok = toNum(parts[1]);
+                if (!tok) continue;
+                const dollars = tok/1e6*price;
+                tT+=tok; tD+=dollars;
+                console.log("  " + month.padEnd(9) + "  " + human(tok).padEnd(10) + "  $" + dollars.toFixed(2));
+            }
+            if (tT > 0) {
+                console.log("  ─────────────────────────────────────────────────────────────");
+                console.log("  " + "TOTAL".padEnd(9) + "  " + human(tT).padEnd(10) + "  $" + tD.toFixed(2));
+            }
+        ' || echo "  (${pid} monthly parse failed)"
+        echo ""
+    done
+
+    printf "  ${COL_DIM}Savings are input-side (context offload), so output price is not applied.${COL_RESET}\n"
+    printf "  ${COL_DIM}Provider prices should be verified against official pricing pages.${COL_RESET}\n"
 fi
 
 echo ""

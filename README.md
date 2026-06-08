@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml)
 
-**A 4-tool token-saving stack for Claude Code.** Each tool compresses a different buffer — they stack without overlap.
+**A 4-tool token-saving stack for Claude Code + multi-provider token tracking (Codex, Gemini).** Each tool compresses a different buffer — they stack without overlap. Provider-level telemetry from native sources (SQLite, CLI) valued at list prices.
 
 Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 
@@ -66,7 +66,7 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 | Command | What it does |
 | --- | --- |
 | `/tokenwar status` | Health of the 4 tools — installed, enabled, version |
-| `/tokenwar gain` | Per-tool token savings + **monthly $ value** (Claude/Codex) |
+| `/tokenwar gain` | Per-tool token savings + per-provider (Codex/Gemini native telemetry) + **monthly $ value** |
 | `/tokenwar upgrade` | Bump each tool to latest (asks confirmation) |
 | `/tokenwar check` | Conflict detector — verifies the 4 stack additively |
 | `/tokenwar test` | End-to-end ping: is each tool actually working? |

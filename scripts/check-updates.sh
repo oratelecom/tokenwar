@@ -29,6 +29,11 @@ readonly MARKETPLACE_ROOT="${HOME}/.claude/plugins/marketplaces"
 readonly MARKETPLACE_MANIFEST_REL=".claude-plugin/marketplace.json"
 readonly RTK_BIN="rtk"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+# shellcheck source=lib/providers.sh
+source "${SCRIPT_DIR}/lib/providers.sh"
+
 readonly STATUS_UPTODATE="up-to-date"
 readonly STATUS_UPDATE="update-available"
 readonly STATUS_AHEAD="ahead"
@@ -209,6 +214,19 @@ if $force_refresh || ! cache_is_fresh; then
     cave_installed=$(installed_plugin_version "$SLUG_CAVE")
     rtk_installed=$(rtk_installed_version)
 
+    # Provider CLI versions
+    codex_installed=$(provider_version "$PROVIDER_IDX_CODEX")
+    gemini_installed=$(provider_version "$PROVIDER_IDX_GEMINI")
+    # Latest provider versions: we don't have a reliable upstream source yet
+    # (npm view would require knowing the exact package name). For now,
+    # installed == latest unless we can prove otherwise via `codex doctor`.
+    codex_latest="$codex_installed"
+    gemini_latest="$gemini_installed"
+    # Codex self-reports updates via `codex doctor` — parse if available
+    if command -v codex >/dev/null 2>&1 && [[ -n "$codex_installed" ]]; then
+        codex_doctor_latest=$(codex doctor 2>/dev/null | awk '/updates available/ {print $2}' | head -1 || echo "")
+        [[ -n "$codex_doctor_latest" ]] && codex_latest="$codex_doctor_latest"
+    fi
     ctx_latest=$(marketplace_version "$MARKETPLACE_CTX" "context-mode")
     mem_latest=$(marketplace_version "$MARKETPLACE_MEM" "claude-mem")
     cave_latest=$(marketplace_version "$MARKETPLACE_CAVE" "caveman")
@@ -218,6 +236,8 @@ if $force_refresh || ! cache_is_fresh; then
     mem_state=$(classify "$mem_installed" "$mem_latest")
     cave_state=$(classify "$cave_installed" "$cave_latest")
     rtk_state=$(classify "$rtk_installed" "$rtk_latest")
+    codex_state=$(classify "$codex_installed" "$codex_latest")
+    gemini_state=$(classify "$gemini_installed" "$gemini_latest")
 
     now=$(date +%s)
     TOKENWAR_CACHE_FILE="$CACHE_FILE" \
@@ -227,6 +247,8 @@ if $force_refresh || ! cache_is_fresh; then
     MEM_I="$mem_installed" MEM_L="$mem_latest" MEM_S="$mem_state" \
     CAVE_I="$cave_installed" CAVE_L="$cave_latest" CAVE_S="$cave_state" \
     RTK_I="$rtk_installed" RTK_L="$rtk_latest" RTK_S="$rtk_state" \
+    CODEX_I="$codex_installed" CODEX_L="$codex_latest" CODEX_S="$codex_state" \
+    GEMINI_I="$gemini_installed" GEMINI_L="$gemini_latest" GEMINI_S="$gemini_state" \
     node --input-type=module -e "
         import { writeFileSync } from 'node:fs';
         const e = process.env;
@@ -238,6 +260,10 @@ if $force_refresh || ! cache_is_fresh; then
                 'claude-mem':   { installed: e.MEM_I, latest: e.MEM_L, state: e.MEM_S, slug: '$SLUG_MEM' },
                 'caveman':      { installed: e.CAVE_I, latest: e.CAVE_L, state: e.CAVE_S, slug: '$SLUG_CAVE' },
                 'rtk':          { installed: e.RTK_I, latest: e.RTK_L, state: e.RTK_S, slug: 'cargo:rtk' }
+            },
+            providers: {
+                'codex':  { installed: e.CODEX_I, latest: e.CODEX_L, state: e.CODEX_S },
+                'gemini': { installed: e.GEMINI_I, latest: e.GEMINI_L, state: e.GEMINI_S }
             }
         };
         writeFileSync(e.TOKENWAR_CACHE_FILE, JSON.stringify(data, null, 2));
@@ -245,25 +271,40 @@ if $force_refresh || ! cache_is_fresh; then
 fi
 
 # Render cache → stdout (unless --quiet, in which case only set exit code).
-TOKENWAR_CACHE_FILE="$CACHE_FILE" QUIET="$($quiet && echo 1 || echo 0)" \
-node --input-type=module -e "
-    import { readFileSync } from 'node:fs';
-    const data = JSON.parse(readFileSync(process.env.TOKENWAR_CACHE_FILE, 'utf8'));
-    const entries = Object.entries(data.tools);
-    const updates = entries.filter(([,v]) => v.state === '$STATUS_UPDATE');
-    if (process.env.QUIET !== '1') {
-        const pad = (s, n) => String(s).padEnd(n);
-        for (const [name, v] of entries) {
-            console.log(\`  \${pad(name,14)} \${pad(v.installed||'-',16)} → \${pad(v.latest||'-',16)} \${v.state}\`);
-        }
-        if (data.refresh_ok === false) {
-            console.log('');
-            console.log('  ⚠ marketplace refresh had errors — cache may understate available updates.');
-        }
-        if (updates.length > 0) {
-            console.log('');
-            console.log(\`  → \${updates.length} update(s) available. Run \\\`/tokenwar upgrade\\\` to apply.\`);
+_render_cache() {
+    local cache_file="$1" quiet="$2" status_upd_val="$3"
+    TWC_QUIET="$quiet" TWC_STAT_UPD="$status_upd_val" TWC_CACHE_FILE="$cache_file" node --input-type=module <<'NODESCRIPT'
+import { readFileSync } from 'node:fs';
+
+const data = JSON.parse(readFileSync(process.env.TWC_CACHE_FILE, 'utf8'));
+const toolEntries = Object.entries(data.tools);
+const providerEntries = data.providers ? Object.entries(data.providers) : [];
+const allEntries = [...toolEntries, ...providerEntries];
+const updates = allEntries.filter(([, v]) => v.state === process.env.TWC_STAT_UPD);
+
+if (process.env.TWC_QUIET !== '1') {
+    const pad = (s, n) => String(s).padEnd(n);
+    for (const [name, v] of toolEntries) {
+        const line = `  ${pad(name, 14)} ${pad(v.installed || '-', 16)} → ${pad(v.latest || '-', 16)} ${v.state}`;
+        console.log(line);
+    }
+    if (providerEntries.length > 0) {
+        console.log('');
+        for (const [name, v] of providerEntries) {
+            const line = `  ${pad(name, 14)} ${pad(v.installed || '-', 16)} → ${pad(v.latest || '-', 16)} ${v.state}`;
+            console.log(line);
         }
     }
-    process.exit(updates.length > 0 ? 2 : 0);
-"
+    if (data.refresh_ok === false) {
+        console.log('');
+        console.log('  ⚠ marketplace refresh had errors — cache may understate available updates.');
+    }
+    if (updates.length > 0) {
+        console.log('');
+        console.log('  → ' + updates.length + ' update(s) available. Run `/tokenwar upgrade` to apply.');
+    }
+}
+process.exit(updates.length > 0 ? 2 : 0);
+NODESCRIPT
+}
+_render_cache "$CACHE_FILE" "$($quiet && echo 1 || echo 0)" "$STATUS_UPDATE"

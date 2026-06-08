@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# tokenwar status — report state of the 4 token-saving tools
+# tokenwar status — report state of the 4 token-saving tools + AI providers.
 #
-# Exit 0 if all 4 are healthy, 1 otherwise.
+# Exit 0 if all tools + providers are healthy, 1 otherwise.
 # Pass --test to additionally run a liveness ping for each tool
 # (note: context-mode ping requires the ctx_stats MCP tool, which
 # shell cannot reach — the caller is responsible for that one).
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+
+# shellcheck source=lib/providers.sh
+source "${SCRIPT_DIR}/lib/providers.sh"
 
 readonly STATUS_OK="OK"
 readonly STATUS_DISABLED="installed-disabled"
@@ -83,6 +89,11 @@ rtk_version() {
     "$RTK_BIN" --version 2>/dev/null | awk '{print $2}'
 }
 
+# Provider state detection
+provider_state_str() {
+    provider_is_installed "$1" && echo "$STATUS_OK" || echo "$STATUS_MISSING"
+}
+
 format_line() {
     local tool="$1" version="$2" state="$3" extra="${4:-}"
     local color symbol
@@ -112,6 +123,8 @@ ping_caveman() {
 # === report ===
 echo "# /tokenwar status"
 echo ""
+
+# ── Tools ──────────────────────────────────────────────────────────
 printf "  %s  %-14s  %-10s  %-22s  %s\n" "·" "tool" "version" "state" "note"
 printf "  ─────────────────────────────────────────────────────────────────\n"
 
@@ -132,12 +145,38 @@ format_line "context-mode" "$ctx_ver"  "$ctx_state"  "$ctx_extra"
 format_line "claude-mem"   "$mem_ver"  "$mem_state"  "$mem_extra"
 format_line "rtk"          "$rtk_ver"  "$rtk_st"     "$rtk_extra"
 format_line "caveman"      "$cave_ver" "$cave_state" "$cave_extra"
+
+echo ""
+
+# ── Providers ────────────────────────────────────────────────────────
+printf "  %s  %-14s  %-10s  %-22s  %s\n" "·" "provider" "version" "state" "note"
+printf "  ─────────────────────────────────────────────────────────────────\n"
+
+declare -a provider_failures=()
+for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
+    pid=$(provider_id "$i")
+    pname=$(provider_name "$i")
+    pver=$(provider_version "$i")
+    pstate=$(provider_state_str "$i")
+
+    # Build note: telemetry source
+    case "$pid" in
+        claude) pnote="telemetry: RTK + ctx_stats + chroma-sync-state" ;;
+        codex)  pnote="telemetry: ~/.codex/state_5.sqlite (tokens_used)" ;;
+        gemini) pnote="telemetry: N/A (server-side sessions)" ;;
+        *)      pnote="" ;;
+    esac
+
+    format_line "$pname" "$pver" "$pstate" "$pnote"
+    [[ "$pstate" != "$STATUS_OK" ]] && provider_failures+=("$pid")
+done
+
 echo ""
 
 # Passive upgrade notice. The check is throttled to a 24h cache, so calling
 # this on every `/tokenwar status` is cheap. Failure here must not break status:
 # absorb any error and skip the section.
-CHECK_UPDATES_SCRIPT="$(dirname "${BASH_SOURCE[0]}")/check-updates.sh"
+CHECK_UPDATES_SCRIPT="${SCRIPT_DIR}/check-updates.sh"
 readonly CHECK_UPDATES_SCRIPT
 if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
     update_count="$(
@@ -164,7 +203,13 @@ if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
 fi
 
 # Exit code: 0 if all OK, 1 otherwise
+tool_failures=0
 for s in "$ctx_state" "$mem_state" "$cave_state" "$rtk_st"; do
-    [[ "$s" == "$STATUS_OK" ]] || exit 1
+    [[ "$s" == "$STATUS_OK" ]] || tool_failures=1
 done
+provider_failure_count=${#provider_failures[@]}
+
+if (( tool_failures || provider_failure_count > 0 )); then
+    exit 1
+fi
 exit 0
