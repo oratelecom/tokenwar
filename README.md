@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml)
 
-**A 4-tool token-saving stack for Claude Code, plus _ponytail_ — a fifth axis that compresses the code itself.** The four tools each compress a different *transient* buffer (a response, a stdout, a fetch, a session). **ponytail** shrinks the **source the LLM writes to disk**, so its saving doesn't end with the call — it recurs on every future read of that file. Multi-provider token tracking (Codex, Gemini) values it all at native list prices.
+**Five token-saving tools for Claude Code, run as one stack.** Each compresses a buffer the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, and the code itself — so the savings stack instead of competing. None of the five is the headliner; the genius is running all five at once. **5-in-1.** Plus multi-provider token tracking (Codex, Gemini) valued at native list prices.
 
 Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 
-## The 4 tools
+## The five tools
 
 | Tool             | What it compresses                  | Buffer / flow                     |
 | ---------------- | ----------------------------------- | --------------------------------- |
@@ -14,6 +14,7 @@ Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 | **RTK**          | Shell / tool stdout                 | `SHELL → LLM`                     |
 | **context-mode** | Heavy data (HTTP, large files, MCP) | `LLM → SANDBOX → (FTS5) → LLM`    |
 | **claude-mem**   | Cross-session knowledge             | `LLM → store → LLM (next session)`|
+| **ponytail**     | The code the LLM writes             | `LLM → CODE (recurs on read)`     |
 
 ## Complementarity diagram
 
@@ -49,23 +50,30 @@ flowchart LR
     class CODE pony
 ```
 
-Each tool acts on a **distinct buffer**. No buffer is double-processed, so the gains stack additively. Four of the arrows are solid round-trips that fire **once per call**; the pink `ponytail` arrow is different — it writes a smaller artifact to disk, and the dotted return loop (`CODE -.-> LLM`) is the saving **replayed on every future read**.
+Each tool acts on a **distinct buffer** — no buffer is double-processed, so the gains stack additively. Four lanes save on the live conversation (once per call); ponytail's lane saves on the artifact on disk (replayed on every future read via the dotted `CODE -.-> LLM` loop). Different shapes of saving, same stack.
 
-## The generation axis — why ponytail is the genius one
+## Why we picked each one — and why all five
 
-The four tools above compress **transient buffers**: one response, one stdout, one fetch, one session hand-off. Each saving is real but **paid once** — on that call, then it's gone.
+No tool here is the headliner. Each was chosen because it owns a buffer the others physically can't reach, and on its own lane each is a killer. The genius isn't any single one — it's that the five run together with zero overlap, so every saving stacks. **Five tools, one stack, 5-in-1.**
 
-**ponytail** ([DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail), the lazy-senior-dev ruleset) acts one buffer further down: the **code the LLM writes**. It enforces a YAGNI ladder — stdlib before custom, native feature before dependency, one line before fifty, deletion before addition — so the model emits the *smallest correct* diff instead of an over-engineered one.
+### RTK — the shell/tool firehose
+Tool output is the heaviest, most frequent buffer in an agent loop: every `git diff`, `ls`, test run, and API dump lands in context raw. RTK rewrites those commands at the hook level so only a compressed form reaches the model — transparently, zero prompt overhead, written in Rust so it's instant. It's the single biggest *measured* saver in the stack. **Picked because the firehose is where the tokens actually are.**
 
-That cuts tokens **twice**, and the second cut is the one nobody counts:
+### context-mode — the heavy-data sandbox
+One large file read or HTTP fetch can blow the whole window in a single call. context-mode runs the operation in a sandbox and indexes the result in FTS5, so you keep the derived answer (~3 KB) while the raw bytes (~700 KB) never enter the conversation — *think in code, not in raw output*. **Picked because some payloads should be processed, never read.**
 
-1. **At generation** — less code emitted = fewer **output** tokens, right now. (Output tokens are the expensive ones.)
-2. **At every future read** — code that was never written is code no one ever re-reads, reviews, greps, diffs, or feeds back into context. A 9-line endpoint instead of a 5-file / 3-class one is ~80% fewer **input** tokens on *every* later session that opens that file, for the life of the codebase.
+### claude-mem — memory across sessions
+Re-explaining the project every time you `/clear` or restart is pure repeated cost. claude-mem persists decisions, errors, and context to a store that survives compaction and is recalled next session — no re-priming. **Picked because the most expensive tokens are the ones you'd otherwise pay twice.**
 
-> **The other four save on the _conversation_. ponytail saves on the _artifact_.**
-> Its gain is the only one that **recurs** — it compounds every time the file is touched again, by you or by any tool in this stack reading it back. Generation is the down-payment; maintenance is the dividend.
+### caveman — the response on a diet
+The model's own prose is tokens too. caveman strips articles, filler, and hedging from what the LLM says while keeping the technical substance exact — terse output, same information. **Picked because a 5-line answer beats three paragraphs, every single turn.** (It's the prose twin of ponytail's code.)
 
-No fabricated number: ponytail is a prompt include (`@ponytail.md` in `CLAUDE.md`), not a metered process, so — exactly like caveman — it reports **presence** (`[ponytail on]`), never a token count. To measure it, A/B the same task with `/ponytail` on vs off and diff the output tokens; the [`examples/`](https://github.com/DietrichGebert/ponytail/tree/main/examples) in the ponytail repo show the before/after diffs.
+### ponytail — the code itself
+The lazy-senior-dev ruleset ([DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)): a YAGNI ladder — stdlib before custom, native before dependency, one line before fifty, deletion before addition — so the model writes the *smallest correct* code, not an over-engineered one. Its saving lands twice: fewer **output** tokens at generation, then fewer **input** tokens on every future read/review/diff of a smaller file. **Picked because the cheapest code to maintain is the code that was never written.**
+
+> Four save on the conversation, one saves on the artifact. One's a Rust hook, one's an MCP sandbox, one's a memory store, one's a response filter, one's a ruleset. Different shapes, different lanes — that's exactly why they stack. Run one and you compress one buffer; run all five and nothing in the loop is left uncompressed. **That's the 5-in-1.**
+
+> Honest accounting: RTK / context-mode / claude-mem report real telemetry; caveman and ponytail are presence-only (a style nudge and a prompt include — no metered buffer), so they show `on`, never a fabricated number. Measure ponytail by A/B-ing `/ponytail` on vs off — the [`examples/`](https://github.com/DietrichGebert/ponytail/tree/main/examples) show before/after diffs.
 
 ## Why complementary (not conflicting)
 
@@ -78,7 +86,7 @@ The tokenwar `check.sh` script enforces 4 rules:
 | R3   | RTK targets tool stdout; caveman targets LLM output                                | Disjoint buffers        |
 | R4   | All 4 installed at current versions                                                | `claude plugin list`    |
 
-When all four PASS, the verdict is `COMPLEMENTARY`.
+When all four PASS, the verdict is `COMPLEMENTARY`. ponytail isn't in the table because it owns no hook, store, or output buffer — it only shapes what the model writes, so it can't collide with any of the four. Five tools, still zero overlap.
 
 ## Commands
 

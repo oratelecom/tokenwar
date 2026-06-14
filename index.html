@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>tokenwar — token-saving stack for Claude Code: 4 tools + ponytail</title>
-  <meta name="description" content="4 tools compress the conversation; ponytail compresses the code itself — the generation axis that saves on writing AND on every future read. Per-tool savings + monthly $ value (Claude/Codex). RTK saved $214 in API-equivalent Opus 4.8 tokens." />
+  <title>tokenwar — five token-saving tools for Claude Code, run as one stack (5-in-1)</title>
+  <meta name="description" content="Five token-saving tools for Claude Code, run as one stack: caveman, RTK, context-mode, claude-mem, ponytail. Each compresses a different buffer — response, tool stdout, heavy data, memory, and the code itself — zero overlap, savings stack. 5-in-1. Monthly $ value (Claude/Codex); RTK saved $214 in API-equivalent Opus 4.8 tokens." />
   <style>
     :root {
       --bg: #0b0d12;
@@ -245,7 +245,7 @@
   <div class="wrap">
     <header>
       <h1>tokenwar</h1>
-      <p class="tag">4 tools compress the <strong>conversation</strong>. <strong>ponytail</strong> compresses the <strong>code itself</strong> — the only saving that <strong>recurs</strong>. Zero overlap; the gains stack.</p>
+      <p class="tag">Five tools, five buffers, zero overlap. None is the star — the genius is running all five at once. <strong>5-in-1.</strong></p>
       <div class="badges">
         <span class="badge ctx">[ctx 1.0.162]</span>
         <span class="badge mem">[mem 13.6.0]</span>
@@ -295,10 +295,9 @@
         </div>
       </div>
       <p style="margin:18px 2px 0;font-size:0.92rem;color:var(--muted)">
-        The first four arrows fire <strong>once per call</strong>. The
-        <span style="color:var(--pony)">ponytail</span> arrow writes a <em>smaller artifact to disk</em> —
-        and that saving is <strong style="color:var(--pony)">replayed on every future read</strong>
-        of the file (review · diff · grep · next session). The only axis whose gain <em>recurs</em>.
+        Five lanes, none double-processed. Four save on the live conversation (once per call); the
+        <span style="color:var(--pony)">ponytail</span> lane saves on the artifact on disk —
+        replayed on every future read (review · diff · grep · next session). Different shapes of saving, same stack.
       </p>
     </section>
 
@@ -308,44 +307,52 @@
         <div class="card cave">
           <h3>caveman</h3>
           <p>Compresses what the model says to the user. Drops articles, filler, hedging — keeps technical substance exact.</p>
+          <p style="margin-top:8px"><strong style="color:var(--cave)">Why:</strong> the model's prose is tokens too — a 5-line answer beats three paragraphs, every turn.</p>
           <div class="buffer">buffer: LLM → USER</div>
         </div>
         <div class="card rtk">
           <h3>RTK</h3>
           <p>Rewrites shell commands at the hook level. Compressed stdout enters the model context instead of raw output.</p>
+          <p style="margin-top:8px"><strong style="color:var(--rtk)">Why:</strong> tool output is the heaviest, most frequent buffer — the firehose is where the tokens actually are. Biggest measured saver.</p>
           <div class="buffer">buffer: SHELL → LLM</div>
         </div>
         <div class="card ctx">
           <h3>context-mode</h3>
           <p>Offloads heavy ops (HTTP, large files, MCP) into a sandbox. Only the answer enters context. FTS5 indexes everything.</p>
+          <p style="margin-top:8px"><strong style="color:var(--ctx)">Why:</strong> one large read can blow the whole window — some payloads should be processed, never read.</p>
           <div class="buffer">buffer: LLM ⇄ SANDBOX</div>
         </div>
         <div class="card mem">
           <h3>claude-mem</h3>
           <p>Persists session knowledge across <code>/clear</code> and restarts. Recallable next session — no re-explaining.</p>
+          <p style="margin-top:8px"><strong style="color:var(--mem)">Why:</strong> the most expensive tokens are the ones you'd otherwise pay twice, re-priming every session.</p>
           <div class="buffer">buffer: cross-session store</div>
         </div>
         <div class="card pony">
           <h3>ponytail</h3>
           <p>The lazy-senior-dev ruleset. A YAGNI ladder — stdlib before custom, native before dependency, one line before fifty — so the model writes the <em>smallest correct</em> code, not an over-engineered one.</p>
+          <p style="margin-top:8px"><strong style="color:var(--pony)">Why:</strong> the cheapest code to maintain is the code never written — it saves at generation <em>and</em> on every future read.</p>
           <div class="buffer">buffer: LLM → CODE (recurs on read)</div>
         </div>
       </div>
 
-      <div class="panel" style="margin-top:22px;border-color:rgba(244,114,182,0.28)">
-        <h3 style="margin:0 0 10px;color:var(--pony);font-size:1.12rem">The genius axis: it cuts tokens twice</h3>
+      <div class="panel" style="margin-top:22px">
+        <h3 style="margin:0 0 10px;font-size:1.12rem">The genius isn't one tool — it's all five at once</h3>
         <p style="margin:0 0 12px;font-size:0.95rem">
-          The other four compress <strong>transient buffers</strong> — one response, one stdout, one fetch, one session hand-off. Each saving is paid <em>once</em>, then it's gone. ponytail acts on the <strong>code that stays on disk</strong>:
+          None of these is the headliner. Each owns a buffer the others physically can't reach:
+          <span style="color:var(--rtk)">RTK</span> the tool firehose,
+          <span style="color:var(--ctx)">context-mode</span> the heavy-data sandbox,
+          <span style="color:var(--mem)">claude-mem</span> the cross-session memory,
+          <span style="color:var(--cave)">caveman</span> the response,
+          <span style="color:var(--pony)">ponytail</span> the code on disk.
+          One's a Rust hook, one's an MCP sandbox, one's a memory store, one's a response filter, one's a ruleset — different shapes, different lanes, which is exactly why they stack.
         </p>
-        <ol style="margin:0;padding-left:20px;font-size:0.95rem;line-height:1.75">
-          <li><strong style="color:var(--pony)">At generation</strong> — less code emitted = fewer <strong>output</strong> tokens (the expensive ones), right now.</li>
-          <li><strong style="color:var(--pony)">At every future read</strong> — code never written is never re-read, reviewed, grepped, diffed, or re-fed into context. A 9-line endpoint instead of a 5-file / 3-class one is ~80% fewer <strong>input</strong> tokens on <em>every</em> later session that opens it.</li>
-        </ol>
-        <p style="margin:14px 0 0;font-size:0.95rem">
-          <strong>The other four save on the conversation. ponytail saves on the artifact</strong> — the only gain that <strong style="color:var(--pony)">recurs</strong> for the life of the codebase. Generation is the down-payment; maintenance is the dividend.
+        <p style="margin:0 0 12px;font-size:0.95rem">
+          Run <em>one</em> and you compress one buffer. Run <strong>all five</strong> and nothing in the loop is left uncompressed — input, output, heavy data, memory, and the artifact itself.
+          <strong>That's the 5-in-1.</strong>
         </p>
         <p style="margin:10px 0 0;font-size:0.82rem;color:var(--muted)">
-          Presence-only, like caveman — a prompt include (<code>@ponytail.md</code> in <code>CLAUDE.md</code>), not a metered process, so it reports <code style="color:var(--pony)">[ponytail&nbsp;on]</code>, never a fabricated number. Measure it by A/B-ing <code>/ponytail</code> on vs off. Ruleset: <a href="https://github.com/DietrichGebert/ponytail" style="color:var(--pony)">DietrichGebert/ponytail</a>.
+          Honest accounting: RTK / context-mode / claude-mem report real telemetry; caveman and ponytail are presence-only (a style nudge and a prompt include — no metered buffer), so they show <code style="color:var(--pony)">on</code>, never a fabricated number. Measure ponytail by A/B-ing <code>/ponytail</code> on vs off. Ruleset: <a href="https://github.com/DietrichGebert/ponytail" style="color:var(--pony)">DietrichGebert/ponytail</a>.
         </p>
       </div>
     </section>
@@ -442,7 +449,7 @@
           <span class="credits-tagline">Token economics, productized.</span>
         </div>
 
-        <h3 class="credits-section-title">Our open-source footprint on the 4-tool stack</h3>
+        <h3 class="credits-section-title">Our open-source footprint on the stack</h3>
         <ul class="contrib-list">
           <li>
             <span class="contrib-mark done" aria-label="contributor">✓</span>
@@ -463,6 +470,11 @@
             <span class="contrib-mark soon" aria-label="coming soon">✦</span>
             <span class="contrib-name">caveman</span>
             <span class="contrib-role">Ora maintenance landing soon</span>
+          </li>
+          <li>
+            <span class="contrib-mark soon" aria-label="adopted">✦</span>
+            <span class="contrib-name">ponytail</span>
+            <span class="contrib-role">adopted — DietrichGebert/ponytail</span>
           </li>
         </ul>
 
