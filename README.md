@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml)
 
-**Five token-saving tools for Claude Code, run as one stack.** Each compresses a buffer the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, and the code itself — so the savings stack instead of competing. None of the five is the headliner; the genius is running all five at once. **5-in-1.** Plus multi-provider token tracking (Codex, Gemini) valued at native list prices.
+**Five token-saving tools, run as one stack.** Built for Claude Code first — but the stack reaches further: RTK, ponytail, caveman and context-mode work across agents (Codex, Gemini, Cursor…), and Codex/Gemini token usage is tracked from native telemetry. Each compresses a buffer the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, and the code itself — so the savings stack instead of competing. None of the five is the headliner; the genius is running all five at once. **5-in-1.**
 
 Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 
@@ -207,7 +207,7 @@ CI on every push to `main` and every PR — installs bats + shellcheck, runs ful
 
 ## Credits
 
-**Powered by [Ora Studio](https://studio.oratelecom.net) · [Ora Telecom](https://oratelecom.com)** — token economics, productized.
+**Powered by [Ora Studio](https://studio.oratelecom.net) · Ora Telecom** — token economics, productized.
 
 Our open-source footprint on the 4-tool stack:
 
