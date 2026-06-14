@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml)
 
-**A 4-tool token-saving stack for Claude Code + multi-provider token tracking (Codex, Gemini).** Each tool compresses a different buffer — they stack without overlap. Provider-level telemetry from native sources (SQLite, CLI) valued at list prices.
+**A 4-tool token-saving stack for Claude Code, plus _ponytail_ — a fifth axis that compresses the code itself.** The four tools each compress a different *transient* buffer (a response, a stdout, a fetch, a session). **ponytail** shrinks the **source the LLM writes to disk**, so its saving doesn't end with the call — it recurs on every future read of that file. Multi-provider token tracking (Codex, Gemini) values it all at native list prices.
 
 Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 
@@ -24,6 +24,7 @@ flowchart LR
     SHELL[/💻 Shell · tools/]
     SANDBOX[(🧪 Sandbox + FTS5)]
     MEM[(💾 claude-mem store)]
+    CODE[/📄 Source on disk/]
 
     USER -->|prompt| LLM
     LLM -->|caveman ⤵ output compress| USER
@@ -33,18 +34,38 @@ flowchart LR
     SANDBOX -->|FTS5 search results| LLM
     LLM -.->|persist session| MEM
     MEM -.->|recall on resume| LLM
+    LLM ==>|ponytail ⤵ generate less code| CODE
+    CODE -.->|RECURS · every future read · review · diff · grep| LLM
 
     classDef caveman fill:#fde68a,stroke:#b45309,color:#000;
     classDef rtk fill:#bae6fd,stroke:#0369a1,color:#000;
     classDef ctx fill:#bbf7d0,stroke:#15803d,color:#000;
     classDef mem fill:#e9d5ff,stroke:#7e22ce,color:#000;
+    classDef pony fill:#fbcfe8,stroke:#be185d,color:#000;
     class USER caveman
     class SHELL rtk
     class SANDBOX ctx
     class MEM mem
+    class CODE pony
 ```
 
-Each tool acts on a **distinct buffer**. No buffer is double-processed, so the gains stack additively.
+Each tool acts on a **distinct buffer**. No buffer is double-processed, so the gains stack additively. Four of the arrows are solid round-trips that fire **once per call**; the pink `ponytail` arrow is different — it writes a smaller artifact to disk, and the dotted return loop (`CODE -.-> LLM`) is the saving **replayed on every future read**.
+
+## The generation axis — why ponytail is the genius one
+
+The four tools above compress **transient buffers**: one response, one stdout, one fetch, one session hand-off. Each saving is real but **paid once** — on that call, then it's gone.
+
+**ponytail** ([DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail), the lazy-senior-dev ruleset) acts one buffer further down: the **code the LLM writes**. It enforces a YAGNI ladder — stdlib before custom, native feature before dependency, one line before fifty, deletion before addition — so the model emits the *smallest correct* diff instead of an over-engineered one.
+
+That cuts tokens **twice**, and the second cut is the one nobody counts:
+
+1. **At generation** — less code emitted = fewer **output** tokens, right now. (Output tokens are the expensive ones.)
+2. **At every future read** — code that was never written is code no one ever re-reads, reviews, greps, diffs, or feeds back into context. A 9-line endpoint instead of a 5-file / 3-class one is ~80% fewer **input** tokens on *every* later session that opens that file, for the life of the codebase.
+
+> **The other four save on the _conversation_. ponytail saves on the _artifact_.**
+> Its gain is the only one that **recurs** — it compounds every time the file is touched again, by you or by any tool in this stack reading it back. Generation is the down-payment; maintenance is the dividend.
+
+No fabricated number: ponytail is a prompt include (`@ponytail.md` in `CLAUDE.md`), not a metered process, so — exactly like caveman — it reports **presence** (`[ponytail on]`), never a token count. To measure it, A/B the same task with `/ponytail` on vs off and diff the output tokens; the [`examples/`](https://github.com/DietrichGebert/ponytail/tree/main/examples) in the ponytail repo show the before/after diffs.
 
 ## Why complementary (not conflicting)
 
@@ -152,7 +173,7 @@ Wire the combined statusline (Claude Code, `~/.claude/settings.json`):
 }
 ```
 
-Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>]` — green if active, red if down. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action.
+Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>] [ponytail on]` — green if active, red if down. The `ponytail` badge is presence-only (green `on` when `@ponytail.md` is wired into `~/.claude/CLAUDE.md`, red `off` otherwise) — no version, no telemetry, by design. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action. The bar is **Claude-only** — Codex/Gemini are tracked in `/tokenwar gain`, not on the Claude status bar.
 
 ## Settings.json wipe protection
 

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>tokenwar — 4-tool token-saving stack for Claude Code</title>
-  <meta name="description" content="Token savings report per tool + monthly $ value (Claude/Codex). RTK saved $214 in API-equivalent Opus 4.8 tokens. caveman + context-mode + claude-mem." />
+  <title>tokenwar — token-saving stack for Claude Code: 4 tools + ponytail</title>
+  <meta name="description" content="4 tools compress the conversation; ponytail compresses the code itself — the generation axis that saves on writing AND on every future read. Per-tool savings + monthly $ value (Claude/Codex). RTK saved $214 in API-equivalent Opus 4.8 tokens." />
   <style>
     :root {
       --bg: #0b0d12;
@@ -18,6 +18,7 @@
       --ctx: #4ade80;
       --mem: #c084fc;
       --cave: #fbbf24;
+      --pony: #f472b6;
       --border: rgba(255, 255, 255, 0.08);
       --radius: 14px;
       --shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
@@ -56,6 +57,7 @@
     .badge.mem  { color: var(--mem); border-color: rgba(192, 132, 252, 0.35); }
     .badge.rtk  { color: var(--rtk); border-color: rgba(56, 189, 248, 0.35); }
     .badge.cave { color: var(--cave); border-color: rgba(251, 191, 36, 0.35); }
+    .badge.pony { color: var(--pony); border-color: rgba(244, 114, 182, 0.35); }
 
     section { margin: 56px 0; }
     h2 {
@@ -119,8 +121,9 @@
     .arrow.rtk   .pill { color: var(--rtk); }
     .arrow.ctx   .pill { color: var(--ctx); }
     .arrow.mem   .pill { color: var(--mem); }
+    .arrow.pony  .pill { color: var(--pony); }
 
-    /* === 4-card grid === */
+    /* === card grid === */
     .cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -137,6 +140,7 @@
     .card.mem  { color: var(--mem); }
     .card.rtk  { color: var(--rtk); }
     .card.cave { color: var(--cave); }
+    .card.pony { color: var(--pony); }
     .card h3 { margin: 0 0 6px; font-size: 1.15rem; }
     .card p  { margin: 0; color: var(--ink); font-size: 0.93rem; }
     .card .buffer {
@@ -241,17 +245,18 @@
   <div class="wrap">
     <header>
       <h1>tokenwar</h1>
-      <p class="tag">4 tools. 4 buffers. Zero overlap. Token savings <strong>stack</strong> instead of fighting.</p>
+      <p class="tag">4 tools compress the <strong>conversation</strong>. <strong>ponytail</strong> compresses the <strong>code itself</strong> — the only saving that <strong>recurs</strong>. Zero overlap; the gains stack.</p>
       <div class="badges">
         <span class="badge ctx">[ctx 1.0.162]</span>
-        <span class="badge mem">[mem 13.4.0]</span>
+        <span class="badge mem">[mem 13.6.0]</span>
         <span class="badge rtk">[rtk 42.8M]</span>
-        <span class="badge cave">[caveman 655b7d9]</span>
+        <span class="badge cave">[caveman 25d22f8]</span>
+        <span class="badge pony">[ponytail on]</span>
       </div>
     </header>
 
     <section>
-      <h2>Each tool owns a distinct buffer</h2>
+      <h2>Each layer owns a distinct buffer</h2>
       <div class="panel diagram">
 
         <!-- caveman: LLM → USER -->
@@ -281,11 +286,24 @@
           <div class="arrow mem"><span class="pill">claude-mem ⇄ persistent store</span></div>
           <div class="node">💾 Cross-session</div>
         </div>
+
+        <!-- ponytail: LLM → CODE (generation); the saving recurs on every future read -->
+        <div class="flow">
+          <div class="node">🧠 LLM</div>
+          <div class="arrow pony"><span class="pill">ponytail ⤵ generate less code → disk</span></div>
+          <div class="node">📄 Source on disk</div>
+        </div>
       </div>
+      <p style="margin:18px 2px 0;font-size:0.92rem;color:var(--muted)">
+        The first four arrows fire <strong>once per call</strong>. The
+        <span style="color:var(--pony)">ponytail</span> arrow writes a <em>smaller artifact to disk</em> —
+        and that saving is <strong style="color:var(--pony)">replayed on every future read</strong>
+        of the file (review · diff · grep · next session). The only axis whose gain <em>recurs</em>.
+      </p>
     </section>
 
     <section>
-      <h2>4 layers, 4 responsibilities</h2>
+      <h2>5 layers, 5 responsibilities</h2>
       <div class="cards">
         <div class="card cave">
           <h3>caveman</h3>
@@ -307,6 +325,28 @@
           <p>Persists session knowledge across <code>/clear</code> and restarts. Recallable next session — no re-explaining.</p>
           <div class="buffer">buffer: cross-session store</div>
         </div>
+        <div class="card pony">
+          <h3>ponytail</h3>
+          <p>The lazy-senior-dev ruleset. A YAGNI ladder — stdlib before custom, native before dependency, one line before fifty — so the model writes the <em>smallest correct</em> code, not an over-engineered one.</p>
+          <div class="buffer">buffer: LLM → CODE (recurs on read)</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:22px;border-color:rgba(244,114,182,0.28)">
+        <h3 style="margin:0 0 10px;color:var(--pony);font-size:1.12rem">The genius axis: it cuts tokens twice</h3>
+        <p style="margin:0 0 12px;font-size:0.95rem">
+          The other four compress <strong>transient buffers</strong> — one response, one stdout, one fetch, one session hand-off. Each saving is paid <em>once</em>, then it's gone. ponytail acts on the <strong>code that stays on disk</strong>:
+        </p>
+        <ol style="margin:0;padding-left:20px;font-size:0.95rem;line-height:1.75">
+          <li><strong style="color:var(--pony)">At generation</strong> — less code emitted = fewer <strong>output</strong> tokens (the expensive ones), right now.</li>
+          <li><strong style="color:var(--pony)">At every future read</strong> — code never written is never re-read, reviewed, grepped, diffed, or re-fed into context. A 9-line endpoint instead of a 5-file / 3-class one is ~80% fewer <strong>input</strong> tokens on <em>every</em> later session that opens it.</li>
+        </ol>
+        <p style="margin:14px 0 0;font-size:0.95rem">
+          <strong>The other four save on the conversation. ponytail saves on the artifact</strong> — the only gain that <strong style="color:var(--pony)">recurs</strong> for the life of the codebase. Generation is the down-payment; maintenance is the dividend.
+        </p>
+        <p style="margin:10px 0 0;font-size:0.82rem;color:var(--muted)">
+          Presence-only, like caveman — a prompt include (<code>@ponytail.md</code> in <code>CLAUDE.md</code>), not a metered process, so it reports <code style="color:var(--pony)">[ponytail&nbsp;on]</code>, never a fabricated number. Measure it by A/B-ing <code>/ponytail</code> on vs off. Ruleset: <a href="https://github.com/DietrichGebert/ponytail" style="color:var(--pony)">DietrichGebert/ponytail</a>.
+        </p>
       </div>
     </section>
 
@@ -354,7 +394,7 @@
           <div><code style="color:var(--accent)">/tokenwar doctor</code> <span style="color:var(--muted)">— full pipeline: status → check → gain</span></div>
         </div>
         <p style="margin:16px 0 0;font-family:var(--font-mono);font-size:0.82rem;color:var(--muted)">
-          Statusline: <code style="color:var(--ink)">[ctx 1.0.162] [mem 13.4.0] [rtk 42.8M] [caveman 655b7d9] &#x26A0; 3 updates · /tokenwar upgrade</code>
+          Statusline: <code style="color:var(--ink)">[ctx 1.0.162] [mem 13.6.0] [rtk 42.8M] [caveman 25d22f8] [ponytail on]</code>
         </p>
       </div>
     </section>
@@ -373,6 +413,7 @@
           <div><span style="color:var(--ctx)">  context-mode</span>    4.9M        12660 entries indexed</div>
           <div><span style="color:var(--mem)">  claude-mem</span>      2.8M        ~est: 55K obs + 15K summaries · 31 projects</div>
           <div><span style="color:var(--muted)">  caveman</span>         N/A         style-only hook — no measurable buffer</div>
+          <div><span style="color:var(--pony)">  ponytail</span>        N/A         generation axis — A/B /ponytail on vs off to measure</div>
           <div style="color:var(--muted)">  ─────────────────────────────────────────────────────────────</div>
           <div>  <strong>TOTAL</strong>           50.6M       summed across tools with telemetry</div>
           <div style="margin-top:16px;color:var(--muted)">Monthly value — API-equivalent $ saved (RTK)</div>
