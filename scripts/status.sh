@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # tokenwar status — report state of the 4 token-saving tools + AI providers.
 #
-# Exit 0 if all tools + providers are healthy, 1 otherwise.
+# Exit 0 if all 4 tools are healthy, 1 otherwise. Providers (Codex/Gemini) are
+# OPTIONAL — they are reported for information but their absence never fails the
+# exit code (a Claude-only host has no codex/gemini and must still exit 0).
 # Pass --test to additionally run a liveness ping for each tool
 # (note: context-mode ping requires the ctx_stats MCP tool, which
 # shell cannot reach — the caller is responsible for that one).
@@ -152,7 +154,8 @@ echo ""
 printf "  %s  %-14s  %-10s  %-22s  %s\n" "·" "provider" "version" "state" "note"
 printf "  ─────────────────────────────────────────────────────────────────\n"
 
-declare -a provider_failures=()
+# Providers are informational only — we print each one's state but never let an
+# uninstalled/absent provider affect the exit code (see exit logic below).
 for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
     pid=$(provider_id "$i")
     pname=$(provider_name "$i")
@@ -168,7 +171,6 @@ for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
     esac
 
     format_line "$pname" "$pver" "$pstate" "$pnote"
-    [[ "$pstate" != "$STATUS_OK" ]] && provider_failures+=("$pid")
 done
 
 echo ""
@@ -202,14 +204,14 @@ if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
     fi
 fi
 
-# Exit code: 0 if all OK, 1 otherwise
+# Exit code: gated ONLY on the 4 managed tools. Providers are optional and never
+# fail the exit (an absent codex/gemini on a Claude-only host is not an error).
 tool_failures=0
 for s in "$ctx_state" "$mem_state" "$cave_state" "$rtk_st"; do
     [[ "$s" == "$STATUS_OK" ]] || tool_failures=1
 done
-provider_failure_count=${#provider_failures[@]}
 
-if (( tool_failures || provider_failure_count > 0 )); then
+if (( tool_failures )); then
     exit 1
 fi
 exit 0

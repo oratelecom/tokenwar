@@ -52,6 +52,25 @@ EOF
     [[ "$output" == *"rtk"*"OK"* ]]
 }
 
+@test "exit 0 when 4 tools healthy and optional providers (codex/gemini) absent" {
+    # Regression for the CI break: status.sh used to gate its exit code on
+    # provider health, so an absent codex/gemini (every Claude-only host and the
+    # CI runner) forced exit 1. Reproduce that hermetically by stripping the real
+    # CLIs from PATH (keeping node, which the script needs, + the mock claude).
+    mock_claude_with_plugins '[
+      {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
+      {"id":"claude-mem@thedotmack","version":"12.1.4","enabled":true},
+      {"id":"caveman@caveman","version":"abc","enabled":true}
+    ]'
+    mock_rtk_alive
+    ln -s "$(command -v node)" "$MOCK_BIN/node"   # resolve node BEFORE we shrink PATH
+    PATH="$MOCK_BIN:/usr/bin:/bin"                  # excludes the nvm dir → codex/gemini not found
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"context-mode"*"OK"* ]]
+    [[ "$output" == *"rtk"*"OK"* ]]
+}
+
 @test "exit 1 when a plugin is missing" {
     mock_claude_with_plugins '[
       {"id":"context-mode@context-mode","version":"1.0.107","enabled":true}
