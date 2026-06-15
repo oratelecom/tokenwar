@@ -2,12 +2,18 @@
 # tokenwar one-shot installer.
 #
 #   curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash
+#   curl -fsSL .../install.sh | bash -s -- --with-plugins   # also installs the plugins
 #
 # Does:
 #   1. git clone https://github.com/oratelecom/tokenwar ~/.claude/skills/tokenwar
 #   2. chmod +x scripts/*.sh
 #   3. patch ~/.claude/settings.json to wire the statusLine
-#   4. print next-step instructions (install plugins, etc.)
+#   4. wire the tokenwar/codex/gemini shell functions
+#   5. with --with-plugins: marketplace add + install + enable the 4 Claude Code
+#      plugins (context-mode, claude-mem, caveman, ponytail), with anti-clobber
+#      re-enable. RTK is a separate Rust binary + hook — finalized by /tokenwar
+#      activate, not here. Without the flag, plugin install is left to
+#      /tokenwar activate (no surprise mutation of the user's plugin config).
 #
 # Idempotent: re-running pulls the latest tokenwar and only patches settings.json
 # if the statusLine is not already pointing at the tokenwar script.
@@ -18,6 +24,23 @@ REPO_URL="${TOKENWAR_REPO_URL:-https://github.com/oratelecom/tokenwar}"
 INSTALL_DIR="${TOKENWAR_DIR:-$HOME/.claude/skills/tokenwar}"
 SETTINGS_JSON="$HOME/.claude/settings.json"
 STATUSLINE_CMD='bash ~/.claude/skills/tokenwar/scripts/tokenwar-statusline.sh'
+
+readonly CLAUDE_BIN="claude"
+# The 4 Claude Code plugins of the stack, paired with the upstream marketplace
+# repo each is published from. RTK is intentionally absent — it is a Rust binary
+# + settings hook, not a plugin.
+readonly PLUGIN_MARKETPLACES=(
+    "mksglu/context-mode"
+    "thedotmack/claude-mem"
+    "JuliusBrussee/caveman"
+    "DietrichGebert/ponytail"
+)
+readonly PLUGIN_SLUGS=(
+    "context-mode@context-mode"
+    "claude-mem@thedotmack"
+    "caveman@caveman"
+    "ponytail@ponytail"
+)
 
 # Shell-integration block markers — used to idempotently inject/remove the
 # `tokenwar`, `codex`, and `gemini` wrapper functions in the user's shell rc.
@@ -31,6 +54,17 @@ red()    { color 31 "$1"; }
 say()    { printf '%s %s\n' "$(green '==>')" "$*"; }
 warn()   { printf '%s %s\n' "$(yellow '!!')" "$*" >&2; }
 die()    { printf '%s %s\n' "$(red 'ERR')" "$*" >&2; exit 1; }
+
+WITH_PLUGINS=false
+for arg in "$@"; do
+    case "$arg" in
+        --with-plugins) WITH_PLUGINS=true ;;
+        -h|--help)
+            printf 'Usage: install.sh [--with-plugins]\n  --with-plugins  also install+enable the 4 Claude Code plugins\n'
+            exit 0 ;;
+        *) die "unknown argument: $arg (supported: --with-plugins)" ;;
+    esac
+done
 
 command -v git >/dev/null  || die "git is required"
 command -v node >/dev/null || die "node is required (used to patch settings.json)"
@@ -116,6 +150,58 @@ wire_shell_rc() {
     say "Wired tokenwar/codex/gemini shell functions in $rc_file"
 }
 
+# Print the ids of every currently-enabled plugin, one per line (from
+# `claude plugin list --json`). Empty on any failure.
+list_enabled_ids() {
+    "$CLAUDE_BIN" plugin list --json 2>/dev/null | node --input-type=module -e '
+        let s = "";
+        process.stdin.on("data", d => s += d).on("end", () => {
+            let arr = [];
+            try { arr = JSON.parse(s || "[]"); } catch {}
+            for (const p of arr) if (p && p.enabled) console.log(p.id);
+        });
+    ' 2>/dev/null || true
+}
+
+# --with-plugins: register marketplaces, then install + enable the 4 plugins.
+# Anti-clobber (gotcha 2026-05-18): the first `claude plugin enable` materialises
+# enabledPlugins in settings.json and can flip implicitly-enabled plugins to
+# disabled — so we snapshot the enabled set first and re-enable any that drop.
+install_plugins() {
+    if ! command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
+        warn "claude CLI not found — skipping --with-plugins. Install Claude Code, then re-run with --with-plugins (or use /tokenwar activate)."
+        return 0
+    fi
+    say "Installing the stack's 4 Claude Code plugins (--with-plugins)"
+
+    local mp
+    for mp in "${PLUGIN_MARKETPLACES[@]}"; do
+        "$CLAUDE_BIN" plugin marketplace add "$mp" >/dev/null 2>&1 \
+            || warn "marketplace add $mp failed (may already be registered)"
+    done
+
+    local before_enabled
+    before_enabled="$(list_enabled_ids)"
+
+    local slug
+    for slug in "${PLUGIN_SLUGS[@]}"; do
+        "$CLAUDE_BIN" plugin install "$slug" >/dev/null 2>&1 || warn "install $slug failed"
+        "$CLAUDE_BIN" plugin enable  "$slug" >/dev/null 2>&1 || true
+    done
+
+    local now_enabled id
+    now_enabled="$(list_enabled_ids)"
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        if ! grep -qxF "$id" <<<"$now_enabled"; then
+            warn "re-enabling $id (clobbered by plugin enable)"
+            "$CLAUDE_BIN" plugin enable "$id" >/dev/null 2>&1 || true
+        fi
+    done <<<"$before_enabled"
+
+    say "Plugins installed + enabled. Restart Claude Code to load them."
+}
+
 say "Wiring shell integration"
 wired_any=false
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
@@ -127,6 +213,17 @@ if ! $wired_any; then
     # No rc found — create ~/.bashrc so the integration lands somewhere.
     : > "$HOME/.bashrc"
     wire_shell_rc "$HOME/.bashrc" || warn "could not create shell integration in ~/.bashrc"
+fi
+
+# 5. plugins (opt-in)
+if $WITH_PLUGINS; then
+    install_plugins
+    next_steps="Plugins installed (restart Claude Code to load them). RTK is a separate
+Rust binary + hook — if you use it, install rtk then run \`/tokenwar activate\` to wire it."
+else
+    next_steps="Activate the tools (4 plugins incl. ponytail + the RTK hook) via the tokenwar skill:
+  /tokenwar activate
+(or re-run the installer with --with-plugins to install the plugins now)"
 fi
 
 cat <<EOF
@@ -144,8 +241,7 @@ Shell integration wired (reload your shell or 'source ~/.bashrc'):
   tokenwar status      # works in any shell — Codex, Gemini, plain terminal
   codex / gemini       # now print the tokenwar banner + upgrade prompt on launch
 
-Activate the other three tools and the RTK hook via the tokenwar skill:
-  /tokenwar activate
+$next_steps
 
 To uninstall:
   bash $INSTALL_DIR/uninstall.sh

@@ -100,6 +100,8 @@ On `Yes`, run for each tool:
 - `context-mode` disabled → `claude plugin enable context-mode@context-mode`
 - `rtk` hook missing → `rtk init -g` (only run this if `rtk gain` output said `[warn] No hook installed`). The CLI is interactive and defaults to `N` in non-interactive shells; after running it, manually patch `~/.claude/settings.json` to add a `hooks.PreToolUse` entry pointing at `~/.claude/hooks/rtk-rewrite.sh`.
 
+**One-shot alternative**: `install.sh --with-plugins` (opt-in flag, or `curl … | bash -s -- --with-plugins`) does the marketplace-add + install + enable for the 4 plugins at install time, with the same anti-clobber re-enable — so a fresh machine gets the plugins (incl. ponytail) without a separate `activate`. RTK's hook still goes through `activate`.
+
 **Gotcha discovered 2026-05-18**: the *first* call to `claude plugin enable` on any plugin creates `enabledPlugins` in `~/.claude/settings.json` and **clobbers** plugins that were enabled implicitly at the marketplace level. Mitigation: after EVERY enable/install, snapshot the full `claude plugin list --json` and re-enable any plugin that flipped from `enabled:true` to `enabled:false`. The `activate` flow must do this snapshot-and-restore.
 
 After every fix, re-run `status.sh` and report the new state. If anything is still red, surface it explicitly — do not pretend success.

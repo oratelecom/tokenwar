@@ -131,15 +131,18 @@ tokenwar doctor     # status → check → gain
 
 ## Quick start
 
-One-liner install (clone + chmod + wire statusline):
+One command — installs the 4 Claude Code plugins (context-mode, claude-mem, caveman, **ponytail**), wires the statusline + shell functions, all in one shot:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --with-plugins
+```
+
+Restart Claude Code to load the plugins. RTK (a Rust binary + hook) is the one piece that installs separately — run `/tokenwar activate` once to wire its hook.
+
+Prefer no surprise mutations? Drop the flag — `… | bash` just wires the statusline + shell functions, then `/tokenwar activate` installs the plugins on confirmation:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash
-```
-
-Then activate the five tools from inside Claude Code:
-
-```
 /tokenwar activate
 ```
 
