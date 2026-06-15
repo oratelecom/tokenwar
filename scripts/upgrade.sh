@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tokenwar upgrade — bump the 4 token-saving tools to their latest versions.
 #
-# Plugins (context-mode, claude-mem, caveman) → `claude plugin update <slug>`.
+# Plugins (context-mode, claude-mem, caveman) → `claude plugin update <slug> --scope <scope>`.
 # RTK (path-installed dev build)              → `cargo install --path <repo> --force`.
 #
 # Source of "what needs updating": the throttled upgrade-check cache written by
@@ -72,6 +72,21 @@ tools_needing_update() {
     ' 2>/dev/null || echo "ctx mem cave rtk"
 }
 
+# Look up a plugin's install scope (user|local|project|managed) from
+# `claude plugin list --json`. Empty if unknown. Needed because `plugin update`
+# defaults to user scope and fails on a plugin installed at another scope
+# (e.g. claude-mem is commonly installed `local`).
+plugin_scope() {
+    "$CLAUDE_BIN" plugin list --json 2>/dev/null | PLUGIN_QUERY="$1" node --input-type=module -e '
+        let s = "";
+        process.stdin.on("data", d => s += d).on("end", () => {
+            let arr = []; try { arr = JSON.parse(s || "[]"); } catch {}
+            const e = arr.find(p => p && p.id === process.env.PLUGIN_QUERY);
+            if (e && e.scope) console.log(e.scope);
+        });
+    ' 2>/dev/null || true
+}
+
 # Upgrade one plugin via the Claude CLI. Returns non-zero on failure.
 upgrade_plugin() {
     local slug="$1"
@@ -79,7 +94,13 @@ upgrade_plugin() {
         warn "claude CLI not found — cannot update $slug"; return 1
     fi
     say "Updating plugin $slug"
-    "$CLAUDE_BIN" plugin update "$slug"
+    local scope
+    scope="$(plugin_scope "$slug")"
+    if [[ -n "$scope" ]]; then
+        "$CLAUDE_BIN" plugin update "$slug" --scope "$scope"
+    else
+        "$CLAUDE_BIN" plugin update "$slug"
+    fi
 }
 
 # Upgrade RTK. Only the path-installed dev build is supported (the public crate
