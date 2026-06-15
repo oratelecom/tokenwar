@@ -1,12 +1,12 @@
 ---
 name: tokenwar
-description: Activate, upgrade, test, and benchmark the 4-tool token-saving stack (context-mode, claude-mem, RTK, caveman). Reports per-tool + per-provider (Codex, Gemini) token savings and detects conflicts that would erase the gains.
+description: Activate, upgrade, test, and benchmark the 5-tool token-saving stack (context-mode, claude-mem, RTK, caveman, ponytail). Reports per-tool + per-provider (Codex, Gemini) token savings and detects conflicts that would erase the gains.
 trigger: /tokenwar
 ---
 
 # /tokenwar — token-saving stack manager
 
-Manages the 4 complementary token-saving tools:
+Manages the 5 complementary token-saving tools:
 
 | Tool         | Layer                       | Plugin slug                       | CLI / hook        |
 | ------------ | --------------------------- | --------------------------------- | ----------------- |
@@ -14,6 +14,9 @@ Manages the 4 complementary token-saving tools:
 | claude-mem   | session memory + compaction | `claude-mem@thedotmack`           | `claude-mem` CLI  |
 | RTK          | bash output compression     | (CLI only, hook in `~/.claude`)   | `rtk` (Rust)      |
 | caveman      | response-style compression  | `caveman@caveman`                 | hook              |
+| ponytail     | the code the LLM writes     | `ponytail@ponytail`               | plugin (mode-gated) |
+
+> ponytail and caveman are **presence-only** (a ruleset / a style nudge — no metered buffer): `status` and `activate` manage all five, but the conflict detector (`check`) and the auto-update tracker cover only the four buffer-owning, version-tracked tools. ponytail upgrades via `claude plugin update ponytail@ponytail`, and is toggled per-session with `/ponytail off|lite|full|ultra`.
 
 ## Multi-provider support
 
@@ -58,7 +61,7 @@ never the screen. So tokenwar surfaces the stack differently per CLI:
 
 ```
 /tokenwar            # default → status
-/tokenwar status     # current state of the 4 tools (read-only)
+/tokenwar status     # current state of the 5 tools (read-only)
 /tokenwar activate   # install missing + enable disabled (asks confirmation)
 /tokenwar upgrade    # bump each to latest (asks confirmation)
 /tokenwar test       # ping each one-by-one, verify it actually responds
@@ -75,7 +78,7 @@ Read the args after `/tokenwar`. If empty, treat as `status`. Always print a one
 
 ## Subcommand: status
 
-Run `bash ~/.claude/skills/tokenwar/scripts/status.sh` and report its output verbatim. The script returns exit code `0` if all 4 are healthy, `1` if any is missing/disabled.
+Run `bash ~/.claude/skills/tokenwar/scripts/status.sh` and report its output verbatim. The script returns exit code `0` if all 5 are healthy, `1` if any is missing/disabled.
 
 If exit code is `1`, end with a single line: `→ Run \`/tokenwar activate\` to fix.` (do not auto-fix from `status`).
 
@@ -83,7 +86,7 @@ If exit code is `1`, end with a single line: `→ Run \`/tokenwar activate\` to 
 
 Two phases — detect, then fix with confirmation.
 
-**Phase 1 — detect.** Run `bash ~/.claude/skills/tokenwar/scripts/status.sh`. Parse which of the 4 are in state `not-installed` or `installed-disabled`.
+**Phase 1 — detect.** Run `bash ~/.claude/skills/tokenwar/scripts/status.sh`. Parse which of the 5 are in state `not-installed` or `installed-disabled`.
 
 **Phase 2 — fix.** If any are unhealthy, use `AskUserQuestion` to confirm the fix plan. Example phrasing:
 
@@ -93,6 +96,7 @@ On `Yes`, run for each tool:
 
 - `claude-mem` disabled → `claude plugin enable claude-mem@thedotmack`
 - `caveman` not installed → `claude plugin install caveman@caveman` then `claude plugin enable caveman@caveman`
+- `ponytail` not installed → `claude plugin marketplace add DietrichGebert/ponytail` (upstream; `marketplace update` later to refresh), then `claude plugin install ponytail@ponytail` then `claude plugin enable ponytail@ponytail`. The install is SHA-locked in `~/.claude/plugins/installed_plugins.json` (same as caveman), so it is pinned to the resolved commit, not a floating ref. ponytail defaults to `full` mode; `/ponytail off` turns it off per-session.
 - `context-mode` disabled → `claude plugin enable context-mode@context-mode`
 - `rtk` hook missing → `rtk init -g` (only run this if `rtk gain` output said `[warn] No hook installed`). The CLI is interactive and defaults to `N` in non-interactive shells; after running it, manually patch `~/.claude/settings.json` to add a `hooks.PreToolUse` entry pointing at `~/.claude/hooks/rtk-rewrite.sh`.
 

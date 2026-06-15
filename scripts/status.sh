@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# tokenwar status — report state of the 4 token-saving tools + AI providers.
+# tokenwar status — report state of the 5 token-saving tools + AI providers.
 #
-# Exit 0 if all 4 tools are healthy, 1 otherwise. Providers (Codex/Gemini) are
+# Exit 0 if all 5 tools are healthy, 1 otherwise. Providers (Codex/Gemini) are
 # OPTIONAL — they are reported for information but their absence never fails the
 # exit code (a Claude-only host has no codex/gemini and must still exit 0).
 # Pass --test to additionally run a liveness ping for each tool
@@ -24,6 +24,7 @@ readonly STATUS_UNKNOWN="unknown"
 readonly SLUG_CTX="context-mode@context-mode"
 readonly SLUG_MEM="claude-mem@thedotmack"
 readonly SLUG_CAVE="caveman@caveman"
+readonly SLUG_PONY="ponytail@ponytail"
 
 readonly RTK_BIN="rtk"
 readonly MEM_BIN="claude-mem"
@@ -121,6 +122,10 @@ ping_caveman() {
     local cache_root="${HOME}/.claude/plugins/cache/caveman/caveman"
     [[ -d "$cache_root" ]] && find "$cache_root" -mindepth 2 -maxdepth 4 -type d -name skills 2>/dev/null | grep -q .
 }
+ping_ponytail() {
+    # ponytail is a mode-gated plugin, no CLI ping. Alive iff installed + enabled.
+    [[ "$(plugin_state "$SLUG_PONY")" == "$STATUS_OK" ]]
+}
 
 # === report ===
 echo "# /tokenwar status"
@@ -133,20 +138,23 @@ printf "  ───────────────────────�
 ctx_state=$(plugin_state "$SLUG_CTX");   ctx_ver=$(plugin_version "$SLUG_CTX")
 mem_state=$(plugin_state "$SLUG_MEM");   mem_ver=$(plugin_version "$SLUG_MEM")
 cave_state=$(plugin_state "$SLUG_CAVE"); cave_ver=$(plugin_version "$SLUG_CAVE")
+pony_state=$(plugin_state "$SLUG_PONY"); pony_ver=$(plugin_version "$SLUG_PONY")
 rtk_st=$(rtk_state);                     rtk_ver=$(rtk_version)
 
-ctx_extra=""; mem_extra=""; cave_extra=""; rtk_extra=""
+ctx_extra=""; mem_extra=""; cave_extra=""; pony_extra=""; rtk_extra=""
 if $test_mode; then
     ctx_extra="ping=via MCP (caller)"
     ping_claude_mem && mem_extra="ping=ok" || mem_extra="ping=FAIL"
     ping_rtk        && rtk_extra="ping=ok" || rtk_extra="ping=FAIL"
     ping_caveman    && cave_extra="ping=ok" || cave_extra="ping=FAIL"
+    ping_ponytail   && pony_extra="ping=ok" || pony_extra="ping=FAIL"
 fi
 
 format_line "context-mode" "$ctx_ver"  "$ctx_state"  "$ctx_extra"
 format_line "claude-mem"   "$mem_ver"  "$mem_state"  "$mem_extra"
 format_line "rtk"          "$rtk_ver"  "$rtk_st"     "$rtk_extra"
 format_line "caveman"      "$cave_ver" "$cave_state" "$cave_extra"
+format_line "ponytail"     "$pony_ver" "$pony_state" "$pony_extra"
 
 echo ""
 
@@ -204,10 +212,10 @@ if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
     fi
 fi
 
-# Exit code: gated ONLY on the 4 managed tools. Providers are optional and never
+# Exit code: gated ONLY on the 5 managed tools. Providers are optional and never
 # fail the exit (an absent codex/gemini on a Claude-only host is not an error).
 tool_failures=0
-for s in "$ctx_state" "$mem_state" "$cave_state" "$rtk_st"; do
+for s in "$ctx_state" "$mem_state" "$cave_state" "$pony_state" "$rtk_st"; do
     [[ "$s" == "$STATUS_OK" ]] || tool_failures=1
 done
 

@@ -94,7 +94,7 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 
 | Command | What it does |
 | --- | --- |
-| `/tokenwar status` | Health of the 4 tools — installed, enabled, version |
+| `/tokenwar status` | Health of the 5 tools — installed, enabled, version |
 | `/tokenwar gain` | Per-tool token savings + per-provider (Codex/Gemini native telemetry) + **monthly $ value** |
 | `/tokenwar upgrade` | Bump each tool to latest (asks confirmation) |
 | `/tokenwar check` | Conflict detector — verifies the 4 stack additively |
@@ -120,7 +120,7 @@ and if updates are pending you get **"⬆ N updates available. Upgrade now? [y/N
 which bumps the 4 tools. A `tokenwar` command also works in any shell:
 
 ```bash
-tokenwar status     # state of the 4 tools + providers
+tokenwar status     # state of the 5 tools + providers
 tokenwar gain       # token savings + monthly $ value
 tokenwar upgrade    # bump the 4 tools (asks confirmation)
 tokenwar doctor     # status → check → gain
@@ -137,7 +137,7 @@ One-liner install (clone + chmod + wire statusline):
 curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash
 ```
 
-Then activate the four tools from inside Claude Code:
+Then activate the five tools from inside Claude Code:
 
 ```
 /tokenwar activate
