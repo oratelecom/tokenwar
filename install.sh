@@ -15,7 +15,7 @@
 #                      plugins (context-mode, claude-mem, caveman, ponytail),
 #                      with anti-clobber re-enable.
 #      --with-rtk      install the RTK binary via rtk's official prebuilt
-#                      installer (cargo/rustup only as a fallback), then wire it.
+#                      installer (prebuilt, no toolchain), then wire its hook.
 #      --all           both. After either, RTK's hook is wired via `rtk init -g`.
 #      Without any flag, plugin/RTK setup is left to /tokenwar activate.
 #
@@ -46,17 +46,14 @@ readonly PLUGIN_SLUGS=(
     "ponytail@ponytail"
 )
 
-# RTK binary install (--with-rtk). Primary path is rtk's OWN official installer,
-# which downloads a prebuilt binary (no toolchain) for every major platform.
-# Pinned to a release tag so the script we pipe to sh is fixed/reviewable; both
-# the ref and the git source are env-overridable. cargo is only a fallback for
-# platforms with no prebuilt asset.
+# RTK binary install (--with-rtk) via rtk's OWN official installer, which
+# downloads a prebuilt binary (no toolchain) for every major platform. Pinned to
+# a release tag so the script we pipe to sh is fixed/reviewable; ref is
+# env-overridable. rtk drops the binary in ~/.local/bin.
 readonly RTK_BIN="rtk"
 readonly RTK_INSTALL_REF="${TOKENWAR_RTK_INSTALL_REF:-v0.42.4}"
 readonly RTK_INSTALL_URL="https://raw.githubusercontent.com/rtk-ai/rtk/${RTK_INSTALL_REF}/install.sh"
-readonly RTK_GIT_URL="${TOKENWAR_RTK_GIT_URL:-https://github.com/rtk-ai/rtk}"
 readonly RTK_LOCAL_BIN="$HOME/.local/bin"
-readonly RUSTUP_URL="https://sh.rustup.rs"
 
 # Shell-integration block markers — used to idempotently inject/remove the
 # `tokenwar`, `codex`, and `gemini` wrapper functions in the user's shell rc.
@@ -235,41 +232,23 @@ wire_rtk_hook() {
     fi
 }
 
-# --with-rtk: install the RTK binary, then wire its hook. RTK is a Rust binary,
-# not a plugin, so it can't come from a plugin marketplace. Order of attempts:
-#   1. already on PATH        → nothing to install.
-#   2. rtk's OFFICIAL installer (prebuilt binary, every major platform, no
-#      toolchain) — the fast, maintained path.
-#   3. fallback: build from source with cargo; if cargo is missing, install the
-#      Rust toolchain via rustup first. Only reached on platforms with no prebuilt.
+# --with-rtk: install the RTK binary via rtk's official installer, then wire its
+# hook. RTK ships prebuilt binaries for every major platform, so there is no
+# toolchain to set up — no cargo, no compiling.
 install_rtk() {
     if command -v "$RTK_BIN" >/dev/null 2>&1; then
         say "RTK already installed ($("$RTK_BIN" --version 2>/dev/null || echo present)) — skipping install"
         return 0
     fi
-
-    if command -v curl >/dev/null 2>&1; then
-        say "Installing RTK via the official prebuilt installer ($RTK_INSTALL_REF)"
-        curl -fsSL "$RTK_INSTALL_URL" | sh >/dev/null 2>&1 || warn "rtk official installer failed — will try cargo"
-        # rtk drops the binary in ~/.local/bin; make it visible to this process.
-        case ":$PATH:" in *":$RTK_LOCAL_BIN:"*) : ;; *) PATH="$RTK_LOCAL_BIN:$PATH" ;; esac
-    else
-        warn "curl not found — skipping prebuilt installer, trying cargo"
+    if ! command -v curl >/dev/null 2>&1; then
+        warn "curl not found — cannot run rtk's installer. See https://github.com/rtk-ai/rtk"
+        return 0
     fi
 
-    if ! command -v "$RTK_BIN" >/dev/null 2>&1; then
-        if ! command -v cargo >/dev/null 2>&1; then
-            say "Installing the Rust toolchain (rustup) to build RTK from source"
-            curl -fsSL "$RUSTUP_URL" | sh -s -- -y >/dev/null 2>&1 || warn "rustup install failed"
-            # shellcheck disable=SC1091
-            [[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
-        fi
-        if command -v cargo >/dev/null 2>&1; then
-            say "Building RTK from source ($RTK_GIT_URL)"
-            cargo install --git "$RTK_GIT_URL" >/dev/null 2>&1 || warn "cargo install rtk failed"
-            case ":$PATH:" in *":$HOME/.cargo/bin:"*) : ;; *) PATH="$HOME/.cargo/bin:$PATH" ;; esac
-        fi
-    fi
+    say "Installing RTK via the official prebuilt installer ($RTK_INSTALL_REF)"
+    curl -fsSL "$RTK_INSTALL_URL" | sh >/dev/null 2>&1 || warn "rtk installer failed — see https://github.com/rtk-ai/rtk"
+    # rtk drops the binary in ~/.local/bin; make it visible to this process.
+    case ":$PATH:" in *":$RTK_LOCAL_BIN:"*) : ;; *) PATH="$RTK_LOCAL_BIN:$PATH" ;; esac
 
     command -v "$RTK_BIN" >/dev/null 2>&1 \
         && say "RTK installed ($("$RTK_BIN" --version 2>/dev/null || echo ok))." \

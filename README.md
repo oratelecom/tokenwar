@@ -137,7 +137,7 @@ One command — the whole stack: the 4 Claude Code plugins (context-mode, claude
 curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --all
 ```
 
-Restart Claude Code to load the plugins. `--all` = `--with-plugins --with-rtk`; use either alone if you only want one half. RTK installs from a prebuilt binary (no toolchain) on every major platform, falling back to a `cargo` build only where no prebuilt asset exists.
+Restart Claude Code to load the plugins. `--all` = `--with-plugins --with-rtk`; use either alone if you only want one half. RTK installs from a prebuilt binary (no toolchain, no compiling) on every major platform via rtk's own official installer.
 
 Prefer no surprise mutations? Drop the flags — `… | bash` just wires the statusline + shell functions, then `/tokenwar activate` installs the plugins on confirmation:
 
