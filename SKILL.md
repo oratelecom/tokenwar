@@ -130,7 +130,7 @@ After upgrade, re-run `check-updates.sh --force` then `status` so the version co
 
 ## Subcommand: test
 
-Run `bash ~/.claude/skills/tokenwar/scripts/status.sh --test`. For each of the 4 tools, the script issues a minimal end-to-end ping:
+Run `bash ~/.claude/skills/tokenwar/scripts/status.sh --test`. For each of the 5 tools, the script issues a minimal end-to-end ping:
 
 - **context-mode**: call the `ctx_stats` MCP tool. Alive iff it returns a JSON-shaped reply.
 - **claude-mem**: `claude-mem --version` exits 0.

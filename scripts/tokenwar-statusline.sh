@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tokenwar statusline — combined badge for the 4-tool token-saving stack.
+# tokenwar statusline — combined badge for the 5-tool token-saving stack.
 # Emits: [ctx vX] [mem vY] [rtk SAVED] [caveman vZ] [ponytail on]
 # Each badge: GREEN if active, RED if inactive. A yellow ⬆ is appended to any
 # tool with an available update (per the check-updates.sh cache), and when at

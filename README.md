@@ -212,7 +212,7 @@ CI on every push to `main` and every PR — installs bats + shellcheck, runs ful
 
 **Powered by [Ora Studio](https://studio.oratelecom.net) · Ora Telecom** — token economics, productized.
 
-Our open-source footprint on the 4-tool stack:
+Our open-source footprint on the stack:
 
 | Status | Project | Role |
 | :----: | ------- | ---- |
