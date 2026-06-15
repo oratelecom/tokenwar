@@ -25,9 +25,21 @@ setup() {
     cat > "$MOCK_BIN/rtk" <<EOF
 #!/usr/bin/env bash
 echo "\$*" >> "$RTK_LOG"
+[[ "\$1" == "--version" ]] && echo "rtk 0.0.0-test"
 exit 0
 EOF
     chmod +x "$MOCK_BIN/rtk"
+}
+
+# Write a fake rtk binary at $1 that records its args to $RTK_LOG.
+make_fake_rtk() {
+    cat > "$1" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$RTK_LOG"
+[[ "\$1" == "--version" ]] && echo "rtk 9.9.9"
+exit 0
+EOF
+    chmod +x "$1"
 }
 
 teardown() {
@@ -103,6 +115,44 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"rtk binary not found"* ]]
     [ ! -f "$RTK_LOG" ]
+}
+
+@test "--with-rtk installs rtk via the official prebuilt installer when absent" {
+    rm -f "$MOCK_BIN/rtk"                          # rtk not yet installed
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    PATH="$MOCK_BIN:/usr/bin:/bin"                 # excludes ~/.cargo/bin → real rtk hidden
+    make_fake_rtk "$HOME/fake-rtk"
+    # Mock curl = rtk's official installer: drops the binary into ~/.local/bin.
+    cat > "$MOCK_BIN/curl" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$HOME/curl-calls.log"
+mkdir -p "$HOME/.local/bin"
+cp "$HOME/fake-rtk" "$HOME/.local/bin/rtk"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/curl"
+
+    run bash "$SCRIPT" --with-rtk
+    [ "$status" -eq 0 ]
+    grep -q "rtk-ai/rtk" "$HOME/curl-calls.log"     # called the official installer
+    [ -x "$HOME/.local/bin/rtk" ]                    # binary landed
+    grep -q "init -g" "$RTK_LOG"                     # hook wired afterwards
+}
+
+@test "--with-rtk skips install when rtk already present, still wires the hook" {
+    mock_claude_empty
+    run bash "$SCRIPT" --with-rtk
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"already installed"* ]]
+    grep -q "init -g" "$RTK_LOG"
+}
+
+@test "--all installs plugins AND handles rtk" {
+    mock_claude_empty
+    run bash "$SCRIPT" --all
+    [ "$status" -eq 0 ]
+    grep -q "plugin install ponytail@ponytail" "$CLAUDE_LOG"
+    grep -q "init -g" "$RTK_LOG"
 }
 
 @test "unknown argument exits non-zero" {

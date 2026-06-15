@@ -2,19 +2,22 @@
 # tokenwar one-shot installer.
 #
 #   curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash
-#   curl -fsSL .../install.sh | bash -s -- --with-plugins   # also installs the plugins
+#   curl -fsSL .../install.sh | bash -s -- --with-plugins   # + the 4 plugins
+#   curl -fsSL .../install.sh | bash -s -- --all            # + plugins + RTK binary
 #
 # Does:
 #   1. git clone https://github.com/oratelecom/tokenwar ~/.claude/skills/tokenwar
 #   2. chmod +x scripts/*.sh
 #   3. patch ~/.claude/settings.json to wire the statusLine
 #   4. wire the tokenwar/codex/gemini shell functions
-#   5. with --with-plugins: marketplace add + install + enable the 4 Claude Code
-#      plugins (context-mode, claude-mem, caveman, ponytail), with anti-clobber
-#      re-enable, then wire the RTK hook IF the rtk binary is present (`rtk init
-#      -g`). The RTK binary itself is a Rust build (no portable cargo install) so
-#      it is never built here. Without the flag, plugin install is left to
-#      /tokenwar activate (no surprise mutation of the user's plugin config).
+#   5. opt-in installs (none by default — no surprise mutation):
+#      --with-plugins  marketplace add + install + enable the 4 Claude Code
+#                      plugins (context-mode, claude-mem, caveman, ponytail),
+#                      with anti-clobber re-enable.
+#      --with-rtk      install the RTK binary via rtk's official prebuilt
+#                      installer (cargo/rustup only as a fallback), then wire it.
+#      --all           both. After either, RTK's hook is wired via `rtk init -g`.
+#      Without any flag, plugin/RTK setup is left to /tokenwar activate.
 #
 # Idempotent: re-running pulls the latest tokenwar and only patches settings.json
 # if the statusLine is not already pointing at the tokenwar script.
@@ -43,6 +46,18 @@ readonly PLUGIN_SLUGS=(
     "ponytail@ponytail"
 )
 
+# RTK binary install (--with-rtk). Primary path is rtk's OWN official installer,
+# which downloads a prebuilt binary (no toolchain) for every major platform.
+# Pinned to a release tag so the script we pipe to sh is fixed/reviewable; both
+# the ref and the git source are env-overridable. cargo is only a fallback for
+# platforms with no prebuilt asset.
+readonly RTK_BIN="rtk"
+readonly RTK_INSTALL_REF="${TOKENWAR_RTK_INSTALL_REF:-v0.42.4}"
+readonly RTK_INSTALL_URL="https://raw.githubusercontent.com/rtk-ai/rtk/${RTK_INSTALL_REF}/install.sh"
+readonly RTK_GIT_URL="${TOKENWAR_RTK_GIT_URL:-https://github.com/rtk-ai/rtk}"
+readonly RTK_LOCAL_BIN="$HOME/.local/bin"
+readonly RUSTUP_URL="https://sh.rustup.rs"
+
 # Shell-integration block markers — used to idempotently inject/remove the
 # `tokenwar`, `codex`, and `gemini` wrapper functions in the user's shell rc.
 readonly TW_RC_BEGIN="# >>> tokenwar shell integration >>>"
@@ -57,13 +72,19 @@ warn()   { printf '%s %s\n' "$(yellow '!!')" "$*" >&2; }
 die()    { printf '%s %s\n' "$(red 'ERR')" "$*" >&2; exit 1; }
 
 WITH_PLUGINS=false
+WITH_RTK=false
 for arg in "$@"; do
     case "$arg" in
         --with-plugins) WITH_PLUGINS=true ;;
+        --with-rtk)     WITH_RTK=true ;;
+        --all)          WITH_PLUGINS=true; WITH_RTK=true ;;
         -h|--help)
-            printf 'Usage: install.sh [--with-plugins]\n  --with-plugins  also install+enable the 4 Claude Code plugins\n'
+            printf 'Usage: install.sh [--with-plugins] [--with-rtk] [--all]\n'
+            printf '  --with-plugins  install+enable the 4 Claude Code plugins (incl. ponytail)\n'
+            printf '  --with-rtk      install the RTK binary (official prebuilt installer) + wire its hook\n'
+            printf '  --all           both of the above\n'
             exit 0 ;;
-        *) die "unknown argument: $arg (supported: --with-plugins)" ;;
+        *) die "unknown argument: $arg (supported: --with-plugins, --with-rtk, --all)" ;;
     esac
 done
 
@@ -203,17 +224,56 @@ install_plugins() {
     say "Plugins installed + enabled. Restart Claude Code to load them."
 }
 
-# RTK is a Rust binary, not a plugin — it cannot be built in a portable curl|bash
-# (no canonical `cargo install rtk`; the public crate name is a different project).
-# So we only wire its hook when the binary is already present. `rtk init -g` is
-# non-interactive and patches settings.json itself.
+# Wire RTK's hook. `rtk init -g` is non-interactive and patches settings.json
+# itself. No-op (with a hint) when the binary isn't installed.
 wire_rtk_hook() {
-    if command -v rtk >/dev/null 2>&1; then
+    if command -v "$RTK_BIN" >/dev/null 2>&1; then
         say "Wiring RTK hook (rtk init -g)"
-        rtk init -g >/dev/null 2>&1 || warn "rtk init -g failed — run it manually"
+        "$RTK_BIN" init -g >/dev/null 2>&1 || warn "rtk init -g failed — run it manually"
     else
-        warn "rtk binary not found — RTK is a Rust build, not a plugin. Install the RTK CLI, then run \`rtk init -g\` (or re-run --with-plugins)."
+        warn "rtk binary not found — install it with --with-rtk (or run \`rtk init -g\` after installing the RTK CLI)."
     fi
+}
+
+# --with-rtk: install the RTK binary, then wire its hook. RTK is a Rust binary,
+# not a plugin, so it can't come from a plugin marketplace. Order of attempts:
+#   1. already on PATH        → nothing to install.
+#   2. rtk's OFFICIAL installer (prebuilt binary, every major platform, no
+#      toolchain) — the fast, maintained path.
+#   3. fallback: build from source with cargo; if cargo is missing, install the
+#      Rust toolchain via rustup first. Only reached on platforms with no prebuilt.
+install_rtk() {
+    if command -v "$RTK_BIN" >/dev/null 2>&1; then
+        say "RTK already installed ($("$RTK_BIN" --version 2>/dev/null || echo present)) — skipping install"
+        return 0
+    fi
+
+    if command -v curl >/dev/null 2>&1; then
+        say "Installing RTK via the official prebuilt installer ($RTK_INSTALL_REF)"
+        curl -fsSL "$RTK_INSTALL_URL" | sh >/dev/null 2>&1 || warn "rtk official installer failed — will try cargo"
+        # rtk drops the binary in ~/.local/bin; make it visible to this process.
+        case ":$PATH:" in *":$RTK_LOCAL_BIN:"*) : ;; *) PATH="$RTK_LOCAL_BIN:$PATH" ;; esac
+    else
+        warn "curl not found — skipping prebuilt installer, trying cargo"
+    fi
+
+    if ! command -v "$RTK_BIN" >/dev/null 2>&1; then
+        if ! command -v cargo >/dev/null 2>&1; then
+            say "Installing the Rust toolchain (rustup) to build RTK from source"
+            curl -fsSL "$RUSTUP_URL" | sh -s -- -y >/dev/null 2>&1 || warn "rustup install failed"
+            # shellcheck disable=SC1091
+            [[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
+        fi
+        if command -v cargo >/dev/null 2>&1; then
+            say "Building RTK from source ($RTK_GIT_URL)"
+            cargo install --git "$RTK_GIT_URL" >/dev/null 2>&1 || warn "cargo install rtk failed"
+            case ":$PATH:" in *":$HOME/.cargo/bin:"*) : ;; *) PATH="$HOME/.cargo/bin:$PATH" ;; esac
+        fi
+    fi
+
+    command -v "$RTK_BIN" >/dev/null 2>&1 \
+        && say "RTK installed ($("$RTK_BIN" --version 2>/dev/null || echo ok))." \
+        || warn "RTK install failed — see https://github.com/rtk-ai/rtk for manual steps."
 }
 
 say "Wiring shell integration"
@@ -229,16 +289,21 @@ if ! $wired_any; then
     wire_shell_rc "$HOME/.bashrc" || warn "could not create shell integration in ~/.bashrc"
 fi
 
-# 5. plugins + rtk hook (opt-in)
-if $WITH_PLUGINS; then
-    install_plugins
-    wire_rtk_hook
-    next_steps="Plugins installed (restart Claude Code to load them). If the RTK binary was
-present its hook was wired too; otherwise install the RTK CLI (a Rust binary) and run \`rtk init -g\`."
+# 5. plugins + rtk (opt-in)
+if $WITH_PLUGINS; then install_plugins; fi
+if $WITH_RTK; then install_rtk; fi
+if $WITH_PLUGINS || $WITH_RTK; then wire_rtk_hook; fi
+
+if $WITH_PLUGINS && $WITH_RTK; then
+    next_steps="Plugins + RTK installed and RTK's hook wired. Restart Claude Code to load the plugins."
+elif $WITH_PLUGINS; then
+    next_steps="Plugins installed (restart Claude Code). RTK not installed — add --with-rtk, or install the RTK CLI and run \`rtk init -g\`."
+elif $WITH_RTK; then
+    next_steps="RTK installed + hook wired. Install the plugins with --with-plugins (or /tokenwar activate)."
 else
     next_steps="Activate the tools (4 plugins incl. ponytail + the RTK hook) via the tokenwar skill:
   /tokenwar activate
-(or re-run the installer with --with-plugins to install the plugins now)"
+(or re-run with --all to install everything in one shot)"
 fi
 
 cat <<EOF

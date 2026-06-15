@@ -131,15 +131,15 @@ tokenwar doctor     # status → check → gain
 
 ## Quick start
 
-One command — installs the 4 Claude Code plugins (context-mode, claude-mem, caveman, **ponytail**), wires the statusline + shell functions, all in one shot:
+One command — the whole stack: the 4 Claude Code plugins (context-mode, claude-mem, caveman, **ponytail**), the **RTK** binary (via rtk's official prebuilt installer), the statusline + shell functions, and RTK's hook:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --with-plugins
+curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --all
 ```
 
-Restart Claude Code to load the plugins. RTK is a Rust binary (not a plugin), so it isn't built here — but if the `rtk` binary is already installed, `--with-plugins` wires its hook for you (`rtk init -g`). If not, install the RTK CLI, then run `rtk init -g`.
+Restart Claude Code to load the plugins. `--all` = `--with-plugins --with-rtk`; use either alone if you only want one half. RTK installs from a prebuilt binary (no toolchain) on every major platform, falling back to a `cargo` build only where no prebuilt asset exists.
 
-Prefer no surprise mutations? Drop the flag — `… | bash` just wires the statusline + shell functions, then `/tokenwar activate` installs the plugins on confirmation:
+Prefer no surprise mutations? Drop the flags — `… | bash` just wires the statusline + shell functions, then `/tokenwar activate` installs the plugins on confirmation:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash
