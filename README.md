@@ -73,7 +73,7 @@ The lazy-senior-dev ruleset ([DietrichGebert/ponytail](https://github.com/Dietri
 
 > Four save on the conversation, one saves on the artifact. One's a Rust hook, one's an MCP sandbox, one's a memory store, one's a response filter, one's a ruleset. Different shapes, different lanes — that's exactly why they stack. Run one and you compress one buffer; run all five and nothing in the loop is left uncompressed. **That's the 5-in-1.**
 
-> Honest accounting: RTK / context-mode / claude-mem report real telemetry; caveman and ponytail are presence-only (a style nudge and a prompt include — no metered buffer), so they show `on`, never a fabricated number. Measure ponytail by A/B-ing `/ponytail` on vs off — the [`examples/`](https://github.com/DietrichGebert/ponytail/tree/main/examples) show before/after diffs.
+> Honest accounting: RTK / context-mode / claude-mem report real telemetry; caveman and ponytail are presence-only (a style nudge and a plugin ruleset — no metered buffer), so they show `on`, never a fabricated number. Measure ponytail by A/B-ing `/ponytail` on vs off — the [`examples/`](https://github.com/DietrichGebert/ponytail/tree/main/examples) show before/after diffs.
 
 ## Why complementary (not conflicting)
 
@@ -181,7 +181,7 @@ Wire the combined statusline (Claude Code, `~/.claude/settings.json`):
 }
 ```
 
-Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>] [ponytail on]` — green if active, red if down. The `ponytail` badge is presence-only (green `on` when `@ponytail.md` is wired into `~/.claude/CLAUDE.md`, red `off` otherwise) — no version, no telemetry, by design. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action. The bar is **Claude-only** — Codex/Gemini are tracked in `/tokenwar gain`, not on the Claude status bar.
+Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>] [ponytail on]` — green if active, red if down. The `ponytail` badge reflects the plugin's real runtime mode: green with the active intensity (`on` for full, else `lite`/`ultra`) when the `ponytail@ponytail` plugin is enabled and not toggled off, red `off` when disabled or after `/ponytail off` — read live from the plugin's `~/.claude/.ponytail-active` flag, no version, no telemetry, by design. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action. The bar is **Claude-only** — Codex/Gemini are tracked in `/tokenwar gain`, not on the Claude status bar.
 
 ## Settings.json wipe protection
 

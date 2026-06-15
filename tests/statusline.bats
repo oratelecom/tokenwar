@@ -257,3 +257,62 @@ EOF
     [[ "$output" != *"⬆"* ]]
     [[ "$output" != *"/tokenwar upgrade"* ]]
 }
+
+@test "ponytail plugin enabled + full-mode flag → green [ponytail on]" {
+    write_settings <<'EOF'
+{}
+EOF
+    mock_claude_with_plugins '[
+        {"id":"ponytail@ponytail","version":"4.2.0","enabled":true}
+    ]'
+    printf 'full' > "$HOME/.claude/.ponytail-active"
+
+    run bash "$SCRIPT" <<<'{}'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"${GREEN}[ponytail on]"* ]]
+}
+
+@test "ponytail enabled + ultra-mode flag → green [ponytail ultra]" {
+    write_settings <<'EOF'
+{}
+EOF
+    mock_claude_with_plugins '[
+        {"id":"ponytail@ponytail","version":"4.2.0","enabled":true}
+    ]'
+    printf 'ultra' > "$HOME/.claude/.ponytail-active"
+
+    run bash "$SCRIPT" <<<'{}'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"${GREEN}[ponytail ultra]"* ]]
+}
+
+@test "ponytail enabled but flag cleared (toggled off) → red [ponytail off]" {
+    write_settings <<'EOF'
+{}
+EOF
+    mock_claude_with_plugins '[
+        {"id":"ponytail@ponytail","version":"4.2.0","enabled":true}
+    ]'
+    # No .ponytail-active flag — /ponytail off (or off default) cleared it.
+
+    run bash "$SCRIPT" <<<'{}'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"${RED}[ponytail off]"* ]]
+}
+
+@test "ponytail plugin disabled → red [ponytail off], ignores legacy CLAUDE.md include" {
+    write_settings <<'EOF'
+{}
+EOF
+    mock_claude_with_plugins '[
+        {"id":"ponytail@ponytail","version":"4.2.0","enabled":false}
+    ]'
+    # Legacy wiring present, but the plugin's runtime state is the source of truth now.
+    printf '@ponytail.md\n' > "$HOME/.claude/CLAUDE.md"
+    printf 'x' > "$HOME/.claude/ponytail.md"
+    printf 'full' > "$HOME/.claude/.ponytail-active"
+
+    run bash "$SCRIPT" <<<'{}'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"${RED}[ponytail off]"* ]]
+}

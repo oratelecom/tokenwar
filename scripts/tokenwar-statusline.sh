@@ -29,14 +29,16 @@ readonly VERSION_HASH_TRIM_LEN=7
 readonly SETTINGS_JSON="${HOME}/.claude/settings.json"
 readonly SETTINGS_LOCAL_JSON="${HOME}/.claude/settings.local.json"
 
-# ponytail (lazy-dev ruleset): a prompt include, not a metered process — so it
-# has NO telemetry, exactly like caveman. We render presence, never a fabricated
-# token number: green [ponytail on] iff the file exists AND @ponytail.md is wired
-# into the global CLAUDE.md; red [ponytail off] otherwise.
-readonly PONYTAIL_FILE="${HOME}/.claude/ponytail.md"
-readonly CLAUDE_MD="${HOME}/.claude/CLAUDE.md"
+# ponytail (lazy-dev ruleset): now a real Claude Code plugin with a runtime mode
+# toggle. Its SessionStart hook writes ~/.claude/.ponytail-active with the live
+# intensity (off mode clears the file). Badge is green with the active mode iff
+# the plugin is enabled AND the flag reports a live mode (full renders as a plain
+# "on"); red [ponytail off] when disabled or toggled off. Still presence-only —
+# no token telemetry, exactly like caveman.
+readonly SLUG_PONY="ponytail@ponytail"
+readonly PONYTAIL_FLAG="${HOME}/.claude/.ponytail-active"
 readonly PONYTAIL_LABEL="ponytail"
-readonly PONYTAIL_INCLUDE_RE='@ponytail\.md'
+readonly PONYTAIL_FULL_MODE="full"
 readonly PONYTAIL_ON_VALUE="on"
 readonly PONYTAIL_OFF_VALUE="off"
 
@@ -225,13 +227,22 @@ if command -v "$RTK_BIN" >/dev/null 2>&1; then
     fi
 fi
 
-# ponytail: presence-only (no telemetry). Active iff the file exists and the
-# global CLAUDE.md still wires the @ponytail.md include.
+# ponytail: real runtime state from the plugin. Green with the active intensity
+# iff the plugin is enabled AND the flag reports a live mode (full renders as a
+# plain "on"); red "off" when the plugin is disabled or toggled off.
+IFS='|' read -r _pony_ver pony_enabled <<<"$(plugin_lookup "$SLUG_PONY")"
 ponytail_active="false"
 ponytail_val="$PONYTAIL_OFF_VALUE"
-if [[ -f "$PONYTAIL_FILE" ]] && grep -q "$PONYTAIL_INCLUDE_RE" "$CLAUDE_MD" 2>/dev/null; then
-    ponytail_active="true"
-    ponytail_val="$PONYTAIL_ON_VALUE"
+if [[ "$pony_enabled" == "true" && -f "$PONYTAIL_FLAG" ]]; then
+    pony_mode=$(head -n1 "$PONYTAIL_FLAG" | tr -d '[:space:]')
+    if [[ -n "$pony_mode" ]]; then
+        ponytail_active="true"
+        if [[ "$pony_mode" == "$PONYTAIL_FULL_MODE" ]]; then
+            ponytail_val="$PONYTAIL_ON_VALUE"
+        else
+            ponytail_val="$pony_mode"
+        fi
+    fi
 fi
 
 # Aggregate call-to-action: when ≥1 tool has an update, append a single hint
