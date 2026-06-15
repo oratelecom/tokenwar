@@ -19,6 +19,15 @@ setup() {
 
     printf '#!/usr/bin/env bash\nexit 0\n' > "$MOCK_BIN/git"
     chmod +x "$MOCK_BIN/git"
+
+    # Mock rtk (records args) so tests never touch the real rtk / real settings.
+    export RTK_LOG="$HOME/rtk-calls.log"
+    cat > "$MOCK_BIN/rtk" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$RTK_LOG"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/rtk"
 }
 
 teardown() {
@@ -76,6 +85,24 @@ EOF
     [ "$status" -eq 0 ]
     grep -q "plugin enable extern@mp" "$CLAUDE_LOG"
     [[ "$output" == *"re-enabling extern@mp"* ]]
+}
+
+@test "--with-plugins wires the rtk hook when the rtk binary is present" {
+    mock_claude_empty
+    run bash "$SCRIPT" --with-plugins
+    [ "$status" -eq 0 ]
+    grep -q "init -g" "$RTK_LOG"
+}
+
+@test "--with-plugins warns + skips the hook when the rtk binary is absent" {
+    mock_claude_empty
+    rm -f "$MOCK_BIN/rtk"                       # drop our mock
+    ln -s "$(command -v node)" "$MOCK_BIN/node" # keep node reachable
+    PATH="$MOCK_BIN:/usr/bin:/bin"              # excludes ~/.cargo/bin → real rtk not found
+    run bash "$SCRIPT" --with-plugins
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"rtk binary not found"* ]]
+    [ ! -f "$RTK_LOG" ]
 }
 
 @test "unknown argument exits non-zero" {

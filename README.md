@@ -137,7 +137,7 @@ One command — installs the 4 Claude Code plugins (context-mode, claude-mem, ca
 curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --with-plugins
 ```
 
-Restart Claude Code to load the plugins. RTK (a Rust binary + hook) is the one piece that installs separately — run `/tokenwar activate` once to wire its hook.
+Restart Claude Code to load the plugins. RTK is a Rust binary (not a plugin), so it isn't built here — but if the `rtk` binary is already installed, `--with-plugins` wires its hook for you (`rtk init -g`). If not, install the RTK CLI, then run `rtk init -g`.
 
 Prefer no surprise mutations? Drop the flag — `… | bash` just wires the statusline + shell functions, then `/tokenwar activate` installs the plugins on confirmation:
 

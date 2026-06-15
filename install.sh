@@ -11,8 +11,9 @@
 #   4. wire the tokenwar/codex/gemini shell functions
 #   5. with --with-plugins: marketplace add + install + enable the 4 Claude Code
 #      plugins (context-mode, claude-mem, caveman, ponytail), with anti-clobber
-#      re-enable. RTK is a separate Rust binary + hook — finalized by /tokenwar
-#      activate, not here. Without the flag, plugin install is left to
+#      re-enable, then wire the RTK hook IF the rtk binary is present (`rtk init
+#      -g`). The RTK binary itself is a Rust build (no portable cargo install) so
+#      it is never built here. Without the flag, plugin install is left to
 #      /tokenwar activate (no surprise mutation of the user's plugin config).
 #
 # Idempotent: re-running pulls the latest tokenwar and only patches settings.json
@@ -202,6 +203,19 @@ install_plugins() {
     say "Plugins installed + enabled. Restart Claude Code to load them."
 }
 
+# RTK is a Rust binary, not a plugin — it cannot be built in a portable curl|bash
+# (no canonical `cargo install rtk`; the public crate name is a different project).
+# So we only wire its hook when the binary is already present. `rtk init -g` is
+# non-interactive and patches settings.json itself.
+wire_rtk_hook() {
+    if command -v rtk >/dev/null 2>&1; then
+        say "Wiring RTK hook (rtk init -g)"
+        rtk init -g >/dev/null 2>&1 || warn "rtk init -g failed — run it manually"
+    else
+        warn "rtk binary not found — RTK is a Rust build, not a plugin. Install the RTK CLI, then run \`rtk init -g\` (or re-run --with-plugins)."
+    fi
+}
+
 say "Wiring shell integration"
 wired_any=false
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
@@ -215,11 +229,12 @@ if ! $wired_any; then
     wire_shell_rc "$HOME/.bashrc" || warn "could not create shell integration in ~/.bashrc"
 fi
 
-# 5. plugins (opt-in)
+# 5. plugins + rtk hook (opt-in)
 if $WITH_PLUGINS; then
     install_plugins
-    next_steps="Plugins installed (restart Claude Code to load them). RTK is a separate
-Rust binary + hook — if you use it, install rtk then run \`/tokenwar activate\` to wire it."
+    wire_rtk_hook
+    next_steps="Plugins installed (restart Claude Code to load them). If the RTK binary was
+present its hook was wired too; otherwise install the RTK CLI (a Rust binary) and run \`rtk init -g\`."
 else
     next_steps="Activate the tools (4 plugins incl. ponytail + the RTK hook) via the tokenwar skill:
   /tokenwar activate
