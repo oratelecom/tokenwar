@@ -1,8 +1,8 @@
-<p align="center">
-  <img src="docs/logo.png" alt="tokenwar logo" width="160">
-</p>
+<h1 align="center">TokenWar</h1>
 
-# tokenwar
+<p align="center">
+  <img src="docs/logo.png" alt="TokenWar logo" width="160">
+</p>
 
 <p align="center">
   <img src="docs/tokenwar-stack.png" alt="tokenwar — 1 project → 5 buffers, all compressed. The savings stack." width="100%">
