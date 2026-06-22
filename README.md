@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.png" alt="tokenwar logo" width="160">
+</p>
+
 # tokenwar
 
 <p align="center">
