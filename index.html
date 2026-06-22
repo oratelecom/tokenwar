@@ -256,49 +256,7 @@
     </header>
 
     <section>
-      <h2>Each layer owns a distinct buffer</h2>
-      <div class="panel diagram">
-
-        <!-- caveman: LLM → USER -->
-        <div class="flow">
-          <div class="node">🧠 LLM</div>
-          <div class="arrow cave"><span class="pill">caveman ⤵ compress output</span></div>
-          <div class="node">👤 User</div>
-        </div>
-
-        <!-- RTK: SHELL → LLM -->
-        <div class="flow">
-          <div class="node">💻 Shell · tools</div>
-          <div class="arrow rtk"><span class="pill">RTK ⤵ compress stdout</span></div>
-          <div class="node">🧠 LLM</div>
-        </div>
-
-        <!-- context-mode: LLM ↔ SANDBOX -->
-        <div class="flow">
-          <div class="node">🧠 LLM</div>
-          <div class="arrow ctx"><span class="pill">context-mode ⇄ sandbox + FTS5</span></div>
-          <div class="node">🧪 Sandbox</div>
-        </div>
-
-        <!-- claude-mem: LLM ↔ persistent store -->
-        <div class="flow">
-          <div class="node">🧠 LLM</div>
-          <div class="arrow mem"><span class="pill">claude-mem ⇄ persistent store</span></div>
-          <div class="node">💾 Cross-session</div>
-        </div>
-
-        <!-- ponytail: LLM → CODE (generation); the saving recurs on every future read -->
-        <div class="flow">
-          <div class="node">🧠 LLM</div>
-          <div class="arrow pony"><span class="pill">ponytail ⤵ generate less code → disk</span></div>
-          <div class="node">📄 Source on disk</div>
-        </div>
-      </div>
-      <p style="margin:18px 2px 0;font-size:0.92rem;color:var(--muted)">
-        Five lanes, none double-processed. Four save on the live conversation (once per call); the
-        <span style="color:var(--pony)">ponytail</span> lane saves on the artifact on disk —
-        replayed on every future read (review · diff · grep · next session). Different shapes of saving, same stack.
-      </p>
+      <img src="docs/tokenwar-stack.png" alt="tokenwar — 1 project → 5 buffers, all compressed. The savings stack." style="width:100%;height:auto;display:block;border-radius:12px;margin:0 0 8px;">
     </section>
 
     <section>
