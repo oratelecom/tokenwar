@@ -4,10 +4,6 @@
   <img src="docs/logo.png" alt="TokenWar logo" width="160">
 </p>
 
-<p align="center">
-  <img src="docs/tokenwar-stack.png" alt="tokenwar — 1 project → 5 buffers, all compressed. The savings stack." width="100%">
-</p>
-
 [![CI](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml)
 
 **Five token-saving tools, run as one stack.** Built for Claude Code first — but the stack reaches further: RTK, ponytail, caveman and context-mode work across agents (Codex, Gemini, Cursor…), and Codex/Gemini token usage is tracked from native telemetry. Each compresses a buffer the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, and the code itself — so the savings stack instead of competing. None of the five is the headliner; the genius is running all five at once. **5-in-1.**
