@@ -3,7 +3,7 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash
 #   curl -fsSL .../install.sh | bash -s -- --with-plugins   # + the 4 plugins
-#   curl -fsSL .../install.sh | bash -s -- --all            # + plugins + RTK binary
+#   curl -fsSL .../install.sh | bash -s -- --all            # + plugins + RTK + pxpipe
 #
 # Does:
 #   1. git clone https://github.com/oratelecom/tokenwar ~/.claude/skills/tokenwar
@@ -16,7 +16,9 @@
 #                      with anti-clobber re-enable.
 #      --with-rtk      install the RTK binary via rtk's official prebuilt
 #                      installer (prebuilt, no toolchain), then wire its hook.
-#      --all           both. After either, RTK's hook is wired via `rtk init -g`.
+#      --with-pxpipe  install pxpipe proxy from a pinned npm package.
+#      --all           plugins + RTK + pxpipe. After plugins/RTK, RTK's hook is
+#                      wired via `rtk init -g`.
 #      Without any flag, plugin/RTK setup is left to /tokenwar activate.
 #
 # Idempotent: re-running pulls the latest tokenwar and only patches settings.json
@@ -54,6 +56,12 @@ readonly RTK_BIN="rtk"
 readonly RTK_INSTALL_REF="${TOKENWAR_RTK_INSTALL_REF:-v0.42.4}"
 readonly RTK_INSTALL_URL="https://raw.githubusercontent.com/rtk-ai/rtk/${RTK_INSTALL_REF}/install.sh"
 readonly RTK_LOCAL_BIN="$HOME/.local/bin"
+readonly NPM_BIN="npm"
+readonly PXPIPE_BIN="pxpipe"
+readonly PXPIPE_NPM_PACKAGE="pxpipe-proxy"
+readonly PXPIPE_NPM_VERSION="0.10.0"
+readonly PXPIPE_NPM_SPEC="${PXPIPE_NPM_PACKAGE}@${PXPIPE_NPM_VERSION}"
+readonly USER_LOCAL_BIN="$HOME/.local/bin"
 
 # Shell-integration block markers — used to idempotently inject/remove the
 # `tokenwar`, `codex`, `gemini`, and `kimi` wrapper functions in the user's
@@ -76,18 +84,21 @@ die()    { printf '%s %s\n' "$(red 'ERR')" "$*" >&2; exit 1; }
 
 WITH_PLUGINS=false
 WITH_RTK=false
+WITH_PXPIPE=false
 for arg in "$@"; do
     case "$arg" in
         --with-plugins) WITH_PLUGINS=true ;;
         --with-rtk)     WITH_RTK=true ;;
-        --all)          WITH_PLUGINS=true; WITH_RTK=true ;;
+        --with-pxpipe)  WITH_PXPIPE=true ;;
+        --all)          WITH_PLUGINS=true; WITH_RTK=true; WITH_PXPIPE=true ;;
         -h|--help)
-            printf 'Usage: install.sh [--with-plugins] [--with-rtk] [--all]\n'
+            printf 'Usage: install.sh [--with-plugins] [--with-rtk] [--with-pxpipe] [--all]\n'
             printf '  --with-plugins  install+enable the 4 Claude Code plugins (incl. ponytail)\n'
             printf '  --with-rtk      install the RTK binary (official prebuilt installer) + wire its hook\n'
-            printf '  --all           both of the above\n'
+            printf '  --with-pxpipe   install pxpipe proxy (%s)\n' "$PXPIPE_NPM_SPEC"
+            printf '  --all           all of the above\n'
             exit 0 ;;
-        *) die "unknown argument: $arg (supported: --with-plugins, --with-rtk, --all)" ;;
+        *) die "unknown argument: $arg (supported: --with-plugins, --with-rtk, --with-pxpipe, --all)" ;;
     esac
 done
 
@@ -263,6 +274,44 @@ install_rtk() {
         || warn "RTK install failed — see https://github.com/rtk-ai/rtk for manual steps."
 }
 
+# --with-pxpipe: install pxpipe via its published npm package. pxpipe is a
+# provider proxy that turns selected prompt/context text into PNG payloads and
+# records proxy-side savings in ~/.pxpipe/events.jsonl.
+install_pxpipe() {
+    if command -v "$PXPIPE_BIN" >/dev/null 2>&1; then
+        say "pxpipe already installed ($("$PXPIPE_BIN" --version 2>/dev/null || echo present)) — skipping install"
+        return 0
+    fi
+    if ! command -v "$NPM_BIN" >/dev/null 2>&1; then
+        warn "npm not found — cannot install pxpipe. See https://github.com/teamchong/pxpipe"
+        return 0
+    fi
+
+    say "Installing pxpipe via npm ($PXPIPE_NPM_SPEC)"
+    "$NPM_BIN" install -g "$PXPIPE_NPM_SPEC" >/dev/null 2>&1 || {
+        warn "pxpipe install failed — see https://github.com/teamchong/pxpipe"
+        return 0
+    }
+
+    if ! command -v "$PXPIPE_BIN" >/dev/null 2>&1; then
+        local npm_prefix npm_pxpipe
+        npm_prefix="$("$NPM_BIN" config get prefix 2>/dev/null || echo "")"
+        npm_pxpipe="${npm_prefix}/bin/${PXPIPE_BIN}"
+        if [[ -n "$npm_prefix" && -x "$npm_pxpipe" ]]; then
+            mkdir -p "$USER_LOCAL_BIN" || {
+                warn "could not create $USER_LOCAL_BIN"
+                return 0
+            }
+            ln -sfn "$npm_pxpipe" "${USER_LOCAL_BIN}/${PXPIPE_BIN}" \
+                || warn "could not link pxpipe into $USER_LOCAL_BIN"
+        fi
+    fi
+
+    command -v "$PXPIPE_BIN" >/dev/null 2>&1 \
+        && say "pxpipe installed ($("$PXPIPE_BIN" --version 2>/dev/null || echo ok))." \
+        || warn "pxpipe install finished, but pxpipe is not on PATH. Add npm's global bin directory or $USER_LOCAL_BIN to PATH."
+}
+
 say "Wiring shell integration"
 wired_any=false
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
@@ -276,19 +325,24 @@ if ! $wired_any; then
     wire_shell_rc "$HOME/.bashrc" || warn "could not create shell integration in ~/.bashrc"
 fi
 
-# 5. plugins + rtk (opt-in)
+# 5. plugins + rtk + pxpipe (opt-in)
 if $WITH_PLUGINS; then install_plugins; fi
 if $WITH_RTK; then install_rtk; fi
+if $WITH_PXPIPE; then install_pxpipe; fi
 if $WITH_PLUGINS || $WITH_RTK; then wire_rtk_hook; fi
 
-if $WITH_PLUGINS && $WITH_RTK; then
-    next_steps="Plugins + RTK installed and RTK's hook wired. Restart Claude Code to load the plugins."
+if $WITH_PLUGINS && $WITH_RTK && $WITH_PXPIPE; then
+    next_steps="Plugins + RTK + pxpipe installed and RTK's hook wired. Restart Claude Code to load the plugins. Start pxpipe when you want proxy-side prompt-to-PNG savings."
+elif $WITH_PLUGINS && $WITH_RTK; then
+    next_steps="Plugins + RTK installed and RTK's hook wired. pxpipe not installed — add --with-pxpipe if you want proxy-side prompt-to-PNG savings. Restart Claude Code to load the plugins."
 elif $WITH_PLUGINS; then
-    next_steps="Plugins installed (restart Claude Code). RTK not installed — add --with-rtk, or install the RTK CLI and run \`rtk init -g\`."
+    next_steps="Plugins installed (restart Claude Code). RTK not installed — add --with-rtk, or install the RTK CLI and run \`rtk init -g\`. pxpipe not installed — add --with-pxpipe."
 elif $WITH_RTK; then
-    next_steps="RTK installed + hook wired. Install the plugins with --with-plugins (or /tokenwar activate)."
+    next_steps="RTK installed + hook wired. Install the plugins with --with-plugins (or /tokenwar activate). pxpipe not installed — add --with-pxpipe."
+elif $WITH_PXPIPE; then
+    next_steps="pxpipe installed. Start it when you want proxy-side prompt-to-PNG savings; install the Claude plugins/RTK with --all for the full stack."
 else
-    next_steps="Activate the tools (4 plugins incl. ponytail + the RTK hook) via the tokenwar skill:
+    next_steps="Activate the tools (4 plugins incl. ponytail + the RTK hook + pxpipe) via the tokenwar skill:
   /tokenwar activate
 (or re-run with --all to install everything in one shot)"
 fi

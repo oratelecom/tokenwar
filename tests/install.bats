@@ -11,6 +11,7 @@ setup() {
     export PATH="$MOCK_BIN:$PATH"          # keeps real node; shadows git + claude
     export HOME="$(mktemp -d)"
     export CLAUDE_LOG="$HOME/claude-calls.log"
+    export NPM_LOG="$HOME/npm-calls.log"
 
     # Fake existing checkout so install.sh takes the `git pull` path (no clone).
     export TOKENWAR_DIR="$HOME/.claude/skills/tokenwar"
@@ -156,12 +157,52 @@ EOF
     grep -q "init -g" "$RTK_LOG"
 }
 
-@test "--all installs plugins AND handles rtk" {
+@test "--with-pxpipe installs pinned pxpipe-proxy package when absent" {
     mock_claude_empty
+    rm -f "$MOCK_BIN/pxpipe"
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    cat > "$MOCK_BIN/npm" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "config get prefix" ]]; then
+    echo "$HOME/.local"
+    exit 0
+fi
+echo "\$*" >> "$NPM_LOG"
+mkdir -p "$HOME/.local/bin"
+cat > "$HOME/.local/bin/pxpipe" <<'PXPIPE'
+#!/usr/bin/env bash
+[[ "$1" == "--version" ]] && echo "0.10.0"
+PXPIPE
+chmod +x "$HOME/.local/bin/pxpipe"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/npm"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
+    run bash "$SCRIPT" --with-pxpipe
+    [ "$status" -eq 0 ]
+    grep -q "install -g pxpipe-proxy@0.10.0" "$NPM_LOG"
+    [ -x "$HOME/.local/bin/pxpipe" ]
+}
+
+@test "--all installs plugins AND handles rtk and pxpipe" {
+    mock_claude_empty
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    cat > "$MOCK_BIN/npm" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "config get prefix" ]]; then
+    echo "$HOME/.local"
+    exit 0
+fi
+echo "\$*" >> "$NPM_LOG"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/npm"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
     run bash "$SCRIPT" --all
     [ "$status" -eq 0 ]
     grep -q "plugin install ponytail@ponytail" "$CLAUDE_LOG"
     grep -q "init -g" "$RTK_LOG"
+    grep -q "install -g pxpipe-proxy@0.10.0" "$NPM_LOG"
 }
 
 @test "unknown argument exits non-zero" {

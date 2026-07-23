@@ -1,22 +1,23 @@
 ---
 name: tokenwar
-description: Activate, upgrade, test, and benchmark the 5-tool token-saving stack (context-mode, claude-mem, RTK, caveman, ponytail). Reports per-tool + per-provider (Codex, Gemini, Kimi) token savings and detects conflicts that would erase the gains.
+description: Activate, upgrade, test, and benchmark the 6-tool token-saving stack (context-mode, claude-mem, RTK, pxpipe, caveman, ponytail). Reports per-tool + per-provider (Codex, Gemini, Kimi) token savings and detects conflicts that would erase the gains.
 trigger: /tokenwar
 ---
 
 # /tokenwar — token-saving stack manager
 
-Manages the 5 complementary token-saving tools:
+Manages the 6 complementary token-saving tools:
 
 | Tool         | Layer                       | Plugin slug                       | CLI / hook        |
 | ------------ | --------------------------- | --------------------------------- | ----------------- |
 | context-mode | MCP — data offload + memory | `context-mode@context-mode`       | MCP only          |
 | claude-mem   | session memory + compaction | `claude-mem@thedotmack`           | `claude-mem` CLI  |
 | RTK          | bash output compression     | (CLI only, hook in `~/.claude`)   | `rtk` (Rust)      |
+| pxpipe       | provider prompt payload proxy | (CLI only, npm package)         | `pxpipe`          |
 | caveman      | response-style compression  | `caveman@caveman`                 | hook              |
 | ponytail     | the code the LLM writes     | `ponytail@ponytail`               | plugin (mode-gated) |
 
-> ponytail and caveman are **presence-only** (a ruleset / a style nudge — no metered buffer): `status` and `activate` manage all five, but the conflict detector (`check`) and the auto-update tracker cover only the four buffer-owning, version-tracked tools. ponytail upgrades via `claude plugin update ponytail@ponytail`, and is toggled per-session with `/ponytail off|lite|full|ultra`.
+> ponytail and caveman are **presence-only** (a ruleset / a style nudge — no metered buffer): `status` and `activate` manage all six, but `gain` only prints real telemetry where the tool exposes it. pxpipe is CLI/proxy-managed via the pinned npm package `pxpipe-proxy@0.10.0` and reports savings only from its native `~/.pxpipe/events.jsonl`. ponytail upgrades via `claude plugin update ponytail@ponytail`, and is toggled per-session with `/ponytail off|lite|full|ultra`.
 
 ## Multi-provider support
 
@@ -56,7 +57,7 @@ never the screen. So tokenwar surfaces the stack differently per CLI:
   the tokenwar banner (`scripts/tokenwar-launch.sh`), reminds the user to run
   `tokenwar status`, and — if the throttled cache shows pending updates —
   offers an inline **"Upgrade now? [y/N]"** that runs `scripts/upgrade.sh` for
-  the 4 tools. The banner is silent for non-interactive launches
+  managed tools. The banner is silent for non-interactive launches
   (`codex exec`, `gemini -p …`, `kimi -p …`, pipes) so it never pollutes
   scripted output.
 
@@ -64,7 +65,7 @@ never the screen. So tokenwar surfaces the stack differently per CLI:
 
 ```
 /tokenwar            # default → status
-/tokenwar status     # current state of the 5 tools (read-only)
+/tokenwar status     # current state of the 6 tools (read-only)
 /tokenwar activate   # install missing + enable disabled (asks confirmation)
 /tokenwar upgrade    # bump each to latest (asks confirmation)
 /tokenwar test       # ping each one-by-one, verify it actually responds
@@ -102,8 +103,9 @@ On `Yes`, run for each tool:
 - `ponytail` not installed → `claude plugin marketplace add DietrichGebert/ponytail` (upstream; `marketplace update` later to refresh), then `claude plugin install ponytail@ponytail` then `claude plugin enable ponytail@ponytail`. The install is SHA-locked in `~/.claude/plugins/installed_plugins.json` (same as caveman), so it is pinned to the resolved commit, not a floating ref. ponytail defaults to `full` mode; `/ponytail off` turns it off per-session.
 - `context-mode` disabled → `claude plugin enable context-mode@context-mode`
 - `rtk` hook missing → `rtk init -g` (only run this if `rtk gain` output said `[warn] No hook installed`). The CLI is interactive and defaults to `N` in non-interactive shells; after running it, manually patch `~/.claude/settings.json` to add a `hooks.PreToolUse` entry pointing at `~/.claude/hooks/rtk-rewrite.sh`.
+- `pxpipe` not installed → `npm install -g pxpipe-proxy@0.10.0`. This is the current pinned package for teamchong/pxpipe; do not install a floating version.
 
-**One-shot alternative**: `install.sh --all` (or `curl … | bash -s -- --all`) installs the whole stack at install time — the 4 plugins (marketplace-add + install + enable, with the anti-clobber re-enable) AND the RTK binary (via rtk's official prebuilt installer — no toolchain), then wires RTK's hook with `rtk init -g`. Use `--with-plugins` or `--with-rtk` for just one half. So a fresh machine needs no separate `activate`.
+**One-shot alternative**: `install.sh --all` (or `curl … | bash -s -- --all`) installs the whole stack at install time — the 4 plugins (marketplace-add + install + enable, with the anti-clobber re-enable), the RTK binary (via rtk's official prebuilt installer — no toolchain), and pxpipe (`pxpipe-proxy@0.10.0`), then wires RTK's hook with `rtk init -g`. Use `--with-plugins`, `--with-rtk`, or `--with-pxpipe` for just one part. So a fresh machine needs no separate `activate`.
 
 **Gotcha discovered 2026-05-18**: the *first* call to `claude plugin enable` on any plugin creates `enabledPlugins` in `~/.claude/settings.json` and **clobbers** plugins that were enabled implicitly at the marketplace level. Mitigation: after EVERY enable/install, snapshot the full `claude plugin list --json` and re-enable any plugin that flipped from `enabled:true` to `enabled:false`. The `activate` flow must do this snapshot-and-restore.
 
@@ -133,11 +135,12 @@ After upgrade, re-run `check-updates.sh --force` then `status` so the version co
 
 ## Subcommand: test
 
-Run `bash ~/.claude/skills/tokenwar/scripts/status.sh --test`. For each of the 5 tools, the script issues a minimal end-to-end ping:
+Run `bash ~/.claude/skills/tokenwar/scripts/status.sh --test`. For each of the 6 tools, the script issues a minimal end-to-end ping:
 
 - **context-mode**: call the `ctx_stats` MCP tool. Alive iff it returns a JSON-shaped reply.
 - **claude-mem**: `claude-mem --version` exits 0.
 - **RTK**: `rtk --version` exits 0 AND `rtk gain` returns non-empty stats.
+- **pxpipe**: `pxpipe --version` exits 0. Proxy savings are read separately from `~/.pxpipe/events.jsonl`.
 - **caveman**: `test -d ~/.claude/plugins/cache/caveman/caveman/*/skills/caveman` AND the plugin appears in `claude plugin list`.
 
 Report a table `<tool> | alive | version | latency_ms`. **Do not infer aliveness from "the plugin is enabled" — actually run the ping.**
@@ -155,6 +158,7 @@ Run `bash ~/.claude/skills/tokenwar/scripts/gain.sh`. It aggregates from:
 | RTK          | `rtk gain` (parse `Tokens saved:` line + per-command table)    |
 | context-mode | `ctx_stats` MCP tool (KB stored × 0.25 = approx tokens saved)  |
 | claude-mem   | `~/.claude-mem/chroma-sync-state.json` — real per-project counts of stored observations + summaries, × `MEM_EST_TOKENS_PER_ITEM` (est.) |
+| pxpipe       | `~/.pxpipe/events.jsonl` — real proxy events; parse explicit saved-token fields or baseline-minus-actual token fields |
 | caveman      | none — a SessionStart style nudge with no buffer transform, so no measurable byte delta → honest `N/A` |
 
 For `context-mode`: invoke the `ctx_stats` MCP tool and parse the `total_size_kb` field, multiply by `1024 / TOKEN_CHARS_PER_TOKEN` (~4) to estimate tokens kept out of the context window.
@@ -192,7 +196,7 @@ Monthly value — API-equivalent $ saved (RTK)
 
 If the complementary check is `FAIL`, prefix the TOTAL line with `⚠️` and add `effective gain may be lower than reported — see /tokenwar check`. The user MUST not be told they're winning when two tools are double-processing the same buffer.
 
-Each tool is read from its OWN native telemetry — never fabricate. If a source is missing (no `~/.claude-mem/chroma-sync-state.json`, no `CTX_STATS_JSON`, no `rtk`), that tool shows `N/A`, never `0`. caveman is always `N/A` by design — it has no telemetry surface.
+Each tool is read from its OWN native telemetry — never fabricate. If a source is missing (no `~/.claude-mem/chroma-sync-state.json`, no `CTX_STATS_JSON`, no `rtk`, no `~/.pxpipe/events.jsonl`), that tool shows `N/A`, never `0`. caveman is always `N/A` by design — it has no telemetry surface.
 
 ## Subcommand: check
 
@@ -248,6 +252,7 @@ Each tool is read from its own native telemetry — `gain.sh` never fabricates:
 - **RTK** — `rtk gain` / `rtk gain --monthly` (from its `history.db`).
 - **context-mode** — the `ctx_stats` MCP tool (caller injects `CTX_STATS_JSON`).
 - **claude-mem** — `~/.claude-mem/chroma-sync-state.json` (real stored-memory counts).
+- **pxpipe** — `~/.pxpipe/events.jsonl` (real proxy-side savings from teamchong/pxpipe).
 - **caveman** — none. It's a SessionStart prompt-style nudge with no buffer transform, so there is no before/after byte delta to measure. It is always `N/A` — do not wire a byte-logging hook for it; that would only fabricate numbers.
 
 ---

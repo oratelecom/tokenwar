@@ -5,16 +5,16 @@
 </p>
 
 <p align="center">
-  <img src="docs/tokenwar-stack.png" alt="tokenwar — 1 project → 5 buffers, all compressed. The savings stack." width="100%">
+  <img src="docs/tokenwar-stack.png" alt="tokenwar — 1 project → 6 token-saving lanes. The savings stack." width="100%">
 </p>
 
 [![CI](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml)
 
-**Five token-saving tools, run as one stack.** Built for Claude Code first — but the stack reaches further: RTK, ponytail, caveman and context-mode work across agents (Codex, Gemini, Kimi, Cursor…), with provider token usage tracked only where native telemetry exists. Each compresses a buffer the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, and the code itself — so the savings stack instead of competing. None of the five is the headliner; the genius is running all five at once. **5-in-1.**
+**Six token-saving tools, run as one stack.** Built for Claude Code first — but the stack reaches further: RTK, ponytail, caveman, context-mode, and pxpipe work across agents (Codex, Gemini, Kimi, Cursor…), with provider token usage tracked only where native telemetry exists. Each saves a buffer or lane the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, provider-bound prompt payloads, and the code itself — so the savings stack instead of competing. None of the six is the headliner; the point is running all six at once. **6-in-1.**
 
 Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 
-## The five tools
+## The six tools
 
 | Tool             | What it compresses                  | Buffer / flow                     |
 | ---------------- | ----------------------------------- | --------------------------------- |
@@ -22,6 +22,7 @@ Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 | **RTK**          | Shell / tool stdout                 | `SHELL → LLM`                     |
 | **context-mode** | Heavy data (HTTP, large files, MCP) | `LLM → SANDBOX → (FTS5) → LLM`    |
 | **claude-mem**   | Cross-session knowledge             | `LLM → store → LLM (next session)`|
+| **pxpipe**       | Provider-bound prompt/context payloads | `LLM → proxy → PNG blocks → API` |
 | **ponytail**     | The code the LLM writes             | `LLM → CODE (recurs on read)`     |
 
 ## Complementarity diagram
@@ -33,6 +34,7 @@ flowchart LR
     SHELL[/💻 Shell · tools/]
     SANDBOX[(🧪 Sandbox + FTS5)]
     MEM[(💾 claude-mem store)]
+    PROXY[[🖼️ pxpipe proxy]]
     CODE[/📄 Source on disk/]
 
     USER -->|prompt| LLM
@@ -43,6 +45,8 @@ flowchart LR
     SANDBOX -->|FTS5 search results| LLM
     LLM -.->|persist session| MEM
     MEM -.->|recall on resume| LLM
+    LLM -->|pxpipe ⤵ text to PNG blocks| PROXY
+    PROXY -->|provider API payload| LLM
     LLM ==>|ponytail ⤵ generate less code| CODE
     CODE -.->|RECURS · every future read · review · diff · grep| LLM
 
@@ -50,19 +54,21 @@ flowchart LR
     classDef rtk fill:#bae6fd,stroke:#0369a1,color:#000;
     classDef ctx fill:#bbf7d0,stroke:#15803d,color:#000;
     classDef mem fill:#e9d5ff,stroke:#7e22ce,color:#000;
+    classDef pxpipe fill:#fed7aa,stroke:#c2410c,color:#000;
     classDef pony fill:#fbcfe8,stroke:#be185d,color:#000;
     class USER caveman
     class SHELL rtk
     class SANDBOX ctx
     class MEM mem
+    class PROXY pxpipe
     class CODE pony
 ```
 
-Each tool acts on a **distinct buffer** — no buffer is double-processed, so the gains stack additively. Four lanes save on the live conversation (once per call); ponytail's lane saves on the artifact on disk (replayed on every future read via the dotted `CODE -.-> LLM` loop). Different shapes of saving, same stack.
+Each tool acts on a **distinct buffer or lane** — no buffer is double-processed, so the gains stack additively. Five lanes save on the live conversation or provider request path; ponytail's lane saves on the artifact on disk (replayed on every future read via the dotted `CODE -.-> LLM` loop). Different shapes of saving, same stack.
 
-## Why we picked each one — and why all five
+## Why we picked each one — and why all six
 
-No tool here is the headliner. Each was chosen because it owns a buffer the others physically can't reach, and on its own lane each is a killer. The genius isn't any single one — it's that the five run together with zero overlap, so every saving stacks. **Five tools, one stack, 5-in-1.**
+No tool here is the headliner. Each was chosen because it owns a buffer the others physically can't reach, and on its own lane each is a killer. The point isn't any single one — it's that the six run together with zero overlap, so every saving stacks. **Six tools, one stack, 6-in-1.**
 
 ### RTK — the shell/tool firehose
 Tool output is the heaviest, most frequent buffer in an agent loop: every `git diff`, `ls`, test run, and API dump lands in context raw. RTK rewrites those commands at the hook level so only a compressed form reaches the model — transparently, zero prompt overhead, written in Rust so it's instant. It's the single biggest *measured* saver in the stack. **Picked because the firehose is where the tokens actually are.**
@@ -73,15 +79,18 @@ One large file read or HTTP fetch can blow the whole window in a single call. co
 ### claude-mem — memory across sessions
 Re-explaining the project every time you `/clear` or restart is pure repeated cost. claude-mem persists decisions, errors, and context to a store that survives compaction and is recalled next session — no re-priming. **Picked because the most expensive tokens are the ones you'd otherwise pay twice.**
 
+### pxpipe — the provider-bound prompt payload
+[teamchong/pxpipe](https://github.com/teamchong/pxpipe) is a local API proxy that converts selected prompt/context text into PNG blocks before forwarding the request to the provider. That attacks a different lane from RTK: RTK compresses shell output before it enters model context; pxpipe compresses expensive prompt payloads at the provider boundary and records savings in `~/.pxpipe/events.jsonl`. **Picked because some repeated or bulky text is cheaper as pixels than as input tokens.**
+
 ### caveman — the response on a diet
 The model's own prose is tokens too. caveman strips articles, filler, and hedging from what the LLM says while keeping the technical substance exact — terse output, same information. **Picked because a 5-line answer beats three paragraphs, every single turn.** (It's the prose twin of ponytail's code.)
 
 ### ponytail — the code itself
 The lazy-senior-dev ruleset ([DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)): a YAGNI ladder — stdlib before custom, native before dependency, one line before fifty, deletion before addition — so the model writes the *smallest correct* code, not an over-engineered one. Its saving lands twice: fewer **output** tokens at generation, then fewer **input** tokens on every future read/review/diff of a smaller file. **Picked because the cheapest code to maintain is the code that was never written.**
 
-> Four save on the conversation, one saves on the artifact. One's a Rust hook, one's an MCP sandbox, one's a memory store, one's a response filter, one's a ruleset. Different shapes, different lanes — that's exactly why they stack. Run one and you compress one buffer; run all five and nothing in the loop is left uncompressed. **That's the 5-in-1.**
+> Five save on the conversation/provider path, one saves on the artifact. One's a Rust hook, one's an MCP sandbox, one's a memory store, one's a proxy, one's a response filter, one's a ruleset. Different shapes, different lanes — that's exactly why they stack. Run one and you compress one buffer; run all six and almost nothing in the loop is left uncompressed. **That's the 6-in-1.**
 
-> Honest accounting: RTK / context-mode / claude-mem report real telemetry; caveman and ponytail are presence-only (a style nudge and a plugin ruleset — no metered buffer), so they show `on`, never a fabricated number. Measure ponytail by A/B-ing `/ponytail` on vs off — the [`examples/`](https://github.com/DietrichGebert/ponytail/tree/main/examples) show before/after diffs.
+> Honest accounting: RTK / context-mode / claude-mem / pxpipe report real telemetry; caveman and ponytail are presence-only (a style nudge and a plugin ruleset — no metered buffer), so they show `on`, never a fabricated number. pxpipe savings come only from its native `~/.pxpipe/events.jsonl`; if no events exist, tokenwar prints `N/A`. Measure ponytail by A/B-ing `/ponytail` on vs off — the [`examples/`](https://github.com/DietrichGebert/ponytail/tree/main/examples) show before/after diffs.
 
 ## Why complementary (not conflicting)
 
@@ -92,9 +101,9 @@ The tokenwar `check.sh` script enforces 4 rules:
 | R1   | Single `PreToolUse` Bash hook in `settings.json` (RTK only — no double-rewrite)    | settings.json inspected |
 | R2   | `claude-mem` writes to `~/.claude-mem`, `context-mode` to `~/.claude/projects/...` | Disjoint storage sinks  |
 | R3   | RTK targets tool stdout; caveman targets LLM output                                | Disjoint buffers        |
-| R4   | All 4 installed at current versions                                                | `claude plugin list`    |
+| R4   | Core hook/plugin tools installed at current versions                               | `claude plugin list`    |
 
-When all four PASS, the verdict is `COMPLEMENTARY`. ponytail isn't in the table because it owns no hook, store, or output buffer — it only shapes what the model writes, so it can't collide with any of the four. Five tools, still zero overlap.
+When all four PASS, the verdict is `COMPLEMENTARY`. ponytail isn't in the conflict table because it owns no hook, store, or output buffer — it only shapes what the model writes. pxpipe is tracked in `status`, `gain`, `updates`, and `upgrade`; it sits at the provider proxy boundary, separate from RTK's shell-output lane. Six tools, still zero overlap.
 
 ## Commands
 
@@ -102,7 +111,7 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 
 | Command | What it does |
 | --- | --- |
-| `/tokenwar status` | Health of the 5 tools — installed, enabled, version |
+| `/tokenwar status` | Health of the 6 tools — installed, enabled, version |
 | `/tokenwar gain` | Per-tool token savings + per-provider telemetry/status (Codex/Gemini/Kimi) + **monthly $ value** |
 | `/tokenwar upgrade` | Bump each tool to latest (asks confirmation) |
 | `/tokenwar check` | Conflict detector — verifies the 4 stack additively |
@@ -127,12 +136,12 @@ wires it once:
 
 After install you simply type `codex`, `gemini`, or `kimi` as usual — the banner
 prints, and if updates are pending you get **"⬆ N updates available. Upgrade now?
-[y/N]"** which bumps the 4 tools. A `tokenwar` command also works in any shell:
+[y/N]"** which bumps managed tools. A `tokenwar` command also works in any shell:
 
 ```bash
-tokenwar status     # state of the 5 tools + providers
+tokenwar status     # state of the 6 tools + providers
 tokenwar gain       # token savings + monthly $ value
-tokenwar upgrade    # bump the 4 tools (asks confirmation)
+tokenwar upgrade    # bump managed tools (asks confirmation)
 tokenwar doctor     # status → check → gain
 ```
 
@@ -141,13 +150,13 @@ tokenwar doctor     # status → check → gain
 
 ## Quick start
 
-One command — the whole stack: the 4 Claude Code plugins (context-mode, claude-mem, caveman, **ponytail**), the **RTK** binary (via rtk's official prebuilt installer), the statusline + shell functions, and RTK's hook:
+One command — the whole stack: the 4 Claude Code plugins (context-mode, claude-mem, caveman, **ponytail**), the **RTK** binary (via rtk's official prebuilt installer), **pxpipe** (via pinned `pxpipe-proxy@0.10.0`), the statusline + shell functions, and RTK's hook:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --all
 ```
 
-Restart Claude Code to load the plugins. `--all` = `--with-plugins --with-rtk`; use either alone if you only want one half. RTK installs from a prebuilt binary (no toolchain, no compiling) on every major platform via rtk's own official installer.
+Restart Claude Code to load the plugins. `--all` = `--with-plugins --with-rtk --with-pxpipe`; use individual flags if you only want one part. RTK installs from a prebuilt binary (no toolchain, no compiling) on every major platform via rtk's own official installer. pxpipe installs from the pinned npm package `pxpipe-proxy@0.10.0`.
 
 Prefer no surprise mutations? Drop the flags — `… | bash` just wires the statusline + shell functions, then `/tokenwar activate` installs the plugins on confirmation:
 
@@ -180,7 +189,8 @@ bash ~/.claude/skills/tokenwar/scripts/gain.sh
 
 `gain.sh` reads each tool from its **own native telemetry** — never fabricated:
 RTK (`rtk gain`), context-mode (`ctx_stats`), claude-mem
-(`~/.claude-mem/chroma-sync-state.json` stored-memory counts). caveman is a
+(`~/.claude-mem/chroma-sync-state.json` stored-memory counts), and pxpipe
+(`~/.pxpipe/events.jsonl` proxy events). caveman is a
 style-only nudge with no measurable buffer, so it is always `N/A`. It also
 prints a per-month breakdown from `rtk gain --monthly`, valuing each month's
 saved tokens at Claude and Codex input list prices (the API-equivalent $ saved).

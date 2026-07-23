@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for upgrade.sh — bumps the 4 tools, reads the throttled cache.
+# Tests for upgrade.sh — bumps managed tools, reads the throttled cache.
 
 setup() {
     SCRIPT="$BATS_TEST_DIRNAME/../scripts/upgrade.sh"
@@ -10,6 +10,7 @@ setup() {
     export ORIG_PATH="$PATH"
     export PATH="$MOCK_BIN:$PATH"
     export CLAUDE_LOG="$HOME/claude-calls.log"
+    export NPM_LOG="$HOME/npm-calls.log"
 }
 
 teardown() {
@@ -68,7 +69,7 @@ EOF
     [[ "$output" != *"context-mode"* ]]
 }
 
-@test "--all ignores cache and targets all four" {
+@test "--all ignores cache and targets every updater" {
     write_cache <<'EOF'
 {"tools":{"context-mode":{"state":"up-to-date"},"claude-mem":{"state":"up-to-date"},"caveman":{"state":"up-to-date"},"rtk":{"state":"up-to-date"}}}
 EOF
@@ -77,6 +78,7 @@ EOF
     [[ "$output" == *"claude-mem"* ]]
     [[ "$output" == *"caveman"* ]]
     [[ "$output" == *"rtk"* ]]
+    [[ "$output" == *"pxpipe"* ]]
 }
 
 @test "plugin update passes each plugin's own --scope (local vs user)" {
@@ -90,6 +92,21 @@ EOF
     # without it, `plugin update` defaults to user scope and fails).
     grep -q "plugin update claude-mem@thedotmack --scope local" "$CLAUDE_LOG"
     grep -q "plugin update context-mode@context-mode --scope user" "$CLAUDE_LOG"
+}
+
+@test "pxpipe update uses pinned npm package" {
+    cat > "$MOCK_BIN/npm" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$NPM_LOG"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/npm"
+    write_cache <<'EOF'
+{"tools":{"context-mode":{"state":"up-to-date"},"claude-mem":{"state":"up-to-date"},"caveman":{"state":"up-to-date"},"rtk":{"state":"up-to-date"},"pxpipe":{"state":"update-available"}}}
+EOF
+    run bash "$SCRIPT" --yes </dev/null
+    [ "$status" -eq 0 ]
+    grep -q "install -g pxpipe-proxy@0.10.0" "$NPM_LOG"
 }
 
 @test "unknown arg exits 2" {

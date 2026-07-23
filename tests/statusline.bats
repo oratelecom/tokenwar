@@ -82,7 +82,16 @@ EOF
     chmod +x "$MOCK_BIN/rtk"
 }
 
-@test "all 4 tools active → all green" {
+mock_pxpipe_alive() {
+    cat > "$MOCK_BIN/pxpipe" <<'EOF'
+#!/usr/bin/env bash
+[[ "$1" == "--version" ]] && echo "0.10.0"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/pxpipe"
+}
+
+@test "core Claude tools active → all green" {
     write_settings <<'EOF'
 {"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/x/rtk-rewrite.sh"}]}]}}
 EOF
@@ -99,6 +108,18 @@ EOF
     [[ "$output" == *"${GREEN}[mem 12.1.4]"* ]]
     [[ "$output" == *"${GREEN}[rtk 44.7M]"* ]]
     [[ "$output" == *"${GREEN}[caveman 84cc3c1]"* ]]
+}
+
+@test "pxpipe installed → pxpipe badge green" {
+    write_settings <<'EOF'
+{}
+EOF
+    mock_claude_with_plugins '[]'
+    mock_pxpipe_alive
+
+    run bash "$SCRIPT" <<<'{}'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"${GREEN}[pxpipe 0.10.0]"* ]]
 }
 
 @test "rtk hook missing → rtk red, others green" {
@@ -151,7 +172,7 @@ EOF
     [[ "$output" == *"${RED}[caveman -]"* ]]
 }
 
-@test "all 4 down → all red" {
+@test "core Claude tools down → all red" {
     write_settings <<'EOF'
 {}
 EOF

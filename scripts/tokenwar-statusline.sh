@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tokenwar statusline — combined badge for the 5-tool token-saving stack.
-# Emits: [ctx vX] [mem vY] [rtk SAVED] [caveman vZ] [ponytail on]
+# tokenwar statusline — combined badge for the 6-tool token-saving stack.
+# Emits: [ctx vX] [mem vY] [rtk SAVED] [caveman vZ] [ponytail on] [pxpipe vX]
 # Each badge: GREEN if active, RED if inactive. A yellow ⬆ is appended to any
 # tool with an available update (per the check-updates.sh cache), and when at
 # least one update exists the bar ends with a "⬆ N updates · /tokenwar upgrade"
@@ -20,6 +20,7 @@ readonly CACHE_DIR="${TMPDIR:-/tmp}"
 readonly PLUGIN_CACHE="${CACHE_DIR}/tokenwar-plugins-${USER}.json"
 readonly RTK_GAIN_CACHE="${CACHE_DIR}/tokenwar-rtk-gain-${USER}.txt"
 readonly RTK_BIN="rtk"
+readonly PXPIPE_BIN="pxpipe"
 readonly CLAUDE_BIN="claude"
 readonly SLUG_CTX="context-mode@context-mode"
 readonly SLUG_MEM="claude-mem@thedotmack"
@@ -72,6 +73,7 @@ readonly KEY_CTX="context-mode"
 readonly KEY_MEM="claude-mem"
 readonly KEY_RTK="rtk"
 readonly KEY_CAVE="caveman"
+readonly KEY_PXPIPE="pxpipe"
 
 readonly COL_GREEN=$'\033[32m'
 readonly COL_RED=$'\033[31m'
@@ -139,22 +141,22 @@ maybe_refresh_updates() {
     disown 2>/dev/null || true
 }
 
-# Echo "ctx|mem|rtk|caveman", each "true"/"false" for update-available, from the
+# Echo "ctx|mem|rtk|caveman|pxpipe", each "true"/"false" for update-available, from the
 # cache only (no network). Missing/corrupt cache → all "false".
 update_states() {
     UPD_CACHE="$UPDATE_CACHE" STATE_AVAIL="$UPDATE_STATE_AVAILABLE" \
-    K_CTX="$KEY_CTX" K_MEM="$KEY_MEM" K_RTK="$KEY_RTK" K_CAVE="$KEY_CAVE" \
+    K_CTX="$KEY_CTX" K_MEM="$KEY_MEM" K_RTK="$KEY_RTK" K_CAVE="$KEY_CAVE" K_PXPIPE="$KEY_PXPIPE" \
     node --input-type=module -e '
         import { readFileSync } from "fs";
         let tools = {};
         try { tools = (JSON.parse(readFileSync(process.env.UPD_CACHE, "utf8")).tools) || {}; } catch {}
         const up = (k) => (tools[k] && tools[k].state === process.env.STATE_AVAIL) ? "true" : "false";
-        console.log([up(process.env.K_CTX), up(process.env.K_MEM), up(process.env.K_RTK), up(process.env.K_CAVE)].join("|"));
-    ' 2>/dev/null || echo "false|false|false|false"
+        console.log([up(process.env.K_CTX), up(process.env.K_MEM), up(process.env.K_RTK), up(process.env.K_CAVE), up(process.env.K_PXPIPE)].join("|"));
+    ' 2>/dev/null || echo "false|false|false|false|false"
 }
 
 maybe_refresh_updates
-IFS='|' read -r ctx_upd mem_upd rtk_upd cave_upd <<<"$(update_states)"
+IFS='|' read -r ctx_upd mem_upd rtk_upd cave_upd pxpipe_upd <<<"$(update_states)"
 
 plugin_list_json=$(cache_or_run "$PLUGIN_CACHE" "$CACHE_TTL_SECS" "$LOOKUP_TIMEOUT_SECS" "$CLAUDE_BIN" plugin list --json)
 plugin_list_json="${plugin_list_json:-[]}"
@@ -227,6 +229,16 @@ if command -v "$RTK_BIN" >/dev/null 2>&1; then
     fi
 fi
 
+# pxpipe: CLI presence/version. The proxy is started on demand by the user or
+# provider wrapper, so the badge reports availability rather than daemon state.
+pxpipe_ver="-"
+pxpipe_active="false"
+if command -v "$PXPIPE_BIN" >/dev/null 2>&1; then
+    pxpipe_ver=$("$PXPIPE_BIN" --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | awk '{print $1}')
+    pxpipe_ver="${pxpipe_ver:--}"
+    pxpipe_active="true"
+fi
+
 # ponytail: real runtime state from the plugin. Green with the active intensity
 # iff the plugin is enabled AND the flag reports a live mode (full renders as a
 # plain "on"); red "off" when the plugin is disabled or toggled off.
@@ -248,7 +260,7 @@ fi
 # Aggregate call-to-action: when ≥1 tool has an update, append a single hint
 # pointing at the upgrade command. Clean bar (no suffix) when all up-to-date.
 update_count=0
-for u in "$ctx_upd" "$mem_upd" "$rtk_upd" "$cave_upd"; do
+for u in "$ctx_upd" "$mem_upd" "$rtk_upd" "$cave_upd" "$pxpipe_upd"; do
     [[ "$u" == "true" ]] && update_count=$((update_count + 1))
 done
 summary=""
@@ -259,10 +271,11 @@ if (( update_count > 0 )); then
         "$COL_YELLOW" "$UPDATE_MARKER" "$update_count" "$word" "$UPDATE_CTA_CMD" "$COL_RESET")
 fi
 
-printf "%s %s %s %s %s%s" \
+printf "%s %s %s %s %s %s%s" \
     "$(badge ctx               "$ctx_ver"      "$ctx_enabled"   "$ctx_upd")" \
     "$(badge mem               "$mem_ver"      "$mem_enabled"   "$mem_upd")" \
     "$(badge rtk               "$rtk_saved"    "$rtk_active"    "$rtk_upd")" \
     "$(badge caveman           "$cave_ver"     "$cave_enabled"  "$cave_upd")" \
     "$(badge "$PONYTAIL_LABEL" "$ponytail_val" "$ponytail_active" "false")" \
+    "$(badge pxpipe            "$pxpipe_ver"   "$pxpipe_active" "$pxpipe_upd")" \
     "$summary"

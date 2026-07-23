@@ -86,10 +86,11 @@ $(green 'tokenwar uninstalled.')
 
 Restart Claude Code to drop the statusline.
 
-The 5 tools tokenwar orchestrates remain installed. Remove them yourself if wanted:
+The 6 tools tokenwar orchestrates remain installed. Remove them yourself if wanted:
   claude plugin uninstall context-mode@context-mode
   claude plugin uninstall claude-mem@thedotmack
   claude plugin uninstall caveman@caveman
   claude plugin uninstall ponytail@ponytail
   rm ~/.claude/hooks/rtk-rewrite.sh   # also remove PreToolUse hook from settings.json
+  npm uninstall -g pxpipe-proxy
 EOF

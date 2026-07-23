@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tokenwar check — verify the 4 tools are complementary, not conflicting.
+# tokenwar check — verify core tool lanes are complementary, not conflicting.
 #
 # Four rules:
 #   R1 bash double-hook   — RTK and context-mode both want to wrap bash
@@ -155,7 +155,7 @@ check_r4() {
     if command -v rtk >/dev/null 2>&1; then :; else missing+=("rtk"); fi
 
     if (( ${#missing[@]} == 0 )); then
-        echo "$RES_PASS|all 4 tools installed (latest-version check needs network; see /tokenwar upgrade)"
+        echo "$RES_PASS|core hook/plugin tools installed (latest-version check needs network; see /tokenwar upgrade)"
     else
         echo "$RES_WARN|not installed: ${missing[*]}"
     fi

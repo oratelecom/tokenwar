@@ -8,6 +8,7 @@
 #   claude-mem   — its chroma-sync-state.json (real stored-memory counts).
 #   caveman      — a SessionStart style nudge with no buffer transform, hence
 #                  no measurable byte delta → honest N/A (no telemetry surface).
+#   pxpipe       — ~/.pxpipe/events.jsonl (real proxy-side token deltas).
 #
 # Each AI provider is read from its OWN native telemetry:
 #   Codex  — ~/.codex/state_5.sqlite → threads.tokens_used (real per-session)
@@ -32,6 +33,7 @@ readonly RTK_BIN="rtk"
 # — typically a sentence or two), surfaced as "~est" and never as hard truth.
 readonly MEM_SYNC_STATE="${HOME}/.claude-mem/chroma-sync-state.json"
 readonly MEM_EST_TOKENS_PER_ITEM=40
+readonly PXPIPE_EVENTS_LOG="${HOME}/.pxpipe/events.jsonl"
 
 # Financial valuation constants — provider-specific rates live in providers.sh.
 # These are kept here for the tool-level (RTK) monthly section which is
@@ -121,6 +123,56 @@ caveman_summary() {
     echo "N/A|style-only hook — no measurable buffer (no native telemetry)|0"
 }
 
+# === pxpipe from its native proxy events log ===
+# pxpipe turns selected prompt/context text into PNG payloads before the API
+# call. Its proxy writes one JSON object per request; field names have changed
+# across releases, so accept explicit saved-token fields first, then baseline
+# minus actual token fields.
+pxpipe_summary() {
+    if [[ ! -f "$PXPIPE_EVENTS_LOG" ]]; then
+        echo "N/A|pxpipe events log not found ($PXPIPE_EVENTS_LOG)|0"; return
+    fi
+    PXPIPE_EVENTS="$PXPIPE_EVENTS_LOG" node --input-type=module -e '
+        import { readFileSync } from "node:fs";
+        const pick = (o, keys) => {
+            for (const k of keys) {
+                const v = k.split(".").reduce((acc, p) => acc && acc[p], o);
+                if (typeof v === "number" && Number.isFinite(v)) return v;
+            }
+            return undefined;
+        };
+        const savedKeys = ["saved_tokens", "tokens_saved", "savedInputTokens", "input_tokens_saved", "savings.tokens", "savings.input_tokens"];
+        const baselineKeys = ["baseline_input_eff", "baselineInputEff", "baseline_eff", "baseline_tokens", "baselineInputTokens", "counterfactual_input_eff"];
+        const actualKeys = ["actual_input_eff", "actualInputEff", "actual_eff", "actual_tokens", "actualInputTokens", "proxied_input_eff"];
+        let saved = 0;
+        let compressed = 0;
+        let parsed = 0;
+        for (const line of readFileSync(process.env.PXPIPE_EVENTS, "utf8").split("\n")) {
+            if (!line.trim()) continue;
+            let event;
+            try { event = JSON.parse(line); } catch { continue; }
+            parsed++;
+            if (event.applied === false || event.compressed === false) continue;
+            let delta = pick(event, savedKeys);
+            if (delta === undefined) {
+                const baseline = pick(event, baselineKeys);
+                const actual = pick(event, actualKeys);
+                if (baseline !== undefined && actual !== undefined) delta = baseline - actual;
+            }
+            if (typeof delta === "number" && delta > 0) {
+                saved += delta;
+                compressed++;
+            }
+        }
+        if (saved <= 0) {
+            console.log("N/A|no pxpipe token savings in events log (" + parsed + " events)|0");
+            process.exit(0);
+        }
+        const human = saved >= 1e6 ? (saved/1e6).toFixed(1)+"M" : saved >= 1e3 ? (saved/1e3).toFixed(1)+"K" : String(Math.round(saved));
+        console.log(human + "|" + compressed + " compressed requests (native pxpipe events)|" + Math.round(saved));
+    ' 2>/dev/null || echo "N/A|pxpipe events log read failed|0"
+}
+
 # === render ===
 echo ""
 echo "${COL_BOLD}# /tokenwar gain — token savings${COL_RESET}"
@@ -135,7 +187,8 @@ for entry in \
     "RTK|$(rtk_summary)" \
     "context-mode|$(ctx_summary)" \
     "claude-mem|$(mem_summary)" \
-    "caveman|$(caveman_summary)"; do
+    "caveman|$(caveman_summary)" \
+    "pxpipe|$(pxpipe_summary)"; do
     tool="${entry%%|*}"
     summary="${entry#*|}"
     saved=""; note=""; tokens=""

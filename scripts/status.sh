@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# tokenwar status — report state of the 5 token-saving tools + AI providers.
+# tokenwar status — report state of the 6 token-saving tools + AI providers.
 #
-# Exit 0 if all 5 tools are healthy, 1 otherwise. Providers are
+# Exit 0 if all 6 tools are healthy, 1 otherwise. Providers are
 # OPTIONAL — they are reported for information but their absence never fails the
 # exit code (a Claude-only host has no other provider CLIs and must still exit 0).
 # Pass --test to additionally run a liveness ping for each tool
@@ -29,6 +29,7 @@ readonly SLUG_PONY="ponytail@ponytail"
 readonly RTK_BIN="rtk"
 readonly MEM_BIN="claude-mem"
 readonly CLAUDE_BIN="claude"
+readonly PXPIPE_BIN="pxpipe"
 
 # Cache `claude plugin list --json` output to avoid repeated CLI calls.
 PLUGIN_LIST_JSON=""
@@ -92,6 +93,18 @@ rtk_version() {
     "$RTK_BIN" --version 2>/dev/null | awk '{print $2}'
 }
 
+pxpipe_state() {
+    if ! command -v "$PXPIPE_BIN" >/dev/null 2>&1; then
+        echo "$STATUS_MISSING"; return
+    fi
+    echo "$STATUS_OK"
+}
+
+pxpipe_version() {
+    if ! command -v "$PXPIPE_BIN" >/dev/null 2>&1; then echo "-"; return; fi
+    "$PXPIPE_BIN" --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | awk '{print $1}'
+}
+
 # Provider state detection
 provider_state_str() {
     provider_is_installed "$1" && echo "$STATUS_OK" || echo "$STATUS_MISSING"
@@ -117,6 +130,9 @@ ping_claude_mem() {
 ping_rtk() {
     "$RTK_BIN" --version >/dev/null 2>&1 && "$RTK_BIN" gain >/dev/null 2>&1
 }
+ping_pxpipe() {
+    "$PXPIPE_BIN" --version >/dev/null 2>&1
+}
 ping_caveman() {
     # caveman is a hook + skill, no CLI ping. Verify on-disk artifacts.
     local cache_root="${HOME}/.claude/plugins/cache/caveman/caveman"
@@ -140,12 +156,14 @@ mem_state=$(plugin_state "$SLUG_MEM");   mem_ver=$(plugin_version "$SLUG_MEM")
 cave_state=$(plugin_state "$SLUG_CAVE"); cave_ver=$(plugin_version "$SLUG_CAVE")
 pony_state=$(plugin_state "$SLUG_PONY"); pony_ver=$(plugin_version "$SLUG_PONY")
 rtk_st=$(rtk_state);                     rtk_ver=$(rtk_version)
+pxpipe_st=$(pxpipe_state);               pxpipe_ver=$(pxpipe_version)
 
-ctx_extra=""; mem_extra=""; cave_extra=""; pony_extra=""; rtk_extra=""
+ctx_extra=""; mem_extra=""; cave_extra=""; pony_extra=""; rtk_extra=""; pxpipe_extra=""
 if $test_mode; then
     ctx_extra="ping=via MCP (caller)"
     ping_claude_mem && mem_extra="ping=ok" || mem_extra="ping=FAIL"
     ping_rtk        && rtk_extra="ping=ok" || rtk_extra="ping=FAIL"
+    ping_pxpipe     && pxpipe_extra="ping=ok" || pxpipe_extra="ping=FAIL"
     ping_caveman    && cave_extra="ping=ok" || cave_extra="ping=FAIL"
     ping_ponytail   && pony_extra="ping=ok" || pony_extra="ping=FAIL"
 fi
@@ -155,6 +173,7 @@ format_line "claude-mem"   "$mem_ver"  "$mem_state"  "$mem_extra"
 format_line "rtk"          "$rtk_ver"  "$rtk_st"     "$rtk_extra"
 format_line "caveman"      "$cave_ver" "$cave_state" "$cave_extra"
 format_line "ponytail"     "$pony_ver" "$pony_state" "$pony_extra"
+format_line "pxpipe"       "$pxpipe_ver" "$pxpipe_st" "$pxpipe_extra"
 
 echo ""
 
@@ -213,10 +232,10 @@ if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
     fi
 fi
 
-# Exit code: gated ONLY on the 5 managed tools. Providers are optional and never
+# Exit code: gated ONLY on the 6 managed tools. Providers are optional and never
 # fail the exit (absent provider CLIs on a Claude-only host are not an error).
 tool_failures=0
-for s in "$ctx_state" "$mem_state" "$cave_state" "$pony_state" "$rtk_st"; do
+for s in "$ctx_state" "$mem_state" "$cave_state" "$pony_state" "$rtk_st" "$pxpipe_st"; do
     [[ "$s" == "$STATUS_OK" ]] || tool_failures=1
 done
 

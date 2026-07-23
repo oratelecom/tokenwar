@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# tokenwar upgrade — bump the 4 token-saving tools to their latest versions.
+# tokenwar upgrade — bump the token-saving tools to their latest versions.
 #
 # Plugins (context-mode, claude-mem, caveman) → `claude plugin update <slug> --scope <scope>`.
 # RTK (path-installed dev build)              → `cargo install --path <repo> --force`.
+# pxpipe                                      → `npm install -g pxpipe-proxy@<pinned>`.
 #
 # Source of "what needs updating": the throttled upgrade-check cache written by
-# check-updates.sh. If the cache is absent, all four are attempted. The cache is
+# check-updates.sh. If the cache is absent, all tools are attempted. The cache is
 # never refreshed here (no network) — pass the cache as authoritative.
 #
 # Usage:
 #   upgrade.sh            # interactive: confirm before applying
 #   upgrade.sh --yes      # non-interactive: apply without prompting
-#   upgrade.sh --all      # ignore cache, attempt all four
+#   upgrade.sh --all      # ignore cache, attempt all tools
 #
 # Exit: 0 on success (or nothing to do), 1 if any upgrade command failed.
 
@@ -23,6 +24,10 @@ readonly SLUG_CAVE="caveman@caveman"
 
 readonly CLAUDE_BIN="claude"
 readonly CARGO_BIN="cargo"
+readonly NPM_BIN="npm"
+readonly PXPIPE_NPM_PACKAGE="pxpipe-proxy"
+readonly PXPIPE_NPM_VERSION="0.10.0"
+readonly PXPIPE_NPM_SPEC="${PXPIPE_NPM_PACKAGE}@${PXPIPE_NPM_VERSION}"
 
 readonly UPGRADE_CACHE_FILE="${HOME}/.claude/tokenwar/upgrade-check.json"
 readonly STATE_UPDATE="update-available"
@@ -52,24 +57,24 @@ fail() { printf '%s %s\n' "${COL_RED}ERR${COL_RESET}" "$*" >&2; }
 # so probing never leaks "No such device or address".
 tty_readable() { { : </dev/tty; } 2>/dev/null; }
 
-# Which tools have an update? Echoes space-separated tool keys (ctx mem cave rtk).
-# Reads the cache; with --all or no cache, returns all four.
+# Which tools have an update? Echoes space-separated tool keys.
+# Reads the cache; with --all or no cache, returns every managed updater.
 tools_needing_update() {
     if $force_all || [[ ! -f "$UPGRADE_CACHE_FILE" ]]; then
-        echo "ctx mem cave rtk"; return
+        echo "ctx mem cave rtk pxpipe"; return
     fi
     CACHE="$UPGRADE_CACHE_FILE" TW_STATE="$STATE_UPDATE" node --input-type=module -e '
         import { readFileSync } from "node:fs";
-        let d; try { d = JSON.parse(readFileSync(process.env.CACHE, "utf8")); } catch { console.log("ctx mem cave rtk"); process.exit(0); }
+        let d; try { d = JSON.parse(readFileSync(process.env.CACHE, "utf8")); } catch { console.log("ctx mem cave rtk pxpipe"); process.exit(0); }
         const t = d.tools || {};
         const want = process.env.TW_STATE;
-        const map = { "context-mode": "ctx", "claude-mem": "mem", "caveman": "cave", "rtk": "rtk" };
+        const map = { "context-mode": "ctx", "claude-mem": "mem", "caveman": "cave", "rtk": "rtk", "pxpipe": "pxpipe" };
         const out = [];
         for (const [name, key] of Object.entries(map)) {
             if (t[name] && t[name].state === want) out.push(key);
         }
         console.log(out.join(" "));
-    ' 2>/dev/null || echo "ctx mem cave rtk"
+    ' 2>/dev/null || echo "ctx mem cave rtk pxpipe"
 }
 
 # Look up a plugin's install scope (user|local|project|managed) from
@@ -122,6 +127,13 @@ upgrade_rtk() {
     git -C "$repo_path" pull --ff-only && "$CARGO_BIN" install --path "$repo_path" --force
 }
 
+upgrade_pxpipe() {
+    if ! command -v "$NPM_BIN" >/dev/null 2>&1; then
+        warn "npm not found — cannot update pxpipe"; return 1
+    fi
+    "$NPM_BIN" install -g "$PXPIPE_NPM_SPEC"
+}
+
 # === collect work ===
 read -r -a needing <<<"$(tools_needing_update)"
 if (( ${#needing[@]} == 0 )); then
@@ -137,6 +149,7 @@ for key in "${needing[@]}"; do
         mem)  printf "  %s\n" "claude-mem" ;;
         cave) printf "  %s\n" "caveman" ;;
         rtk)  printf "  %s\n" "rtk" ;;
+        pxpipe) printf "  %s\n" "pxpipe" ;;
     esac
 done
 echo ""
@@ -169,6 +182,7 @@ for key in "${needing[@]}"; do
         mem)  upgrade_plugin "$SLUG_MEM"  || rc=1 ;;
         cave) upgrade_plugin "$SLUG_CAVE" || rc=1 ;;
         rtk)  upgrade_rtk                 || rc=1 ;;
+        pxpipe) upgrade_pxpipe            || rc=1 ;;
     esac
 done
 

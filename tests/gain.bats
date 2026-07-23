@@ -83,6 +83,25 @@ EOF
     [[ "$output" == *"RTK"*"N/A"* ]]
 }
 
+@test "pxpipe N/A when native events log missing" {
+    mock_rtk
+    run bash "$SCRIPT"
+    [[ "$output" == *"pxpipe"*"N/A"*"events log not found"* ]]
+}
+
+@test "pxpipe reads saved tokens from native events log" {
+    mock_rtk
+    mkdir -p "$HOME/.pxpipe"
+    cat > "$HOME/.pxpipe/events.jsonl" <<'EOF'
+{"saved_tokens":1200,"applied":true}
+{"baseline_input_eff":5000,"actual_input_eff":3000,"applied":true}
+{"baseline_tokens":1000,"actual_tokens":900,"applied":false}
+EOF
+    run bash "$SCRIPT"
+    [[ "$output" == *"pxpipe"*"3.2K"* ]]
+    [[ "$output" == *"2 compressed requests"* ]]
+}
+
 mock_rtk_monthly() {
     cat > "$MOCK_BIN/rtk" <<'EOF'
 #!/usr/bin/env bash

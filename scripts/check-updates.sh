@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tokenwar check-updates — detect available upgrades for the 4-tool stack.
+# tokenwar check-updates — detect available upgrades for the tokenwar stack.
 #
 # Strategy: refresh marketplace manifests (throttled, 24h cache), then compare
 # installed version vs marketplace `version` field for each plugin. For RTK,
@@ -28,6 +28,8 @@ readonly MARKETPLACE_CAVE="caveman"
 readonly MARKETPLACE_ROOT="${HOME}/.claude/plugins/marketplaces"
 readonly MARKETPLACE_MANIFEST_REL=".claude-plugin/marketplace.json"
 readonly RTK_BIN="rtk"
+readonly PXPIPE_BIN="pxpipe"
+readonly PXPIPE_NPM_VERSION="0.10.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
@@ -149,6 +151,11 @@ rtk_installed_version() {
     "$RTK_BIN" --version 2>/dev/null | awk '{print $2}'
 }
 
+pxpipe_installed_version() {
+    command -v "$PXPIPE_BIN" >/dev/null 2>&1 || { echo ""; return; }
+    "$PXPIPE_BIN" --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | awk '{print $1}'
+}
+
 # Determine rtk's authoritative latest version.
 #
 # Two install paths exist:
@@ -213,6 +220,7 @@ if $force_refresh || ! cache_is_fresh; then
     mem_installed=$(installed_plugin_version "$SLUG_MEM")
     cave_installed=$(installed_plugin_version "$SLUG_CAVE")
     rtk_installed=$(rtk_installed_version)
+    pxpipe_installed=$(pxpipe_installed_version)
 
     # Provider CLI versions
     codex_installed=$(provider_version "$PROVIDER_IDX_CODEX")
@@ -233,11 +241,13 @@ if $force_refresh || ! cache_is_fresh; then
     mem_latest=$(marketplace_version "$MARKETPLACE_MEM" "claude-mem")
     cave_latest=$(marketplace_version "$MARKETPLACE_CAVE" "caveman")
     rtk_latest=$(rtk_latest_version)
+    pxpipe_latest="$PXPIPE_NPM_VERSION"
 
     ctx_state=$(classify "$ctx_installed" "$ctx_latest")
     mem_state=$(classify "$mem_installed" "$mem_latest")
     cave_state=$(classify "$cave_installed" "$cave_latest")
     rtk_state=$(classify "$rtk_installed" "$rtk_latest")
+    pxpipe_state=$(classify "$pxpipe_installed" "$pxpipe_latest")
     codex_state=$(classify "$codex_installed" "$codex_latest")
     gemini_state=$(classify "$gemini_installed" "$gemini_latest")
     kimi_state=$(classify "$kimi_installed" "$kimi_latest")
@@ -250,6 +260,7 @@ if $force_refresh || ! cache_is_fresh; then
     MEM_I="$mem_installed" MEM_L="$mem_latest" MEM_S="$mem_state" \
     CAVE_I="$cave_installed" CAVE_L="$cave_latest" CAVE_S="$cave_state" \
     RTK_I="$rtk_installed" RTK_L="$rtk_latest" RTK_S="$rtk_state" \
+    PXPIPE_I="$pxpipe_installed" PXPIPE_L="$pxpipe_latest" PXPIPE_S="$pxpipe_state" \
     CODEX_I="$codex_installed" CODEX_L="$codex_latest" CODEX_S="$codex_state" \
     GEMINI_I="$gemini_installed" GEMINI_L="$gemini_latest" GEMINI_S="$gemini_state" \
     KIMI_I="$kimi_installed" KIMI_L="$kimi_latest" KIMI_S="$kimi_state" \
@@ -263,7 +274,8 @@ if $force_refresh || ! cache_is_fresh; then
                 'context-mode': { installed: e.CTX_I, latest: e.CTX_L, state: e.CTX_S, slug: '$SLUG_CTX' },
                 'claude-mem':   { installed: e.MEM_I, latest: e.MEM_L, state: e.MEM_S, slug: '$SLUG_MEM' },
                 'caveman':      { installed: e.CAVE_I, latest: e.CAVE_L, state: e.CAVE_S, slug: '$SLUG_CAVE' },
-                'rtk':          { installed: e.RTK_I, latest: e.RTK_L, state: e.RTK_S, slug: 'cargo:rtk' }
+                'rtk':          { installed: e.RTK_I, latest: e.RTK_L, state: e.RTK_S, slug: 'cargo:rtk' },
+                'pxpipe':       { installed: e.PXPIPE_I, latest: e.PXPIPE_L, state: e.PXPIPE_S, slug: 'npm:pxpipe-proxy' }
             },
             providers: {
                 'codex':  { installed: e.CODEX_I, latest: e.CODEX_L, state: e.CODEX_S },
