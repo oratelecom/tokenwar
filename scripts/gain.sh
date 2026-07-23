@@ -12,6 +12,7 @@
 # Each AI provider is read from its OWN native telemetry:
 #   Codex  — ~/.codex/state_5.sqlite → threads.tokens_used (real per-session)
 #   Gemini — no local token store → honest N/A
+#   Kimi   — no documented local token-count store → honest N/A
 
 set -euo pipefail
 
@@ -235,7 +236,7 @@ if $has_any_monthly; then
         echo ""
     fi
 
-    # ── Per-provider monthly (Codex, Gemini, ...) ──
+    # ── Per-provider monthly (Codex, Gemini, Kimi, ...) ──
     for pi in "${monthly_providers[@]}"; do
         pid=$(provider_id "$pi")
         pname=$(provider_name "$pi")

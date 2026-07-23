@@ -109,10 +109,10 @@ check_r3() {
 }
 
 # === R5 — provider overlap ===
-# Multiple AI providers may be installed simultaneously (Claude, Codex, Gemini).
+# Multiple AI providers may be installed simultaneously.
 # They share the same shell and filesystem but use separate config dirs
-# (~/.claude, ~/.codex, ~/.gemini). Verify their tool/hook footprints don't
-# collide on the same events or matchers.
+# (~/.claude, ~/.codex, ~/.gemini, ~/.kimi-code by default). Verify their
+# tool/hook footprints don't collide on the same events or matchers.
 #
 # A provider is considered "active" only if BOTH its CLI binary is on PATH AND
 # its config dir exists in HOME. This prevents false WARN in isolated test
@@ -122,15 +122,8 @@ check_r5() {
     local active_dirs=()
     for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
         if provider_is_installed "$i"; then
-            local pid pdir
-            pid=$(provider_id "$i")
-            # Map provider id to its expected config dir
-            case "$pid" in
-                claude) pdir="${HOME}/.claude" ;;
-                codex)  pdir="${HOME}/.codex"  ;;
-                gemini) pdir="${HOME}/.gemini"  ;;
-                *)      pdir="" ;;
-            esac
+            local pdir
+            pdir=$(provider_config_dir "$i")
             if [[ -n "$pdir" && -d "$pdir" ]]; then
                 active_providers+=("$(provider_name "$i")")
                 active_dirs+=("$pdir")

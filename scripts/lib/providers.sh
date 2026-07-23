@@ -8,6 +8,7 @@
 #   Claude — RTK (rtk gain), context-mode (ctx_stats MCP), claude-mem (chroma-sync-state)
 #   Codex  — ~/.codex/state_5.sqlite → threads.tokens_used (real per-session counts)
 #   Gemini — no local token store; CLI detection only, telemetry N/A
+#   Kimi   — ~/.kimi-code stores sessions/config, but no documented token store
 
 set -euo pipefail
 
@@ -15,13 +16,16 @@ set -euo pipefail
 # that source this file (gain.sh, status.sh, check.sh, check-updates.sh,
 # tokenwar-statusline.sh), not within this file, hence the SC2034 suppressions.
 # shellcheck disable=SC2034
-readonly PROVIDER_COUNT=3
+readonly PROVIDER_COUNT=4
 # shellcheck disable=SC2034
 readonly PROVIDER_IDX_CODEX=1
 # shellcheck disable=SC2034
 readonly PROVIDER_IDX_GEMINI=2
+# shellcheck disable=SC2034
+readonly PROVIDER_IDX_KIMI=3
 
 readonly CODEX_STATE_DB="${HOME}/.codex/state_5.sqlite"
+readonly KIMI_CODE_HOME="${KIMI_CODE_HOME:-${HOME}/.kimi-code}"
 # CHARS_PER_TOKEN is defined in gain.sh (primary consumer)
 
 # ── provider metadata ────────────────────────────────────────────────
@@ -31,6 +35,7 @@ provider_id() {
         0) echo "claude" ;;
         1) echo "codex"  ;;
         2) echo "gemini" ;;
+        3) echo "kimi"   ;;
     esac
 }
 
@@ -39,6 +44,7 @@ provider_name() {
         0) echo "Claude Code" ;;
         1) echo "Codex"       ;;
         2) echo "Gemini CLI"  ;;
+        3) echo "Kimi Code CLI" ;;
     esac
 }
 
@@ -47,6 +53,7 @@ provider_cli() {
         0) echo "claude" ;;
         1) echo "codex"  ;;
         2) echo "gemini" ;;
+        3) echo "kimi"   ;;
     esac
 }
 
@@ -55,6 +62,7 @@ provider_input_usd_per_mtok() {
         0) echo "5.00"  ;;  # Claude Opus 4.8 input (claude-api skill, 2026-05-26)
         1) echo "1.25"  ;;  # Codex (gpt-5-codex) input — VERIFY at openai.com/pricing
         2) echo "1.25"  ;;  # Gemini 2.5 Pro input — VERIFY at ai.google.dev/pricing
+        3) echo "0.30"  ;;  # Kimi K2/Kimi Code input — VERIFY at platform.kimi.ai/pricing
     esac
 }
 
@@ -63,6 +71,16 @@ provider_label() {
         0) echo "Claude Opus 4.8"      ;;
         1) echo "Codex (gpt-5-codex)"  ;;
         2) echo "Gemini 2.5 Pro"        ;;
+        3) echo "Kimi Code"             ;;
+    esac
+}
+
+provider_config_dir() {
+    case "$1" in
+        0) echo "${HOME}/.claude" ;;
+        1) echo "${HOME}/.codex" ;;
+        2) echo "${HOME}/.gemini" ;;
+        3) echo "$KIMI_CODE_HOME" ;;
     esac
 }
 
@@ -92,6 +110,7 @@ provider_telemetry_total() {
         0) echo "N/A|Claude aggregated from tools (see per-tool rows)|0" ;;
         1) codex_telemetry_total ;;
         2) gemini_telemetry_total ;;
+        3) kimi_telemetry_total ;;
     esac
 }
 
@@ -100,6 +119,7 @@ provider_telemetry_monthly() {
         0) echo "" ;;  # Claude monthly from RTK — handled separately
         1) codex_telemetry_monthly ;;
         2) gemini_telemetry_monthly ;;
+        3) kimi_telemetry_monthly ;;
     esac
 }
 
@@ -162,5 +182,18 @@ gemini_telemetry_total() {
 }
 
 gemini_telemetry_monthly() {
+    echo ""  # No monthly data available
+}
+
+# ── Kimi telemetry — no documented local token-count store ───────────
+
+kimi_telemetry_total() {
+    if ! command -v kimi >/dev/null 2>&1; then
+        echo "N/A|Kimi Code CLI not installed|0"; return
+    fi
+    echo "N/A|no documented local token telemetry (${KIMI_CODE_HOME})|0"
+}
+
+kimi_telemetry_monthly() {
     echo ""  # No monthly data available
 }

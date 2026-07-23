@@ -9,7 +9,7 @@
 #   1. git clone https://github.com/oratelecom/tokenwar ~/.claude/skills/tokenwar
 #   2. chmod +x scripts/*.sh
 #   3. patch ~/.claude/settings.json to wire the statusLine
-#   4. wire the tokenwar/codex/gemini shell functions
+#   4. wire the tokenwar/codex/gemini/kimi shell functions
 #   5. opt-in installs (none by default — no surprise mutation):
 #      --with-plugins  marketplace add + install + enable the 4 Claude Code
 #                      plugins (context-mode, claude-mem, caveman, ponytail),
@@ -56,9 +56,15 @@ readonly RTK_INSTALL_URL="https://raw.githubusercontent.com/rtk-ai/rtk/${RTK_INS
 readonly RTK_LOCAL_BIN="$HOME/.local/bin"
 
 # Shell-integration block markers — used to idempotently inject/remove the
-# `tokenwar`, `codex`, and `gemini` wrapper functions in the user's shell rc.
+# `tokenwar`, `codex`, `gemini`, and `kimi` wrapper functions in the user's
+# shell rc.
 readonly TW_RC_BEGIN="# >>> tokenwar shell integration >>>"
 readonly TW_RC_END="# <<< tokenwar shell integration <<<"
+readonly WRAPPED_PROVIDER_CLIS=(
+    "codex"
+    "gemini"
+    "kimi"
+)
 
 color()  { printf '\033[%sm%s\033[0m' "$1" "$2"; }
 green()  { color 32 "$1"; }
@@ -135,9 +141,9 @@ writeFileSync(path, JSON.stringify(cfg, null, 2) + "\n");
 console.log(`    patched (backup at ${path}.bak-${stamp})`);
 '
 
-# 4. wire shell integration (tokenwar/codex/gemini functions) into shell rc.
+# 4. wire shell integration (tokenwar + provider functions) into shell rc.
 #
-# Claude Code shows the native statusLine; Codex and Gemini do not expose a
+# Claude Code shows the native statusLine; Codex, Gemini, and Kimi do not expose a
 # status-bar API, so we wrap their launch with a banner + reminder + upgrade
 # prompt. The `tokenwar` function makes `tokenwar status` work in any shell.
 # Idempotent: an existing tokenwar block is replaced, never duplicated.
@@ -158,15 +164,17 @@ wire_shell_rc() {
     {
         printf '%s\n' "$TW_RC_BEGIN"
         printf '%s\n' "tokenwar() { command bash \"\$HOME/.claude/skills/tokenwar/scripts/tokenwar.sh\" \"\$@\"; }"
-        printf '%s\n' "codex() { command bash \"\$HOME/.claude/skills/tokenwar/scripts/tokenwar-launch.sh\" codex \"\$@\"; command codex \"\$@\"; }"
-        printf '%s\n' "gemini() { command bash \"\$HOME/.claude/skills/tokenwar/scripts/tokenwar-launch.sh\" gemini \"\$@\"; command gemini \"\$@\"; }"
+        local provider_cli
+        for provider_cli in "${WRAPPED_PROVIDER_CLIS[@]}"; do
+            printf '%s\n' "${provider_cli}() { command bash \"\$HOME/.claude/skills/tokenwar/scripts/tokenwar-launch.sh\" ${provider_cli} \"\$@\"; command ${provider_cli} \"\$@\"; }"
+        done
         printf '%s\n' "$TW_RC_END"
     } >> "$tmp"
 
     if ! mv -f "$tmp" "$rc_file"; then
         warn "could not write $rc_file"; rm -f "$tmp"; return 1
     fi
-    say "Wired tokenwar/codex/gemini shell functions in $rc_file"
+    say "Wired tokenwar/codex/gemini/kimi shell functions in $rc_file"
 }
 
 # Print the ids of every currently-enabled plugin, one per line (from
@@ -297,8 +305,9 @@ Sanity check now:
 Statusline appears after restarting Claude Code.
 
 Shell integration wired (reload your shell or 'source ~/.bashrc'):
-  tokenwar status      # works in any shell — Codex, Gemini, plain terminal
-  codex / gemini       # now print the tokenwar banner + upgrade prompt on launch
+  tokenwar status      # works in any shell — Codex, Gemini, Kimi, plain terminal
+  codex / gemini / kimi
+                       # now print the tokenwar banner + upgrade prompt on launch
 
 $next_steps
 

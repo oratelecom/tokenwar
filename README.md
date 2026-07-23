@@ -10,7 +10,7 @@
 
 [![CI](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml)
 
-**Five token-saving tools, run as one stack.** Built for Claude Code first — but the stack reaches further: RTK, ponytail, caveman and context-mode work across agents (Codex, Gemini, Cursor…), and Codex/Gemini token usage is tracked from native telemetry. Each compresses a buffer the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, and the code itself — so the savings stack instead of competing. None of the five is the headliner; the genius is running all five at once. **5-in-1.**
+**Five token-saving tools, run as one stack.** Built for Claude Code first — but the stack reaches further: RTK, ponytail, caveman and context-mode work across agents (Codex, Gemini, Kimi, Cursor…), with provider token usage tracked only where native telemetry exists. Each compresses a buffer the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, and the code itself — so the savings stack instead of competing. None of the five is the headliner; the genius is running all five at once. **5-in-1.**
 
 Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 
@@ -103,29 +103,31 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 | Command | What it does |
 | --- | --- |
 | `/tokenwar status` | Health of the 5 tools — installed, enabled, version |
-| `/tokenwar gain` | Per-tool token savings + per-provider (Codex/Gemini native telemetry) + **monthly $ value** |
+| `/tokenwar gain` | Per-tool token savings + per-provider telemetry/status (Codex/Gemini/Kimi) + **monthly $ value** |
 | `/tokenwar upgrade` | Bump each tool to latest (asks confirmation) |
 | `/tokenwar check` | Conflict detector — verifies the 4 stack additively |
 | `/tokenwar test` | End-to-end ping: is each tool actually working? |
 | `/tokenwar doctor` | Full pipeline: status → test → check → gain |
 
-## Status in every CLI (Claude, Codex, Gemini)
+## Status in every CLI (Claude, Codex, Gemini, Kimi)
 
 The persistent **bottom status bar** is a Claude Code feature — it ships a
-`statusLine` API and tokenwar wires it automatically. **Codex and Gemini do not
-expose a status-bar API** (their footers are hardcoded; their hooks inject only
-into the model context, not the screen). So tokenwar surfaces the stack the best
-way each CLI allows, with **zero daily effort** — `install.sh` wires it once:
+`statusLine` API and tokenwar wires it automatically. **Codex, Gemini, and Kimi
+do not expose a status-bar API** (their footers are hardcoded; their hooks
+inject only into the model context, not the screen). So tokenwar surfaces the
+stack the best way each CLI allows, with **zero daily effort** — `install.sh`
+wires it once:
 
 | CLI         | What you get                                                          |
 | ----------- | --------------------------------------------------------------------- |
 | Claude Code | Native persistent bottom bar (always visible)                         |
 | Codex       | Launch banner + `tokenwar status` reminder + inline upgrade prompt    |
 | Gemini CLI  | Launch banner + `tokenwar status` reminder + inline upgrade prompt    |
+| Kimi Code CLI | Launch banner + `tokenwar status` reminder + inline upgrade prompt  |
 
-After install you simply type `codex` or `gemini` as usual — the banner prints,
-and if updates are pending you get **"⬆ N updates available. Upgrade now? [y/N]"**
-which bumps the 4 tools. A `tokenwar` command also works in any shell:
+After install you simply type `codex`, `gemini`, or `kimi` as usual — the banner
+prints, and if updates are pending you get **"⬆ N updates available. Upgrade now?
+[y/N]"** which bumps the 4 tools. A `tokenwar` command also works in any shell:
 
 ```bash
 tokenwar status     # state of the 5 tools + providers
@@ -135,7 +137,7 @@ tokenwar doctor     # status → check → gain
 ```
 
 > The banner is silent for non-interactive launches (`codex exec`,
-> `gemini -p …`, pipes) so it never pollutes scripted output.
+> `gemini -p …`, `kimi -p …`, pipes) so it never pollutes scripted output.
 
 ## Quick start
 
@@ -192,7 +194,7 @@ Wire the combined statusline (Claude Code, `~/.claude/settings.json`):
 }
 ```
 
-Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>] [ponytail on]` — green if active, red if down. The `ponytail` badge reflects the plugin's real runtime mode: green with the active intensity (`on` for full, else `lite`/`ultra`) when the `ponytail@ponytail` plugin is enabled and not toggled off, red `off` when disabled or after `/ponytail off` — read live from the plugin's `~/.claude/.ponytail-active` flag, no version, no telemetry, by design. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action. The bar is **Claude-only** — Codex/Gemini are tracked in `/tokenwar gain`, not on the Claude status bar.
+Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>] [ponytail on]` — green if active, red if down. The `ponytail` badge reflects the plugin's real runtime mode: green with the active intensity (`on` for full, else `lite`/`ultra`) when the `ponytail@ponytail` plugin is enabled and not toggled off, red `off` when disabled or after `/ponytail off` — read live from the plugin's `~/.claude/.ponytail-active` flag, no version, no telemetry, by design. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action. The bar is **Claude-only** — Codex/Gemini/Kimi are tracked in `/tokenwar gain`, not on the Claude status bar.
 
 ## Settings.json wipe protection
 

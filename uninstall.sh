@@ -49,7 +49,7 @@ else
     warn "$SETTINGS_JSON does not exist — skipping settings patch"
 fi
 
-# Strip the shell-integration block (tokenwar/codex/gemini functions) from rc.
+# Strip the shell-integration block (tokenwar/provider functions) from rc.
 unwire_shell_rc() {
     local rc_file="$1"
     [[ -f "$rc_file" ]] || return 0

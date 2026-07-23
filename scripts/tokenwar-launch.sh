@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# tokenwar launch banner — shown when a wrapped CLI (codex/gemini) starts.
+# tokenwar launch banner — shown when a wrapped CLI starts.
 #
-# Codex and Gemini do NOT expose a persistent status-bar API the way Claude
+# Codex, Gemini, and Kimi do NOT expose a persistent status-bar API the way Claude
 # Code does (their footers are hardcoded in their TUIs). The closest we can do
 # without touching their binaries is a one-time banner at launch:
 #   1. print the tokenwar stack bar (same renderer as the Claude statusline)
@@ -9,10 +9,11 @@
 #   3. if updates are pending (from the throttled cache), offer to upgrade now
 #
 # This is intentionally non-blocking and silent for non-interactive launches
-# (`codex exec`, `gemini -p ...`, pipes) so it never pollutes scripted output.
+# (`codex exec`, `gemini -p ...`, `kimi -p ...`, pipes) so it never pollutes
+# scripted output.
 #
 # Usage: tokenwar-launch.sh <provider> [original CLI args...]
-#   <provider> is the CLI being launched (codex|gemini) — used only for the
+#   <provider> is the CLI being launched — used only for the
 #   greeting line. The remaining args are inspected to decide whether this is
 #   an interactive launch worth bannering.
 

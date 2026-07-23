@@ -75,6 +75,15 @@ EOF
     [ ! -f "$CLAUDE_LOG" ] || ! grep -q "plugin install" "$CLAUDE_LOG"
 }
 
+@test "bare install wires codex gemini and kimi launch wrappers" {
+    mock_claude_empty
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    grep -q "codex()" "$HOME/.bashrc"
+    grep -q "gemini()" "$HOME/.bashrc"
+    grep -q "kimi()" "$HOME/.bashrc"
+}
+
 @test "--with-plugins re-enables a plugin clobbered by the first enable" {
     # Stateful mock: extern@mp is enabled until one of OUR plugins is enabled,
     # which flips it to disabled (the documented enable-clobber). install.sh must

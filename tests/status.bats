@@ -66,9 +66,9 @@ EOF
     [[ "$output" == *"ponytail"*"not-installed"* ]]
 }
 
-@test "exit 0 when 5 tools healthy and optional providers (codex/gemini) absent" {
+@test "exit 0 when 5 tools healthy and optional providers absent" {
     # Regression for the CI break: status.sh used to gate its exit code on
-    # provider health, so an absent codex/gemini (every Claude-only host and the
+    # provider health, so absent provider CLIs (every Claude-only host and the
     # CI runner) forced exit 1. Reproduce that hermetically by stripping the real
     # CLIs from PATH (keeping node, which the script needs, + the mock claude).
     mock_claude_with_plugins '[
@@ -79,7 +79,7 @@ EOF
     ]'
     mock_rtk_alive
     ln -s "$(command -v node)" "$MOCK_BIN/node"   # resolve node BEFORE we shrink PATH
-    PATH="$MOCK_BIN:/usr/bin:/bin"                  # excludes the nvm dir → codex/gemini not found
+    PATH="$MOCK_BIN:/usr/bin:/bin"                  # excludes user CLI dirs → providers not found
     run bash "$SCRIPT"
     [ "$status" -eq 0 ]
     [[ "$output" == *"context-mode"*"OK"* ]]

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # tokenwar status — report state of the 5 token-saving tools + AI providers.
 #
-# Exit 0 if all 5 tools are healthy, 1 otherwise. Providers (Codex/Gemini) are
+# Exit 0 if all 5 tools are healthy, 1 otherwise. Providers are
 # OPTIONAL — they are reported for information but their absence never fails the
-# exit code (a Claude-only host has no codex/gemini and must still exit 0).
+# exit code (a Claude-only host has no other provider CLIs and must still exit 0).
 # Pass --test to additionally run a liveness ping for each tool
 # (note: context-mode ping requires the ctx_stats MCP tool, which
 # shell cannot reach — the caller is responsible for that one).
@@ -175,6 +175,7 @@ for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
         claude) pnote="telemetry: RTK + ctx_stats + chroma-sync-state" ;;
         codex)  pnote="telemetry: ~/.codex/state_5.sqlite (tokens_used)" ;;
         gemini) pnote="telemetry: N/A (server-side sessions)" ;;
+        kimi)   pnote="telemetry: N/A (~/.kimi-code has no token store)" ;;
         *)      pnote="" ;;
     esac
 
@@ -213,7 +214,7 @@ if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
 fi
 
 # Exit code: gated ONLY on the 5 managed tools. Providers are optional and never
-# fail the exit (an absent codex/gemini on a Claude-only host is not an error).
+# fail the exit (absent provider CLIs on a Claude-only host are not an error).
 tool_failures=0
 for s in "$ctx_state" "$mem_state" "$cave_state" "$pony_state" "$rtk_st"; do
     [[ "$s" == "$STATUS_OK" ]] || tool_failures=1

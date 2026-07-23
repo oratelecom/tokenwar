@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for multi-provider support — Codex, Gemini, Claude detection.
+# Tests for multi-provider support — Codex, Gemini, Kimi, Claude detection.
 
 setup() {
     GAIN_SCRIPT="$BATS_TEST_DIRNAME/../scripts/gain.sh"
@@ -59,6 +59,15 @@ EOF
     chmod +x "$MOCK_BIN/gemini"
 }
 
+mock_kimi() {
+    cat > "$MOCK_BIN/kimi" <<'EOF'
+#!/usr/bin/env bash
+[[ "$1" == "--version" ]] && echo "kimi-code 0.9.1"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/kimi"
+}
+
 @test "status.sh detects Codex CLI when installed" {
     mock_claude_with_plugins '[
       {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
@@ -94,6 +103,18 @@ EOF
     [[ "$output" == *"Gemini CLI"*"0.38.2"*"OK"* ]]
 }
 
+@test "status.sh detects Kimi Code CLI when installed" {
+    mock_claude_with_plugins '[
+      {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
+      {"id":"claude-mem@thedotmack","version":"12.1.4","enabled":true},
+      {"id":"caveman@caveman","version":"abc","enabled":true}
+    ]'
+    mock_rtk_alive
+    mock_kimi
+    run bash "$STATUS_SCRIPT"
+    [[ "$output" == *"Kimi Code CLI"*"0.9.1"*"OK"* ]]
+}
+
 # ── Provider section in gain.sh ──────────────────────────────────
 
 @test "gain.sh shows Codex in providers table" {
@@ -109,4 +130,11 @@ EOF
     mock_gemini
     run bash "$GAIN_SCRIPT"
     [[ "$output" == *"Gemini CLI"*"N/A"* ]]
+}
+
+@test "gain.sh shows Kimi Code CLI in providers table" {
+    mock_rtk_alive
+    mock_kimi
+    run bash "$GAIN_SCRIPT"
+    [[ "$output" == *"Kimi Code CLI"*"N/A"* ]]
 }

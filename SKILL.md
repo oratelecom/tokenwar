@@ -1,6 +1,6 @@
 ---
 name: tokenwar
-description: Activate, upgrade, test, and benchmark the 5-tool token-saving stack (context-mode, claude-mem, RTK, caveman, ponytail). Reports per-tool + per-provider (Codex, Gemini) token savings and detects conflicts that would erase the gains.
+description: Activate, upgrade, test, and benchmark the 5-tool token-saving stack (context-mode, claude-mem, RTK, caveman, ponytail). Reports per-tool + per-provider (Codex, Gemini, Kimi) token savings and detects conflicts that would erase the gains.
 trigger: /tokenwar
 ---
 
@@ -28,15 +28,16 @@ tokenwar now tracks token usage across AI coding agents, each from its own
 | Claude Code  | RTK (`rtk gain`) + context-mode + claude-mem    | per-command + monthly |
 | Codex        | `~/.codex/state_5.sqlite` → `threads.tokens_used` | per-session + monthly |
 | Gemini CLI   | N/A (server-side sessions — no local store)      | —                     |
+| Kimi Code CLI | N/A (`~/.kimi-code` has no documented token store) | —                  |
 
 Each provider's token counts are valued at their own list prices (input-side).
 Provider prices are defined in `scripts/lib/providers.sh` — verify against
 official pricing pages.
 
-## Cross-CLI status (Claude vs Codex/Gemini)
+## Cross-CLI status (Claude vs Codex/Gemini/Kimi)
 
 The persistent **status bar** is a Claude Code feature (its `statusLine` API).
-Codex and Gemini do **not** expose a status-bar API — their footers are
+Codex, Gemini, and Kimi do **not** expose a status-bar API — their footers are
 hardcoded in their TUIs, and their hooks only inject into the *model* context,
 never the screen. So tokenwar surfaces the stack differently per CLI:
 
@@ -45,17 +46,19 @@ never the screen. So tokenwar surfaces the stack differently per CLI:
 | Claude Code | Native persistent bottom bar via `statusLine` (auto, always visible)  |
 | Codex      | **Launch banner** + reminder + upgrade prompt (via shell wrapper)     |
 | Gemini CLI | **Launch banner** + reminder + upgrade prompt (via shell wrapper)     |
+| Kimi Code CLI | **Launch banner** + reminder + upgrade prompt (via shell wrapper)  |
 
-`install.sh` wires three shell functions (one-time, then zero effort):
+`install.sh` wires four shell functions (one-time, then zero effort):
 
 - `tokenwar <cmd>` — the dispatcher; `tokenwar status` / `gain` / `check` /
-  `upgrade` work in **any** shell (Codex, Gemini, plain terminal).
-- `codex` / `gemini` — wrapped so that launching either prints the tokenwar
-  banner (`scripts/tokenwar-launch.sh`), reminds the user to run
+  `upgrade` work in **any** shell (Codex, Gemini, Kimi, plain terminal).
+- `codex` / `gemini` / `kimi` — wrapped so that launching any of them prints
+  the tokenwar banner (`scripts/tokenwar-launch.sh`), reminds the user to run
   `tokenwar status`, and — if the throttled cache shows pending updates —
   offers an inline **"Upgrade now? [y/N]"** that runs `scripts/upgrade.sh` for
   the 4 tools. The banner is silent for non-interactive launches
-  (`codex exec`, `gemini -p …`, pipes) so it never pollutes scripted output.
+  (`codex exec`, `gemini -p …`, `kimi -p …`, pipes) so it never pollutes
+  scripted output.
 
 ## Usage
 
