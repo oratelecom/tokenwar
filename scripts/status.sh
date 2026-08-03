@@ -195,6 +195,7 @@ for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
         codex)  pnote="telemetry: ~/.codex/state_5.sqlite (tokens_used)" ;;
         gemini) pnote="telemetry: N/A (server-side sessions)" ;;
         kimi)   pnote="telemetry: N/A (~/.kimi-code has no token store)" ;;
+        opencode) pnote="telemetry: ~/.local/share/opencode/opencode.db (session tokens)" ;;
         *)      pnote="" ;;
     esac
 

@@ -111,7 +111,7 @@ check_r3() {
 # === R5 — provider overlap ===
 # Multiple AI providers may be installed simultaneously.
 # They share the same shell and filesystem but use separate config dirs
-# (~/.claude, ~/.codex, ~/.gemini, ~/.kimi-code by default). Verify their
+# (~/.claude, ~/.codex, ~/.gemini, ~/.kimi-code, ~/.config/opencode by default). Verify their
 # tool/hook footprints don't collide on the same events or matchers.
 #
 # A provider is considered "active" only if BOTH its CLI binary is on PATH AND

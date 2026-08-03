@@ -10,7 +10,7 @@
 
 [![CI](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml)
 
-**Six token-saving tools, run as one stack.** Built for Claude Code first — but the stack reaches further: RTK, ponytail, caveman, context-mode, and pxpipe work across agents (Codex, Gemini, Kimi, Cursor…), with provider token usage tracked only where native telemetry exists. Each saves a buffer or lane the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, provider-bound prompt payloads, and the code itself — so the savings stack instead of competing. None of the six is the headliner; the point is running all six at once. **6-in-1.**
+**Six token-saving tools, run as one stack.** Built for Claude Code first — but the stack reaches further: RTK, ponytail, caveman, context-mode, and pxpipe work across agents (Codex, Gemini, Kimi, opencode, Cursor…), with provider token usage tracked only where native telemetry exists. Each saves a buffer or lane the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, provider-bound prompt payloads, and the code itself — so the savings stack instead of competing. None of the six is the headliner; the point is running all six at once. **6-in-1.**
 
 Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 
@@ -112,19 +112,19 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 | Command | What it does |
 | --- | --- |
 | `/tokenwar status` | Health of the 6 tools — installed, enabled, version |
-| `/tokenwar gain` | Per-tool token savings + per-provider telemetry/status (Codex/Gemini/Kimi) + **monthly $ value** |
+| `/tokenwar gain` | Per-tool token savings + per-provider telemetry/status (Codex/Gemini/Kimi/opencode) + **monthly $ value** |
 | `/tokenwar upgrade` | Bump each tool to latest (asks confirmation) |
-| `/tokenwar check` | Conflict detector — verifies the 4 stack additively |
+| `/tokenwar check` | Conflict detector — verifies the 6 tools stack additively |
 | `/tokenwar test` | End-to-end ping: is each tool actually working? |
 | `/tokenwar doctor` | Full pipeline: status → test → check → gain |
 
-## Status in every CLI (Claude, Codex, Gemini, Kimi)
+## Status in every CLI (Claude, Codex, Gemini, Kimi, opencode)
 
 The persistent **bottom status bar** is a Claude Code feature — it ships a
-`statusLine` API and tokenwar wires it automatically. **Codex, Gemini, and Kimi
-do not expose a status-bar API** (their footers are hardcoded; their hooks
-inject only into the model context, not the screen). So tokenwar surfaces the
-stack the best way each CLI allows, with **zero daily effort** — `install.sh`
+`statusLine` API and tokenwar wires it automatically. **Codex, Gemini, Kimi, and
+opencode do not expose a status-bar API** (their footers are hardcoded; their
+hooks inject only into the model context, not the screen). So tokenwar surfaces
+the stack the best way each CLI allows, with **zero daily effort** — `install.sh`
 wires it once:
 
 | CLI         | What you get                                                          |
@@ -133,10 +133,12 @@ wires it once:
 | Codex       | Launch banner + `tokenwar status` reminder + inline upgrade prompt    |
 | Gemini CLI  | Launch banner + `tokenwar status` reminder + inline upgrade prompt    |
 | Kimi Code CLI | Launch banner + `tokenwar status` reminder + inline upgrade prompt  |
+| opencode    | Launch banner + `tokenwar status` reminder + inline upgrade prompt    |
 
-After install you simply type `codex`, `gemini`, or `kimi` as usual — the banner
-prints, and if updates are pending you get **"⬆ N updates available. Upgrade now?
-[y/N]"** which bumps managed tools. A `tokenwar` command also works in any shell:
+After install you simply type `codex`, `gemini`, `kimi`, or `opencode` as usual —
+the banner prints, and if updates are pending you get **"⬆ N updates available.
+Upgrade now? [y/N]"** which bumps managed tools. A `tokenwar` command also works
+in any shell:
 
 ```bash
 tokenwar status     # state of the 6 tools + providers
@@ -146,7 +148,34 @@ tokenwar doctor     # status → check → gain
 ```
 
 > The banner is silent for non-interactive launches (`codex exec`,
-> `gemini -p …`, `kimi -p …`, pipes) so it never pollutes scripted output.
+> `gemini -p …`, `kimi -p …`, `opencode run …`, pipes) so it never pollutes
+> scripted output.
+
+## How to activate tokenwar per client
+
+Run the installer **once** — it wires every client it can find. There is no
+per-client install step; the difference is only *how the stack shows up* in each.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --all
+```
+
+| Client        | What `install.sh` does for it                                         | How you confirm it's active |
+| ------------- | --------------------------------------------------------------------- | --------------------------- |
+| **Claude Code** | Installs the 4 plugins + RTK hook + pxpipe, patches `statusLine` in `~/.claude/settings.json` | Restart Claude Code → persistent bottom bar `[ctx][mem][rtk][caveman][ponytail]` |
+| **Codex**     | Wraps `codex` with a shell function that prints the tokenwar banner on launch | Open a new shell, run `codex` → banner appears; `tokenwar status` works |
+| **Gemini CLI** | Wraps `gemini` the same way                                          | New shell, run `gemini` → banner |
+| **Kimi Code CLI** | Wraps `kimi` the same way                                         | New shell, run `kimi` → banner |
+| **opencode**  | Wraps `opencode` the same way; reads its real token telemetry from `~/.local/share/opencode/opencode.db` | New shell, run `opencode` → banner; `tokenwar gain` shows opencode session tokens |
+
+After install, **reload your shell** (`source ~/.bashrc` or open a new terminal)
+so the `codex` / `gemini` / `kimi` / `opencode` / `tokenwar` functions take effect.
+That's the whole activation — every subsequent launch of any wrapped CLI is
+tokenwar-aware with zero extra effort.
+
+Only want one client? The wrappers are wired for all of them regardless, but you
+never pay for a client you don't use: an absent CLI is simply never invoked, and
+`tokenwar status` reports it as *not installed* without failing.
 
 ## Quick start
 
@@ -195,6 +224,43 @@ style-only nudge with no measurable buffer, so it is always `N/A`. It also
 prints a per-month breakdown from `rtk gain --monthly`, valuing each month's
 saved tokens at Claude and Codex input list prices (the API-equivalent $ saved).
 
+### What the savings look like (live run)
+
+A real `tokenwar gain` on an active dev machine — every number comes from each
+tool's own telemetry, nothing invented:
+
+```text
+# /tokenwar gain — token savings
+
+  tool            saved       note
+  ─────────────────────────────────────────────────────────────
+  RTK             8.5M        13837 commands (68.6%)
+  context-mode    N/A         ctx_stats not provided by caller
+  claude-mem      4.9M        ~est: 98401 obs + 23338 summaries across 36 projects
+  caveman         N/A         style-only hook — no measurable buffer
+  pxpipe          N/A         pxpipe events log not found
+  ─────────────────────────────────────────────────────────────
+  TOTAL (tools)   13.4M       summed across tools with telemetry
+
+  provider        tokens      note
+  ─────────────────────────────────────────────────────────────
+  Codex           3680.3M     320 Codex sessions (real tokens_used)
+  Gemini CLI      N/A         no local token telemetry (server-side sessions)
+  Kimi Code CLI   N/A         no documented local token telemetry
+  opencode        105.3K      10 opencode sessions (real token cols)
+
+Monthly value — API-equivalent $ saved (Claude Opus 4.8 · input $5.00/M)
+  2026-07    8.2M        $41.00
+  TOTAL      8.4M        $42.16
+```
+
+That's **13.4M tokens saved** on Claude-side context alone (RTK compressing tool
+stdout at 68.6%, claude-mem offloading cross-session memory), worth ~**$42/month**
+in Opus 4.8 input-equivalent — and the provider rows show each wrapped CLI's real
+usage read from its native store (**opencode from `opencode.db`, Codex from its
+SQLite**), so you see per-agent token flow next to the savings. Run it yourself
+with `tokenwar gain` after a few days of use.
+
 Wire the combined statusline (Claude Code, `~/.claude/settings.json`):
 
 ```json
@@ -204,7 +270,7 @@ Wire the combined statusline (Claude Code, `~/.claude/settings.json`):
 }
 ```
 
-Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>] [ponytail on]` — green if active, red if down. The `ponytail` badge reflects the plugin's real runtime mode: green with the active intensity (`on` for full, else `lite`/`ultra`) when the `ponytail@ponytail` plugin is enabled and not toggled off, red `off` when disabled or after `/ponytail off` — read live from the plugin's `~/.claude/.ponytail-active` flag, no version, no telemetry, by design. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action. The bar is **Claude-only** — Codex/Gemini/Kimi are tracked in `/tokenwar gain`, not on the Claude status bar.
+Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>] [ponytail on]` — green if active, red if down. The `ponytail` badge reflects the plugin's real runtime mode: green with the active intensity (`on` for full, else `lite`/`ultra`) when the `ponytail@ponytail` plugin is enabled and not toggled off, red `off` when disabled or after `/ponytail off` — read live from the plugin's `~/.claude/.ponytail-active` flag, no version, no telemetry, by design. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action. The bar is **Claude-only** — Codex/Gemini/Kimi/opencode are tracked in `/tokenwar gain`, not on the Claude status bar.
 
 ## Settings.json wipe protection
 

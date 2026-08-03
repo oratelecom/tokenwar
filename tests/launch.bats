@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for tokenwar-launch.sh — the codex/gemini/kimi launch banner.
+# Tests for tokenwar-launch.sh — the codex/gemini/kimi/opencode launch banner.
 # The banner must stay SILENT for non-interactive launches (no TTY, exec, -p).
 
 setup() {
@@ -34,6 +34,12 @@ teardown() {
 
 @test "kimi -p headless flag → no banner" {
     run bash "$SCRIPT" kimi -p "summarize" </dev/null
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "opencode run headless subcommand → no banner" {
+    run bash "$SCRIPT" opencode run "summarize" </dev/null
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }

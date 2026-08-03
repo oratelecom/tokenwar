@@ -1,6 +1,6 @@
 ---
 name: tokenwar
-description: Activate, upgrade, test, and benchmark the 6-tool token-saving stack (context-mode, claude-mem, RTK, pxpipe, caveman, ponytail). Reports per-tool + per-provider (Codex, Gemini, Kimi) token savings and detects conflicts that would erase the gains.
+description: Activate, upgrade, test, and benchmark the 6-tool token-saving stack (context-mode, claude-mem, RTK, pxpipe, caveman, ponytail). Reports per-tool + per-provider (Codex, Gemini, Kimi, opencode) token savings and detects conflicts that would erase the gains.
 trigger: /tokenwar
 ---
 
@@ -30,17 +30,18 @@ tokenwar now tracks token usage across AI coding agents, each from its own
 | Codex        | `~/.codex/state_5.sqlite` → `threads.tokens_used` | per-session + monthly |
 | Gemini CLI   | N/A (server-side sessions — no local store)      | —                     |
 | Kimi Code CLI | N/A (`~/.kimi-code` has no documented token store) | —                  |
+| opencode     | `~/.local/share/opencode/opencode.db` → `session` token cols | per-session + monthly |
 
 Each provider's token counts are valued at their own list prices (input-side).
 Provider prices are defined in `scripts/lib/providers.sh` — verify against
 official pricing pages.
 
-## Cross-CLI status (Claude vs Codex/Gemini/Kimi)
+## Cross-CLI status (Claude vs Codex/Gemini/Kimi/opencode)
 
 The persistent **status bar** is a Claude Code feature (its `statusLine` API).
-Codex, Gemini, and Kimi do **not** expose a status-bar API — their footers are
-hardcoded in their TUIs, and their hooks only inject into the *model* context,
-never the screen. So tokenwar surfaces the stack differently per CLI:
+Codex, Gemini, Kimi, and opencode do **not** expose a status-bar API — their
+footers are hardcoded in their TUIs, and their hooks only inject into the *model*
+context, never the screen. So tokenwar surfaces the stack differently per CLI:
 
 | CLI        | How the stack is surfaced                                              |
 | ---------- | --------------------------------------------------------------------- |
@@ -48,18 +49,19 @@ never the screen. So tokenwar surfaces the stack differently per CLI:
 | Codex      | **Launch banner** + reminder + upgrade prompt (via shell wrapper)     |
 | Gemini CLI | **Launch banner** + reminder + upgrade prompt (via shell wrapper)     |
 | Kimi Code CLI | **Launch banner** + reminder + upgrade prompt (via shell wrapper)  |
+| opencode   | **Launch banner** + reminder + upgrade prompt (via shell wrapper)     |
 
-`install.sh` wires four shell functions (one-time, then zero effort):
+`install.sh` wires the shell functions (one-time, then zero effort):
 
 - `tokenwar <cmd>` — the dispatcher; `tokenwar status` / `gain` / `check` /
-  `upgrade` work in **any** shell (Codex, Gemini, Kimi, plain terminal).
-- `codex` / `gemini` / `kimi` — wrapped so that launching any of them prints
-  the tokenwar banner (`scripts/tokenwar-launch.sh`), reminds the user to run
-  `tokenwar status`, and — if the throttled cache shows pending updates —
-  offers an inline **"Upgrade now? [y/N]"** that runs `scripts/upgrade.sh` for
-  managed tools. The banner is silent for non-interactive launches
-  (`codex exec`, `gemini -p …`, `kimi -p …`, pipes) so it never pollutes
-  scripted output.
+  `upgrade` work in **any** shell (Codex, Gemini, Kimi, opencode, plain terminal).
+- `codex` / `gemini` / `kimi` / `opencode` — wrapped so that launching any of
+  them prints the tokenwar banner (`scripts/tokenwar-launch.sh`), reminds the
+  user to run `tokenwar status`, and — if the throttled cache shows pending
+  updates — offers an inline **"Upgrade now? [y/N]"** that runs
+  `scripts/upgrade.sh` for managed tools. The banner is silent for
+  non-interactive launches (`codex exec`, `gemini -p …`, `kimi -p …`,
+  `opencode run …`, pipes) so it never pollutes scripted output.
 
 ## Usage
 
@@ -70,7 +72,7 @@ never the screen. So tokenwar surfaces the stack differently per CLI:
 /tokenwar upgrade    # bump each to latest (asks confirmation)
 /tokenwar test       # ping each one-by-one, verify it actually responds
 /tokenwar gain       # per-tool + global token-savings report
-/tokenwar check      # conflict detector — verifies the 4 are complementary
+/tokenwar check      # conflict detector — verifies the 6 tools are complementary
 /tokenwar doctor     # full pipeline: status → test → check → gain
 ```
 
@@ -216,7 +218,7 @@ caveman compresses Claude's responses; RTK compresses tool outputs. They operate
 
 ### Rule R4 — version drift
 
-If any of the 4 is more than one minor version behind its latest, report as `WARN`. Old context-mode (< 1.0.107) lacks the `ctx_search` source filter; old RTK (< 0.29) double-counted some commands; etc.
+If any tracked tool is more than one minor version behind its latest, report as `WARN`. Old context-mode (< 1.0.107) lacks the `ctx_search` source filter; old RTK (< 0.29) double-counted some commands; etc.
 
 Output format:
 

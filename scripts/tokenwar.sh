@@ -27,7 +27,7 @@ tokenwar — token-saving stack manager
 Usage: tokenwar <command>
 
 Commands:
-  status     state of the 6 tools + providers (codex, gemini, kimi)
+  status     state of the 6 tools + providers (codex, gemini, kimi, opencode)
   gain       per-tool + per-provider token savings + monthly \$ value
   check      complementarity / conflict detector
   upgrade    bump managed tools to latest (asks confirmation)

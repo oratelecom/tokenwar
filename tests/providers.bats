@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for multi-provider support — Codex, Gemini, Kimi, Claude detection.
+# Tests for multi-provider support — Codex, Gemini, Kimi, opencode, Claude detection.
 
 setup() {
     GAIN_SCRIPT="$BATS_TEST_DIRNAME/../scripts/gain.sh"
@@ -68,6 +68,15 @@ EOF
     chmod +x "$MOCK_BIN/kimi"
 }
 
+mock_opencode() {
+    cat > "$MOCK_BIN/opencode" <<'EOF'
+#!/usr/bin/env bash
+[[ "$1" == "--version" ]] && echo "1.15.4"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/opencode"
+}
+
 @test "status.sh detects Codex CLI when installed" {
     mock_claude_with_plugins '[
       {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
@@ -115,6 +124,18 @@ EOF
     [[ "$output" == *"Kimi Code CLI"*"0.9.1"*"OK"* ]]
 }
 
+@test "status.sh detects opencode when installed" {
+    mock_claude_with_plugins '[
+      {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
+      {"id":"claude-mem@thedotmack","version":"12.1.4","enabled":true},
+      {"id":"caveman@caveman","version":"abc","enabled":true}
+    ]'
+    mock_rtk_alive
+    mock_opencode
+    run bash "$STATUS_SCRIPT"
+    [[ "$output" == *"opencode"*"1.15.4"*"OK"* ]]
+}
+
 # ── Provider section in gain.sh ──────────────────────────────────
 
 @test "gain.sh shows Codex in providers table" {
@@ -137,4 +158,38 @@ EOF
     mock_kimi
     run bash "$GAIN_SCRIPT"
     [[ "$output" == *"Kimi Code CLI"*"N/A"* ]]
+}
+
+@test "gain.sh shows opencode N/A when its DB is absent" {
+    mock_rtk_alive
+    mock_opencode
+    # No opencode.db in the test data home → honest N/A
+    OPENCODE_DATA_HOME="$BATS_TEST_TMPDIR/no-opencode" run bash "$GAIN_SCRIPT"
+    [[ "$output" == *"opencode"*"N/A"* ]]
+}
+
+@test "gain.sh reads REAL opencode token telemetry from opencode.db" {
+    command -v python3 >/dev/null 2>&1 || skip "python3 required to build/read the opencode DB"
+    mock_rtk_alive
+    mock_opencode
+    local data_home="$BATS_TEST_TMPDIR/opencode-data"
+    mkdir -p "$data_home"
+    # Build a minimal opencode.db mirroring the real schema's token columns and
+    # seed two sessions totalling 30000 tokens (12000+8000 in, 6000+4000 out).
+    OPENCODE_DB="$data_home/opencode.db" python3 -c "
+import sqlite3, os
+db = sqlite3.connect(os.environ['OPENCODE_DB'])
+db.execute('''CREATE TABLE session (
+  id text PRIMARY KEY, time_created integer NOT NULL,
+  tokens_input integer DEFAULT 0 NOT NULL, tokens_output integer DEFAULT 0 NOT NULL,
+  tokens_reasoning integer DEFAULT 0 NOT NULL)''')
+db.execute(\"INSERT INTO session VALUES ('s1', 1748000000000, 12000, 6000, 0)\")
+db.execute(\"INSERT INTO session VALUES ('s2', 1748000000000, 8000, 4000, 0)\")
+db.commit()
+"
+    OPENCODE_DATA_HOME="$data_home" run bash "$GAIN_SCRIPT"
+    [ "$status" -eq 0 ]
+    # 30000 tokens → rendered as 30.0K, with the real-session note.
+    [[ "$output" == *"opencode"*"30.0K"* ]]
+    [[ "$output" == *"2 opencode sessions (real token cols)"* ]]
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tokenwar launch banner — shown when a wrapped CLI starts.
 #
-# Codex, Gemini, and Kimi do NOT expose a persistent status-bar API the way Claude
+# Codex, Gemini, Kimi, and opencode do NOT expose a persistent status-bar API the way Claude
 # Code does (their footers are hardcoded in their TUIs). The closest we can do
 # without touching their binaries is a one-time banner at launch:
 #   1. print the tokenwar stack bar (same renderer as the Claude statusline)
@@ -9,7 +9,7 @@
 #   3. if updates are pending (from the throttled cache), offer to upgrade now
 #
 # This is intentionally non-blocking and silent for non-interactive launches
-# (`codex exec`, `gemini -p ...`, `kimi -p ...`, pipes) so it never pollutes
+# (`codex exec`, `gemini -p ...`, `kimi -p ...`, `opencode run ...`, pipes) so it never pollutes
 # scripted output.
 #
 # Usage: tokenwar-launch.sh <provider> [original CLI args...]
@@ -36,7 +36,7 @@ readonly COL_RESET=$'\033[0m'
 
 # Non-interactive subcommands that must NEVER get a banner (scripted/automation
 # entrypoints whose stdout is consumed by tooling).
-readonly NONINTERACTIVE_SUBCMDS=" exec e completion mcp mcp-server app-server apply a review cloud exec-server resume fork "
+readonly NONINTERACTIVE_SUBCMDS=" exec e completion mcp mcp-server app-server apply a review cloud exec-server resume fork run serve "
 
 # Bail silently unless this is a genuine interactive TUI launch.
 should_banner() {

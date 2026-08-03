@@ -9,6 +9,7 @@
 #   Codex  — ~/.codex/state_5.sqlite → threads.tokens_used (real per-session counts)
 #   Gemini — no local token store; CLI detection only, telemetry N/A
 #   Kimi   — ~/.kimi-code stores sessions/config, but no documented token store
+#   opencode — ~/.local/share/opencode/opencode.db → session token cols (real)
 
 set -euo pipefail
 
@@ -16,16 +17,20 @@ set -euo pipefail
 # that source this file (gain.sh, status.sh, check.sh, check-updates.sh,
 # tokenwar-statusline.sh), not within this file, hence the SC2034 suppressions.
 # shellcheck disable=SC2034
-readonly PROVIDER_COUNT=4
+readonly PROVIDER_COUNT=5
 # shellcheck disable=SC2034
 readonly PROVIDER_IDX_CODEX=1
 # shellcheck disable=SC2034
 readonly PROVIDER_IDX_GEMINI=2
 # shellcheck disable=SC2034
 readonly PROVIDER_IDX_KIMI=3
+# shellcheck disable=SC2034
+readonly PROVIDER_IDX_OPENCODE=4
 
 readonly CODEX_STATE_DB="${HOME}/.codex/state_5.sqlite"
 readonly KIMI_CODE_HOME="${KIMI_CODE_HOME:-${HOME}/.kimi-code}"
+readonly OPENCODE_DATA_HOME="${OPENCODE_DATA_HOME:-${HOME}/.local/share/opencode}"
+readonly OPENCODE_STATE_DB="${OPENCODE_DATA_HOME}/opencode.db"
 # CHARS_PER_TOKEN is defined in gain.sh (primary consumer)
 
 # ── provider metadata ────────────────────────────────────────────────
@@ -36,6 +41,7 @@ provider_id() {
         1) echo "codex"  ;;
         2) echo "gemini" ;;
         3) echo "kimi"   ;;
+        4) echo "opencode" ;;
     esac
 }
 
@@ -45,6 +51,7 @@ provider_name() {
         1) echo "Codex"       ;;
         2) echo "Gemini CLI"  ;;
         3) echo "Kimi Code CLI" ;;
+        4) echo "opencode"    ;;
     esac
 }
 
@@ -54,6 +61,7 @@ provider_cli() {
         1) echo "codex"  ;;
         2) echo "gemini" ;;
         3) echo "kimi"   ;;
+        4) echo "opencode" ;;
     esac
 }
 
@@ -63,6 +71,7 @@ provider_input_usd_per_mtok() {
         1) echo "1.25"  ;;  # Codex (gpt-5-codex) input — VERIFY at openai.com/pricing
         2) echo "1.25"  ;;  # Gemini 2.5 Pro input — VERIFY at ai.google.dev/pricing
         3) echo "0.30"  ;;  # Kimi K2/Kimi Code input — VERIFY at platform.kimi.ai/pricing
+        4) echo "3.00"  ;;  # opencode is model-agnostic (BYO provider) — representative input rate, VERIFY per your model
     esac
 }
 
@@ -72,6 +81,7 @@ provider_label() {
         1) echo "Codex (gpt-5-codex)"  ;;
         2) echo "Gemini 2.5 Pro"        ;;
         3) echo "Kimi Code"             ;;
+        4) echo "opencode (BYO model)"  ;;
     esac
 }
 
@@ -81,6 +91,7 @@ provider_config_dir() {
         1) echo "${HOME}/.codex" ;;
         2) echo "${HOME}/.gemini" ;;
         3) echo "$KIMI_CODE_HOME" ;;
+        4) echo "${HOME}/.config/opencode" ;;
     esac
 }
 
@@ -111,6 +122,7 @@ provider_telemetry_total() {
         1) codex_telemetry_total ;;
         2) gemini_telemetry_total ;;
         3) kimi_telemetry_total ;;
+        4) opencode_telemetry_total ;;
     esac
 }
 
@@ -120,6 +132,7 @@ provider_telemetry_monthly() {
         1) codex_telemetry_monthly ;;
         2) gemini_telemetry_monthly ;;
         3) kimi_telemetry_monthly ;;
+        4) opencode_telemetry_monthly ;;
     esac
 }
 
@@ -196,4 +209,52 @@ kimi_telemetry_total() {
 
 kimi_telemetry_monthly() {
     echo ""  # No monthly data available
+}
+
+# ── opencode native telemetry (SQLite) ───────────────────────────────
+# opencode records real per-session token usage in its Drizzle SQLite DB
+# (session.tokens_input/output/reasoning, time_created in epoch ms).
+
+opencode_telemetry_total() {
+    if [[ ! -f "$OPENCODE_STATE_DB" ]]; then
+        echo "N/A|opencode DB not found ($OPENCODE_STATE_DB)|0"; return
+    fi
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "N/A|python3 required to read opencode DB|0"; return
+    fi
+    OPENCODE_DB="$OPENCODE_STATE_DB" python3 -c "
+import sqlite3, os, sys
+try:
+    db = sqlite3.connect(os.environ['OPENCODE_DB'])
+    row = db.execute('SELECT SUM(tokens_input+tokens_output+tokens_reasoning), COUNT(*) FROM session WHERE (tokens_input+tokens_output) > 0').fetchone()
+    if not row or row[0] is None:
+        print('N/A|no opencode sessions with tokens|0')
+        sys.exit(0)
+    tokens = int(row[0])
+    sessions = int(row[1])
+    human = f'{tokens/1e6:.1f}M' if tokens >= 1e6 else f'{tokens/1e3:.1f}K' if tokens >= 1e3 else str(tokens)
+    print(f'{human}|{sessions} opencode sessions (real token cols)|{tokens}')
+except Exception as e:
+    print(f'N/A|opencode DB read failed: {e}|0')
+" 2>/dev/null || echo "N/A|opencode DB query failed|0"
+}
+
+opencode_telemetry_monthly() {
+    if [[ ! -f "$OPENCODE_STATE_DB" ]]; then echo ""; return; fi
+    if ! command -v python3 >/dev/null 2>&1; then echo ""; return; fi
+    OPENCODE_DB="$OPENCODE_STATE_DB" python3 -c "
+import sqlite3, os
+try:
+    db = sqlite3.connect(os.environ['OPENCODE_DB'])
+    rows = db.execute('''
+        SELECT strftime('%Y-%m', datetime(time_created/1000, 'unixepoch')) as m,
+               SUM(tokens_input+tokens_output+tokens_reasoning), COUNT(*)
+        FROM session WHERE (tokens_input+tokens_output) > 0 AND time_created > 0
+        GROUP BY m ORDER BY m
+    ''').fetchall()
+    for r in rows:
+        print(f'{r[0]} {r[1]} {r[2]}')
+except Exception:
+    pass
+" 2>/dev/null || echo ""
 }

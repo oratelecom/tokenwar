@@ -76,13 +76,14 @@ EOF
     [ ! -f "$CLAUDE_LOG" ] || ! grep -q "plugin install" "$CLAUDE_LOG"
 }
 
-@test "bare install wires codex gemini and kimi launch wrappers" {
+@test "bare install wires codex gemini kimi and opencode launch wrappers" {
     mock_claude_empty
     run bash "$SCRIPT"
     [ "$status" -eq 0 ]
     grep -q "codex()" "$HOME/.bashrc"
     grep -q "gemini()" "$HOME/.bashrc"
     grep -q "kimi()" "$HOME/.bashrc"
+    grep -q "opencode()" "$HOME/.bashrc"
 }
 
 @test "--with-plugins re-enables a plugin clobbered by the first enable" {

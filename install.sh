@@ -9,7 +9,7 @@
 #   1. git clone https://github.com/oratelecom/tokenwar ~/.claude/skills/tokenwar
 #   2. chmod +x scripts/*.sh
 #   3. patch ~/.claude/settings.json to wire the statusLine
-#   4. wire the tokenwar/codex/gemini/kimi shell functions
+#   4. wire the tokenwar/codex/gemini/kimi/opencode shell functions
 #   5. opt-in installs (none by default — no surprise mutation):
 #      --with-plugins  marketplace add + install + enable the 4 Claude Code
 #                      plugins (context-mode, claude-mem, caveman, ponytail),
@@ -64,14 +64,15 @@ readonly PXPIPE_NPM_SPEC="${PXPIPE_NPM_PACKAGE}@${PXPIPE_NPM_VERSION}"
 readonly USER_LOCAL_BIN="$HOME/.local/bin"
 
 # Shell-integration block markers — used to idempotently inject/remove the
-# `tokenwar`, `codex`, `gemini`, and `kimi` wrapper functions in the user's
-# shell rc.
+# `tokenwar`, `codex`, `gemini`, `kimi`, and `opencode` wrapper functions in the
+# user's shell rc.
 readonly TW_RC_BEGIN="# >>> tokenwar shell integration >>>"
 readonly TW_RC_END="# <<< tokenwar shell integration <<<"
 readonly WRAPPED_PROVIDER_CLIS=(
     "codex"
     "gemini"
     "kimi"
+    "opencode"
 )
 
 color()  { printf '\033[%sm%s\033[0m' "$1" "$2"; }
@@ -154,7 +155,7 @@ console.log(`    patched (backup at ${path}.bak-${stamp})`);
 
 # 4. wire shell integration (tokenwar + provider functions) into shell rc.
 #
-# Claude Code shows the native statusLine; Codex, Gemini, and Kimi do not expose a
+# Claude Code shows the native statusLine; Codex, Gemini, Kimi, and opencode do not expose a
 # status-bar API, so we wrap their launch with a banner + reminder + upgrade
 # prompt. The `tokenwar` function makes `tokenwar status` work in any shell.
 # Idempotent: an existing tokenwar block is replaced, never duplicated.
@@ -185,7 +186,7 @@ wire_shell_rc() {
     if ! mv -f "$tmp" "$rc_file"; then
         warn "could not write $rc_file"; rm -f "$tmp"; return 1
     fi
-    say "Wired tokenwar/codex/gemini/kimi shell functions in $rc_file"
+    say "Wired tokenwar/codex/gemini/kimi/opencode shell functions in $rc_file"
 }
 
 # Print the ids of every currently-enabled plugin, one per line (from
@@ -359,8 +360,8 @@ Sanity check now:
 Statusline appears after restarting Claude Code.
 
 Shell integration wired (reload your shell or 'source ~/.bashrc'):
-  tokenwar status      # works in any shell — Codex, Gemini, Kimi, plain terminal
-  codex / gemini / kimi
+  tokenwar status      # works in any shell — Codex, Gemini, Kimi, opencode, plain terminal
+  codex / gemini / kimi / opencode
                        # now print the tokenwar banner + upgrade prompt on launch
 
 $next_steps

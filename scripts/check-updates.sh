@@ -226,12 +226,14 @@ if $force_refresh || ! cache_is_fresh; then
     codex_installed=$(provider_version "$PROVIDER_IDX_CODEX")
     gemini_installed=$(provider_version "$PROVIDER_IDX_GEMINI")
     kimi_installed=$(provider_version "$PROVIDER_IDX_KIMI")
+    opencode_installed=$(provider_version "$PROVIDER_IDX_OPENCODE")
     # Latest provider versions: we don't have a reliable upstream source yet
     # (npm view would require knowing the exact package name). For now,
     # installed == latest unless we can prove otherwise via `codex doctor`.
     codex_latest="$codex_installed"
     gemini_latest="$gemini_installed"
     kimi_latest="$kimi_installed"
+    opencode_latest="$opencode_installed"
     # Codex self-reports updates via `codex doctor` — parse if available
     if command -v codex >/dev/null 2>&1 && [[ -n "$codex_installed" ]]; then
         codex_doctor_latest=$(codex doctor 2>/dev/null | awk '/updates available/ {print $2}' | head -1 || echo "")
@@ -251,6 +253,7 @@ if $force_refresh || ! cache_is_fresh; then
     codex_state=$(classify "$codex_installed" "$codex_latest")
     gemini_state=$(classify "$gemini_installed" "$gemini_latest")
     kimi_state=$(classify "$kimi_installed" "$kimi_latest")
+    opencode_state=$(classify "$opencode_installed" "$opencode_latest")
 
     now=$(date +%s)
     TOKENWAR_CACHE_FILE="$CACHE_FILE" \
@@ -264,6 +267,7 @@ if $force_refresh || ! cache_is_fresh; then
     CODEX_I="$codex_installed" CODEX_L="$codex_latest" CODEX_S="$codex_state" \
     GEMINI_I="$gemini_installed" GEMINI_L="$gemini_latest" GEMINI_S="$gemini_state" \
     KIMI_I="$kimi_installed" KIMI_L="$kimi_latest" KIMI_S="$kimi_state" \
+    OPENCODE_I="$opencode_installed" OPENCODE_L="$opencode_latest" OPENCODE_S="$opencode_state" \
     node --input-type=module -e "
         import { writeFileSync } from 'node:fs';
         const e = process.env;
@@ -280,7 +284,8 @@ if $force_refresh || ! cache_is_fresh; then
             providers: {
                 'codex':  { installed: e.CODEX_I, latest: e.CODEX_L, state: e.CODEX_S },
                 'gemini': { installed: e.GEMINI_I, latest: e.GEMINI_L, state: e.GEMINI_S },
-                'kimi':   { installed: e.KIMI_I, latest: e.KIMI_L, state: e.KIMI_S }
+                'kimi':   { installed: e.KIMI_I, latest: e.KIMI_L, state: e.KIMI_S },
+                'opencode': { installed: e.OPENCODE_I, latest: e.OPENCODE_L, state: e.OPENCODE_S }
             }
         };
         writeFileSync(e.TOKENWAR_CACHE_FILE, JSON.stringify(data, null, 2));
