@@ -179,10 +179,53 @@ never pay for a client you don't use: an absent CLI is simply never invoked, and
 
 ## Quick start
 
+Two ways in — pick your interface. **A human runs one curl. An agent gets a
+prompt.** Both end at the same installed-activated-verified state.
+
+### 🤖 Agent install (the future default)
+
+Paste this prompt into any coding agent (Claude Code, Codex, Gemini, Cursor,
+opencode…). The agent reads the installer, runs it, then proves it works — no
+copy-pasting flags:
+
+```text
+Install, activate, and verify that https://github.com/oratelecom/tokenwar works.
+
+Steps:
+1. Install: run `curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --all`
+   (fetch and read the script first if you want to inspect it — it only wires
+   the statusline, shell functions, the 4 Claude plugins, the RTK binary, and pxpipe).
+2. Activate: reload the shell (`source ~/.bashrc`) so the tokenwar / codex /
+   gemini / kimi / opencode wrappers take effect. For Claude Code, restart it so
+   the statusLine loads.
+3. Verify: run `tokenwar status` — every one of the 6 tools must report OK.
+   Then run `tokenwar check` (must print COMPLEMENTARY) and `tokenwar gain`
+   (must show real per-tool token savings, not all N/A).
+4. Report back the status table and the total tokens saved. If any tool is
+   red, run `tokenwar upgrade` and re-check.
+```
+
+One line, if your agent likes it terse:
+
+```text
+Install, activate, and verify https://github.com/oratelecom/tokenwar — run its install.sh --all, reload the shell, then confirm `tokenwar status` shows all 6 tools OK, `tokenwar check` says COMPLEMENTARY, and `tokenwar gain` reports real savings.
+```
+
+### 👤 Human install
+
 One command — the whole stack: the 4 Claude Code plugins (context-mode, claude-mem, caveman, **ponytail**), the **RTK** binary (via rtk's official prebuilt installer), **pxpipe** (via pinned `pxpipe-proxy@0.10.0`), the statusline + shell functions, and RTK's hook:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --all
+```
+
+Then activate + verify:
+
+```bash
+source ~/.bashrc      # load the shell wrappers (or open a new terminal)
+tokenwar status       # all 6 tools should report OK
+tokenwar check        # must print COMPLEMENTARY
+tokenwar gain         # real per-tool token savings
 ```
 
 Restart Claude Code to load the plugins. `--all` = `--with-plugins --with-rtk --with-pxpipe`; use individual flags if you only want one part. RTK installs from a prebuilt binary (no toolchain, no compiling) on every major platform via rtk's own official installer. pxpipe installs from the pinned npm package `pxpipe-proxy@0.10.0`.
