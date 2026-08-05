@@ -117,6 +117,25 @@ EOF
     grep -q "init -g" "$RTK_LOG"
 }
 
+@test "--with-plugins installs the rtk opencode plugin when opencode is present" {
+    mock_claude_empty
+    printf '#!/usr/bin/env bash\nexit 0\n' > "$MOCK_BIN/opencode"  # opencode on PATH
+    chmod +x "$MOCK_BIN/opencode"
+    run bash "$SCRIPT" --with-plugins
+    [ "$status" -eq 0 ]
+    grep -q "init -g --opencode" "$RTK_LOG"
+}
+
+@test "--with-plugins skips the rtk opencode plugin when opencode is absent" {
+    mock_claude_empty
+    ln -s "$(command -v node)" "$MOCK_BIN/node"  # keep node reachable (rtk mock already in MOCK_BIN)
+    PATH="$MOCK_BIN:/usr/bin:/bin"                # excludes ~/.bun/bin → opencode not found
+    run bash "$SCRIPT" --with-plugins
+    [ "$status" -eq 0 ]
+    grep -q "init -g" "$RTK_LOG"
+    ! grep -q -- "--opencode" "$RTK_LOG"
+}
+
 @test "--with-plugins warns + skips the hook when the rtk binary is absent" {
     mock_claude_empty
     rm -f "$MOCK_BIN/rtk"                       # drop our mock

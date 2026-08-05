@@ -53,6 +53,10 @@ readonly PLUGIN_SLUGS=(
 # a release tag so the script we pipe to sh is fixed/reviewable; ref is
 # env-overridable. rtk drops the binary in ~/.local/bin.
 readonly RTK_BIN="rtk"
+# opencode has no Claude-Code-style hook system, so RTK ships a dedicated
+# opencode plugin (`rtk init -g --opencode` writes ~/.config/opencode/plugins/rtk.ts).
+# Without it, RTK never rewrites bash inside opencode and saves zero tokens there.
+readonly OPENCODE_BIN="opencode"
 readonly RTK_INSTALL_REF="${TOKENWAR_RTK_INSTALL_REF:-v0.42.4}"
 readonly RTK_INSTALL_URL="https://raw.githubusercontent.com/rtk-ai/rtk/${RTK_INSTALL_REF}/install.sh"
 readonly RTK_LOCAL_BIN="$HOME/.local/bin"
@@ -243,10 +247,19 @@ install_plugins() {
 
 # Wire RTK's hook. `rtk init -g` is non-interactive and patches settings.json
 # itself. No-op (with a hint) when the binary isn't installed.
+#
+# RTK's Claude Code hook only rewrites bash INSIDE Claude Code — opencode uses a
+# separate plugin runtime and never sees it. So when opencode is present we also
+# install RTK's native opencode plugin, otherwise RTK saves zero tokens there.
 wire_rtk_hook() {
     if command -v "$RTK_BIN" >/dev/null 2>&1; then
         say "Wiring RTK hook (rtk init -g)"
         "$RTK_BIN" init -g >/dev/null 2>&1 || warn "rtk init -g failed — run it manually"
+        if command -v "$OPENCODE_BIN" >/dev/null 2>&1; then
+            say "Installing RTK opencode plugin (rtk init -g --opencode)"
+            "$RTK_BIN" init -g --opencode >/dev/null 2>&1 \
+                || warn "rtk init -g --opencode failed — run it manually (restart opencode after)"
+        fi
     else
         warn "rtk binary not found — install it with --with-rtk (or run \`rtk init -g\` after installing the RTK CLI)."
     fi

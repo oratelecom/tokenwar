@@ -12,7 +12,7 @@ Manages the 6 complementary token-saving tools:
 | ------------ | --------------------------- | --------------------------------- | ----------------- |
 | context-mode | MCP — data offload + memory | `context-mode@context-mode`       | MCP only          |
 | claude-mem   | session memory + compaction | `claude-mem@thedotmack`           | `claude-mem` CLI  |
-| RTK          | bash output compression     | (CLI only, hook in `~/.claude`)   | `rtk` (Rust)      |
+| RTK          | bash output compression     | (CLI; Claude hook + opencode plugin) | `rtk` (Rust)   |
 | pxpipe       | provider prompt payload proxy | (CLI only, npm package)         | `pxpipe`          |
 | caveman      | response-style compression  | `caveman@caveman`                 | hook              |
 | ponytail     | the code the LLM writes     | `ponytail@ponytail`               | plugin (mode-gated) |
@@ -104,10 +104,11 @@ On `Yes`, run for each tool:
 - `caveman` not installed → `claude plugin install caveman@caveman` then `claude plugin enable caveman@caveman`
 - `ponytail` not installed → `claude plugin marketplace add DietrichGebert/ponytail` (upstream; `marketplace update` later to refresh), then `claude plugin install ponytail@ponytail` then `claude plugin enable ponytail@ponytail`. The install is SHA-locked in `~/.claude/plugins/installed_plugins.json` (same as caveman), so it is pinned to the resolved commit, not a floating ref. ponytail defaults to `full` mode; `/ponytail off` turns it off per-session.
 - `context-mode` disabled → `claude plugin enable context-mode@context-mode`
-- `rtk` hook missing → `rtk init -g` (only run this if `rtk gain` output said `[warn] No hook installed`). The CLI is interactive and defaults to `N` in non-interactive shells; after running it, manually patch `~/.claude/settings.json` to add a `hooks.PreToolUse` entry pointing at `~/.claude/hooks/rtk-rewrite.sh`.
+- `rtk` hook missing → `rtk init -g --auto-patch` (only run this if `rtk gain` output said `[warn] No hook installed`). `--auto-patch` is non-interactive and writes the native `rtk hook claude` command straight into `~/.claude/settings.json` — do NOT hand-wire a `~/.claude/hooks/rtk-rewrite.sh` path (that file no longer exists; the old mechanism is dead). Verify with `rtk init --show` (expect `[ok] Hook: rtk hook claude`).
+- `rtk` opencode plugin missing → `rtk init -g --opencode` **when opencode is installed**. RTK's Claude hook only rewrites bash inside Claude Code; opencode has a separate plugin runtime, so without this plugin (`~/.config/opencode/plugins/rtk.ts`) RTK saves zero tokens in opencode. Restart opencode after. Verify with `rtk init --show` (expect `[ok] OpenCode: plugin installed`).
 - `pxpipe` not installed → `npm install -g pxpipe-proxy@0.10.0`. This is the current pinned package for teamchong/pxpipe; do not install a floating version.
 
-**One-shot alternative**: `install.sh --all` (or `curl … | bash -s -- --all`) installs the whole stack at install time — the 4 plugins (marketplace-add + install + enable, with the anti-clobber re-enable), the RTK binary (via rtk's official prebuilt installer — no toolchain), and pxpipe (`pxpipe-proxy@0.10.0`), then wires RTK's hook with `rtk init -g`. Use `--with-plugins`, `--with-rtk`, or `--with-pxpipe` for just one part. So a fresh machine needs no separate `activate`.
+**One-shot alternative**: `install.sh --all` (or `curl … | bash -s -- --all`) installs the whole stack at install time — the 4 plugins (marketplace-add + install + enable, with the anti-clobber re-enable), the RTK binary (via rtk's official prebuilt installer — no toolchain), and pxpipe (`pxpipe-proxy@0.10.0`), then wires RTK's hook with `rtk init -g` (and, when opencode is present, RTK's opencode plugin with `rtk init -g --opencode`). Use `--with-plugins`, `--with-rtk`, or `--with-pxpipe` for just one part. So a fresh machine needs no separate `activate`.
 
 **Gotcha discovered 2026-05-18**: the *first* call to `claude plugin enable` on any plugin creates `enabledPlugins` in `~/.claude/settings.json` and **clobbers** plugins that were enabled implicitly at the marketplace level. Mitigation: after EVERY enable/install, snapshot the full `claude plugin list --json` and re-enable any plugin that flipped from `enabled:true` to `enabled:false`. The `activate` flow must do this snapshot-and-restore.
 
