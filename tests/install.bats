@@ -86,6 +86,25 @@ EOF
     grep -q "opencode()" "$HOME/.bashrc"
 }
 
+@test "shell-integration block exports ~/.local/bin on PATH" {
+    mock_claude_empty
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    # ~/.local/bin is where --with-rtk and --with-pxpipe drop binaries; on macOS
+    # it is not on PATH by default, so the block must export it.
+    grep -q "export PATH=" "$HOME/.bashrc"
+    grep -q '\.local/bin' "$HOME/.bashrc"
+}
+
+@test "wire_rtk_hook uses the non-interactive --auto-patch --hook-only form" {
+    mock_claude_empty
+    run bash "$SCRIPT" --with-plugins
+    [ "$status" -eq 0 ]
+    # Must NOT use the interactive bare `init -g` (blocks waiting for input).
+    ! grep -qx "init -g" "$RTK_LOG"
+    grep -q "init -g --auto-patch --hook-only" "$RTK_LOG"
+}
+
 @test "--with-plugins re-enables a plugin clobbered by the first enable" {
     # Stateful mock: extern@mp is enabled until one of OUR plugins is enabled,
     # which flips it to disabled (the documented enable-clobber). install.sh must
@@ -183,6 +202,9 @@ EOF
     [ "$status" -eq 0 ]
     grep -q "install -g pxpipe-proxy@0.10.0" "$NPM_LOG"
     [ -x "$HOME/.local/bin/pxpipe" ]
+    # Regression: when npm prefix == USER_LOCAL_BIN, must NOT create a self-referential
+    # symlink (pxpipe -> pxpipe) which breaks `command -v pxpipe` / `[ -x ]` checks.
+    [[ ! -L "$HOME/.local/bin/pxpipe" || "$(readlink "$HOME/.local/bin/pxpipe")" != "$HOME/.local/bin/pxpipe" ]]
 }
 
 @test "--all installs plugins AND handles rtk and pxpipe" {
