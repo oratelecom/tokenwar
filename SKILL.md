@@ -126,13 +126,18 @@ Two phases: detect, then confirm + apply.
 - For RTK: parses `cargo install --list` to detect path-installed dev builds; latest = `Cargo.toml` `version` on the tracked upstream branch (`git fetch` + `git show origin/<branch>:Cargo.toml`). Skips the public `cargo search rtk` registry — the public crate name belongs to a different project (Rust Type Kit) and gives wrong numbers.
 - Writes `~/.claude/tokenwar/upgrade-check.json` and exits `0` if all up-to-date, `2` if any update available.
 
-**Phase 2 — confirm + upgrade.** Read the cache, show a table `<tool>: <current> → <latest>` (skip tools already up-to-date), and use `AskUserQuestion` to confirm. On `Yes`:
+**Phase 2 — confirm + upgrade.** Read the cache, show a table `<tool>: <current> → <latest>` (skip tools already up-to-date), and use `AskUserQuestion` **once** to confirm. That single `AskUserQuestion` **is** the consent gate — do not ask again in any other form. On `Yes`, run the upgrade script exactly **once**:
 
-- Plugins: `claude plugin update <slug>` per tool with an update. Restart is required for the new version to load.
-- RTK (path-installed): `cd <repo_path> && git pull && cargo install --path . --force`. Discover `<repo_path>` from `cargo install --list` (line `rtk vX.Y.Z (<repo_path>):`).
-- RTK (registry-installed, rare): `cargo install rtk --force` — only if `cargo install --list` shows no path.
+```
+bash ~/.claude/skills/tokenwar/scripts/upgrade.sh --yes
+```
 
-After upgrade, re-run `check-updates.sh --force` then `status` so the version columns reflect the new state.
+- One Bash call handles **every** tool that needs an update (plugin scope detection, RTK path build, pxpipe npm) in a single pass — do **not** run `claude plugin update <slug>` per tool yourself, and do **not** run the script a second time. Per-tool calls and re-runs are what caused the old repeat-prompt loop.
+- `--yes` is required: without it the script prints its own `[y/N]` prompt, which finds no tty under the Bash tool, reads empty, and exits 0 with "Skipped" — nothing upgrades. Passing `--yes` suppresses only that redundant second prompt; consent is already captured by `AskUserQuestion`.
+- **Ordering matters (cache dependency):** Phase 1's `check-updates.sh --force` MUST have run first so the cache is fresh. `upgrade.sh` trusts `~/.claude/tokenwar/upgrade-check.json` verbatim; on a stale/empty cache it silently no-ops with "All tools up-to-date". Always: `check-updates.sh --force` → show table → `AskUserQuestion` → `upgrade.sh --yes`.
+- **On failure, stop — do not re-ask.** If `upgrade.sh` exits non-zero, surface its stderr to the user and stop. Never silently retry the flow.
+
+After a successful upgrade, re-run `check-updates.sh --force` then `status` so the version columns reflect the new state. Restart the CLI for plugin changes to load.
 
 **Passive surfacing.** `/tokenwar status` calls `check-updates.sh --quiet` at the end (uses the 24h cache, no network unless stale). If any update is available, status appends an `updates available (N):` block and a `→ Run /tokenwar upgrade to apply.` line. The user is never auto-upgraded — the trigger is always explicit. This matches the security principle of pinning versions: drift is reported, not silently applied.
 
