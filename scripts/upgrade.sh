@@ -32,6 +32,11 @@ readonly PXPIPE_NPM_SPEC="${PXPIPE_NPM_PACKAGE}@${PXPIPE_NPM_VERSION}"
 readonly UPGRADE_CACHE_FILE="${HOME}/.claude/tokenwar/upgrade-check.json"
 readonly STATE_UPDATE="update-available"
 
+# Source of the interactive "Upgrade now? [y/N]" answer. The real controlling
+# terminal by default (so the prompt works even when stdin is a pipe), but
+# overridable via TW_TTY so the confirm path is testable without a live tty.
+readonly TTY_DEVICE="${TW_TTY:-/dev/tty}"
+
 readonly COL_GREEN=$'\033[32m'
 readonly COL_RED=$'\033[31m'
 readonly COL_YELLOW=$'\033[33m'
@@ -55,7 +60,7 @@ fail() { printf '%s %s\n' "${COL_RED}ERR${COL_RESET}" "$*" >&2; }
 # True only if /dev/tty can actually be opened (a controlling terminal exists).
 # The inner redirection's failure is swallowed by the group-level 2>/dev/null,
 # so probing never leaks "No such device or address".
-tty_readable() { { : </dev/tty; } 2>/dev/null; }
+tty_readable() { { : <"$TTY_DEVICE"; } 2>/dev/null; }
 
 # Which tools have an update? Echoes space-separated tool keys.
 # Reads the cache; with --all or no cache, returns every managed updater.
@@ -159,7 +164,7 @@ if ! $assume_yes; then
     reply=""
     if tty_readable; then
         printf "Upgrade now? [y/N] "
-        read -r reply </dev/tty 2>/dev/null || reply=""
+        read -r reply <"$TTY_DEVICE" 2>/dev/null || reply=""
     fi
     case "$reply" in
         y|Y|yes|YES) ;;
