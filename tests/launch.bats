@@ -48,3 +48,14 @@ teardown() {
     run bash "$SCRIPT" gemini </dev/null
     [ "$status" -eq 0 ]
 }
+
+@test "provider-only update cache does not offer managed upgrade" {
+    cat > "$HOME/.claude/tokenwar/upgrade-check.json" <<'EOF'
+{"tools":{"context-mode":{"state":"up-to-date"},"claude-mem":{"state":"up-to-date"},"caveman":{"state":"up-to-date"},"rtk":{"state":"up-to-date"},"pxpipe":{"state":"up-to-date"}},"providers":{"codex":{"state":"update-available"}}}
+EOF
+
+    run bash "$SCRIPT" codex </dev/null
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Upgrade now?"* ]]
+    [[ "$output" != *"update available"* ]]
+}

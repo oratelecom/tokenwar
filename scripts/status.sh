@@ -221,6 +221,7 @@ if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
                 import { readFileSync } from 'node:fs';
                 const d = JSON.parse(readFileSync(process.env.CACHE, 'utf8'));
                 const ups = Object.entries(d.tools).filter(([,v]) => v.state === 'update-available');
+                if (ups.length === 0) process.exit(0);
                 console.log(\`  updates available (\${ups.length}):\`);
                 for (const [n, v] of ups) {
                     console.log(\`    - \${n.padEnd(14)} \${v.installed} → \${v.latest}\`);

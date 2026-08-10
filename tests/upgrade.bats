@@ -41,11 +41,12 @@ write_cache() {
 
 @test "all up-to-date → nothing to upgrade, exit 0" {
     write_cache <<'EOF'
-{"tools":{"context-mode":{"state":"up-to-date"},"claude-mem":{"state":"up-to-date"},"caveman":{"state":"up-to-date"},"rtk":{"state":"up-to-date"}}}
+{"tools":{"context-mode":{"state":"up-to-date"},"claude-mem":{"state":"up-to-date"},"caveman":{"state":"up-to-date"},"rtk":{"state":"up-to-date"}},"providers":{"codex":{"state":"update-available"}}}
 EOF
     run bash "$SCRIPT" </dev/null
     [ "$status" -eq 0 ]
     [[ "$output" == *"nothing to upgrade"* ]]
+    [[ "$output" != *"codex"* ]]
 }
 
 @test "update available but no TTY → skip safely, exit 0, no /dev/tty error" {

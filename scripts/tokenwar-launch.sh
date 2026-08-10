@@ -78,7 +78,7 @@ if [[ -f "$UPGRADE_CACHE_FILE" ]]; then
         CACHE="$UPGRADE_CACHE_FILE" TW_STATE="$STATE_UPDATE" node --input-type=module -e '
             import { readFileSync } from "node:fs";
             let d; try { d = JSON.parse(readFileSync(process.env.CACHE, "utf8")); } catch { console.log(0); process.exit(0); }
-            const buckets = [d.tools || {}, d.providers || {}];
+            const buckets = [d.tools || {}];
             let n = 0;
             for (const b of buckets) for (const v of Object.values(b)) if (v && v.state === process.env.TW_STATE) n++;
             console.log(n);

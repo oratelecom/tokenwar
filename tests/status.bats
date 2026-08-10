@@ -160,3 +160,24 @@ EOF
     [ "$status" -eq 1 ]
     [[ "$output" == *"pxpipe"*"not-installed"* ]]
 }
+
+@test "provider-only update does not advertise managed upgrade command" {
+    mock_claude_with_plugins '[
+      {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
+      {"id":"claude-mem@thedotmack","version":"12.1.4","enabled":true},
+      {"id":"caveman@caveman","version":"abc","enabled":true},
+      {"id":"ponytail@ponytail","version":"4.5.0","enabled":true}
+    ]'
+    mock_rtk_alive
+    mock_pxpipe_alive
+    export HOME="$(mktemp -d)"
+    mkdir -p "$HOME/.claude/tokenwar"
+    cat > "$HOME/.claude/tokenwar/upgrade-check.json" <<'EOF'
+{"refresh_ok":true,"tools":{"context-mode":{"state":"up-to-date"},"claude-mem":{"state":"up-to-date"},"caveman":{"state":"up-to-date"},"rtk":{"state":"up-to-date"},"pxpipe":{"state":"up-to-date"}},"providers":{"codex":{"installed":"0.146.0","latest":"0.147.0","state":"update-available"}}}
+EOF
+
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"updates available (0)"* ]]
+    [[ "$output" != *"/tokenwar upgrade"* ]]
+}
