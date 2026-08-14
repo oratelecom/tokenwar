@@ -325,11 +325,18 @@ install_pxpipe() {
                 warn "could not create $USER_LOCAL_BIN"
                 return 0
             }
-            # When npm's prefix == USER_LOCAL_BIN (e.g. both are ~/.local),
-            # source and target resolve to the same path and `ln -sfn src dst`
-            # creates a self-referential symlink (dst -> dst), breaking `command -v`.
-            # In that case the binary is already where we want it — nothing to link.
-            if [[ "$(cd "$link_target" 2>/dev/null && pwd -P)" == "$(cd "$npm_pxpipe" 2>/dev/null && pwd -P)" ]]; then
+            # When npm's prefix resolves to USER_LOCAL_BIN (e.g. both are
+            # ~/.local), source and target are the SAME file and `ln -sfn src dst`
+            # would create a self-referential symlink (dst -> dst), breaking
+            # `command -v`. In that case the binary is already where we want it —
+            # nothing to link.
+            # NB: canonicalize via the PARENT dir — `cd` onto a file path fails,
+            # so `cd "$file" && pwd -P` yields "" for both sides and would skip
+            # the link even when the paths differ. Resolve dirname, keep basename.
+            local src_canon dst_canon
+            src_canon="$(cd "$(dirname "$npm_pxpipe")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$npm_pxpipe")")"
+            dst_canon="$(cd "$(dirname "$link_target")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$link_target")")"
+            if [[ -n "$src_canon" && "$src_canon" == "$dst_canon" ]]; then
                 : # same file — skip the symlink
             else
                 ln -sfn "$npm_pxpipe" "$link_target" \

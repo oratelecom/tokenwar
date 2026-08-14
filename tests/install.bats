@@ -226,6 +226,42 @@ EOF
     [[ ! -L "$HOME/.local/bin/pxpipe" || "$(readlink "$HOME/.local/bin/pxpipe")" != "$HOME/.local/bin/pxpipe" ]]
 }
 
+@test "--with-pxpipe symlinks into ~/.local/bin when npm prefix differs" {
+    # Regression for the same-file guard: when npm's prefix is NOT ~/.local
+    # (the common case — Homebrew, a custom npm prefix…), pxpipe lands in
+    # <prefix>/bin and MUST be symlinked into ~/.local/bin. A guard that
+    # `cd`s onto the file path yields "" == "" for both sides and wrongly
+    # skips the link, leaving pxpipe unlinked. This test fails in that case.
+    mock_claude_empty
+    rm -f "$MOCK_BIN/pxpipe"
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    local npm_prefix="$HOME/.npm-global"
+    cat > "$MOCK_BIN/npm" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "config get prefix" ]]; then
+    echo "$npm_prefix"
+    exit 0
+fi
+echo "\$*" >> "$NPM_LOG"
+mkdir -p "$npm_prefix/bin"
+cat > "$npm_prefix/bin/pxpipe" <<'PXPIPE'
+#!/usr/bin/env bash
+[[ "\$1" == "--version" ]] && echo "0.10.0"
+PXPIPE
+chmod +x "$npm_prefix/bin/pxpipe"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/npm"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
+    run bash "$SCRIPT" --with-pxpipe
+    [ "$status" -eq 0 ]
+    grep -q "install -g pxpipe-proxy@0.10.0" "$NPM_LOG"
+    # The link must exist, be executable, be a symlink, and point at the npm bin.
+    [ -x "$HOME/.local/bin/pxpipe" ]
+    [ -L "$HOME/.local/bin/pxpipe" ]
+    [ "$(readlink "$HOME/.local/bin/pxpipe")" == "$npm_prefix/bin/pxpipe" ]
+}
+
 @test "--all installs plugins AND handles rtk and pxpipe" {
     mock_claude_empty
     ln -s "$(command -v node)" "$MOCK_BIN/node"
