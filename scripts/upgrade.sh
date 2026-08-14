@@ -32,6 +32,15 @@ readonly PXPIPE_NPM_SPEC="${PXPIPE_NPM_PACKAGE}@${PXPIPE_NPM_VERSION}"
 readonly UPGRADE_CACHE_FILE="${HOME}/.claude/tokenwar/upgrade-check.json"
 readonly STATE_UPDATE="update-available"
 
+# Where the Claude CLI keeps its per-marketplace git clones. `claude plugin
+# update` installs from a clone's LOCAL branch HEAD — NOT origin.
+readonly MARKETPLACE_ROOT="${HOME}/.claude/plugins/marketplaces"
+
+# Source of the interactive "Upgrade now? [y/N]" answer. The real controlling
+# terminal by default (so the prompt works even when stdin is a pipe), but
+# overridable via TW_TTY so the confirm path is testable without a live tty.
+readonly TTY_DEVICE="${TW_TTY:-/dev/tty}"
+
 readonly COL_GREEN=$'\033[32m'
 readonly COL_RED=$'\033[31m'
 readonly COL_YELLOW=$'\033[33m'
@@ -55,7 +64,7 @@ fail() { printf '%s %s\n' "${COL_RED}ERR${COL_RESET}" "$*" >&2; }
 # True only if /dev/tty can actually be opened (a controlling terminal exists).
 # The inner redirection's failure is swallowed by the group-level 2>/dev/null,
 # so probing never leaks "No such device or address".
-tty_readable() { { : </dev/tty; } 2>/dev/null; }
+tty_readable() { { : <"$TTY_DEVICE"; } 2>/dev/null; }
 
 # Which tools have an update? Echoes space-separated tool keys.
 # Reads the cache; with --all or no cache, returns every managed updater.
@@ -92,12 +101,38 @@ plugin_scope() {
     ' 2>/dev/null || true
 }
 
+# Fast-forward a plugin's marketplace clone to its fetched upstream before
+# installing. This closes tokenwar's permanent-update loop: check-updates.sh
+# reports "latest" from `origin/<branch>` (it only `git fetch`es, never merges),
+# but `claude plugin update` installs from the clone's LOCAL branch HEAD. A
+# SHA-versioned plugin (e.g. caveman) whose clone drifts behind origin then
+# reports update-available forever — every upgrade reinstalls the same stale
+# local HEAD. Fast-forwarding here makes the installed SHA reach origin so the
+# next check clears. Clean clones only: a locally-customized clone can't
+# ff-only — we warn and install the current local HEAD rather than abort (a
+# hard reset would clobber the user's local edits).
+sync_marketplace_clone() {
+    local slug="$1"
+    local marketplace="${slug##*@}"
+    local dir="${MARKETPLACE_ROOT}/${marketplace}"
+    [[ -d "${dir}/.git" ]] || return 0
+    git -C "$dir" fetch --quiet 2>/dev/null \
+        || warn "marketplace '$marketplace': git fetch failed — installing current local HEAD"
+    local upstream
+    upstream=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo "")
+    [[ -n "$upstream" ]] || return 0
+    if ! git -C "$dir" merge --ff-only "$upstream" --quiet 2>/dev/null; then
+        warn "marketplace '$marketplace': clone not fast-forwardable (local edits?) — installing current local HEAD"
+    fi
+}
+
 # Upgrade one plugin via the Claude CLI. Returns non-zero on failure.
 upgrade_plugin() {
     local slug="$1"
     if ! command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
         warn "claude CLI not found — cannot update $slug"; return 1
     fi
+    sync_marketplace_clone "$slug"
     say "Updating plugin $slug"
     local scope
     scope="$(plugin_scope "$slug")"
@@ -159,7 +194,7 @@ if ! $assume_yes; then
     reply=""
     if tty_readable; then
         printf "Upgrade now? [y/N] "
-        read -r reply </dev/tty 2>/dev/null || reply=""
+        read -r reply <"$TTY_DEVICE" 2>/dev/null || reply=""
     fi
     case "$reply" in
         y|Y|yes|YES) ;;

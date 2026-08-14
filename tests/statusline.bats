@@ -93,7 +93,7 @@ EOF
 
 @test "core Claude tools active → all green" {
     write_settings <<'EOF'
-{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/x/rtk-rewrite.sh"}]}]}}
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"rtk hook claude"}]}]}}
 EOF
     mock_claude_with_plugins '[
         {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
@@ -142,7 +142,7 @@ EOF
 
 @test "context-mode disabled → ctx red" {
     write_settings <<'EOF'
-{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/x/rtk-rewrite.sh"}]}]}}
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"rtk hook claude"}]}]}}
 EOF
     mock_claude_with_plugins '[
         {"id":"context-mode@context-mode","version":"1.0.107","enabled":false},
@@ -159,7 +159,7 @@ EOF
 
 @test "caveman not installed → caveman red with version=-" {
     write_settings <<'EOF'
-{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/x/rtk-rewrite.sh"}]}]}}
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"rtk hook claude"}]}]}}
 EOF
     mock_claude_with_plugins '[
         {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
@@ -189,7 +189,7 @@ EOF
 
 @test "version is SHA → truncated to 7 chars" {
     write_settings <<'EOF'
-{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/x/rtk-rewrite.sh"}]}]}}
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"rtk hook claude"}]}]}}
 EOF
     mock_claude_with_plugins '[
         {"id":"caveman@caveman","version":"abcdef0123456789","enabled":true}
@@ -202,7 +202,7 @@ EOF
 
 @test "version is semver → kept as-is" {
     write_settings <<'EOF'
-{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/x/rtk-rewrite.sh"}]}]}}
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"rtk hook claude"}]}]}}
 EOF
     mock_claude_with_plugins '[
         {"id":"context-mode@context-mode","version":"1.0.107","enabled":true}
@@ -215,7 +215,7 @@ EOF
 
 @test "update-available in cache → ⬆ on that tool only" {
     write_settings <<'EOF'
-{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/x/rtk-rewrite.sh"}]}]}}
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"rtk hook claude"}]}]}}
 EOF
     mock_claude_with_plugins '[
         {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
@@ -244,7 +244,7 @@ EOF
 
 @test "multiple updates → plural CTA with count" {
     write_settings <<'EOF'
-{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/x/rtk-rewrite.sh"}]}]}}
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"rtk hook claude"}]}]}}
 EOF
     mock_claude_with_plugins '[
         {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
@@ -267,7 +267,7 @@ EOF
 
 @test "all up-to-date in cache → no ⬆ marker, no CTA" {
     write_settings <<'EOF'
-{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/x/rtk-rewrite.sh"}]}]}}
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"rtk hook claude"}]}]}}
 EOF
     mock_claude_with_plugins '[
         {"id":"context-mode@context-mode","version":"1.0.107","enabled":true}
