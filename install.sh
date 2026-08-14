@@ -176,9 +176,13 @@ wire_shell_rc() {
         $0 == ENVIRON["TW_END"]   { skip = 0 }
     ' "$rc_file" > "$tmp" || { warn "could not rewrite $rc_file"; rm -f "$tmp"; return 1; }
 
-    # Append a fresh block.
+    # Append a fresh block. ~/.local/bin is where --with-rtk and --with-pxpipe
+    # drop their binaries; on many systems (notably macOS) it is not on PATH by
+    # default, so the block exports it — otherwise rtk/pxpipe install "succeeds"
+    # but every later `command -v rtk` returns nothing and the hooks/scrips break.
     {
         printf '%s\n' "$TW_RC_BEGIN"
+        printf '%s\n' 'case ":$PATH:" in *":'"$USER_LOCAL_BIN"':"*) : ;; *) export PATH="'"$USER_LOCAL_BIN"':$PATH" ;; esac'
         printf '%s\n' "tokenwar() { command bash \"\$HOME/.claude/skills/tokenwar/scripts/tokenwar.sh\" \"\$@\"; }"
         local provider_cli
         for provider_cli in "${WRAPPED_PROVIDER_CLIS[@]}"; do
@@ -245,16 +249,20 @@ install_plugins() {
     say "Plugins installed + enabled. Restart Claude Code to load them."
 }
 
-# Wire RTK's hook. `rtk init -g` is non-interactive and patches settings.json
-# itself. No-op (with a hint) when the binary isn't installed.
+# Wire RTK's hook. `rtk init -g --auto-patch --hook-only` is non-interactive
+# (the bare `rtk init -g` is interactive and blocks waiting for input, which
+# the previous `>/dev/null 2>&1` made invisible — the install silently exited
+# without writing the hook). --hook-only skips the RTK.md file; --auto-patch
+# patches ~/.claude/settings.json without prompting. No-op when the binary
+# isn't installed.
 #
 # RTK's Claude Code hook only rewrites bash INSIDE Claude Code — opencode uses a
 # separate plugin runtime and never sees it. So when opencode is present we also
 # install RTK's native opencode plugin, otherwise RTK saves zero tokens there.
 wire_rtk_hook() {
     if command -v "$RTK_BIN" >/dev/null 2>&1; then
-        say "Wiring RTK hook (rtk init -g)"
-        "$RTK_BIN" init -g >/dev/null 2>&1 || warn "rtk init -g failed — run it manually"
+        say "Wiring RTK hook (rtk init -g --auto-patch --hook-only)"
+        "$RTK_BIN" init -g --auto-patch --hook-only >/dev/null 2>&1 || warn "rtk init -g --auto-patch --hook-only failed — run it manually"
         if command -v "$OPENCODE_BIN" >/dev/null 2>&1; then
             say "Installing RTK opencode plugin (rtk init -g --opencode)"
             "$RTK_BIN" init -g --opencode >/dev/null 2>&1 \
@@ -308,16 +316,32 @@ install_pxpipe() {
     }
 
     if ! command -v "$PXPIPE_BIN" >/dev/null 2>&1; then
-        local npm_prefix npm_pxpipe
+        local npm_prefix npm_pxpipe link_target
         npm_prefix="$("$NPM_BIN" config get prefix 2>/dev/null || echo "")"
         npm_pxpipe="${npm_prefix}/bin/${PXPIPE_BIN}"
+        link_target="${USER_LOCAL_BIN}/${PXPIPE_BIN}"
         if [[ -n "$npm_prefix" && -x "$npm_pxpipe" ]]; then
             mkdir -p "$USER_LOCAL_BIN" || {
                 warn "could not create $USER_LOCAL_BIN"
                 return 0
             }
-            ln -sfn "$npm_pxpipe" "${USER_LOCAL_BIN}/${PXPIPE_BIN}" \
-                || warn "could not link pxpipe into $USER_LOCAL_BIN"
+            # When npm's prefix resolves to USER_LOCAL_BIN (e.g. both are
+            # ~/.local), source and target are the SAME file and `ln -sfn src dst`
+            # would create a self-referential symlink (dst -> dst), breaking
+            # `command -v`. In that case the binary is already where we want it —
+            # nothing to link.
+            # NB: canonicalize via the PARENT dir — `cd` onto a file path fails,
+            # so `cd "$file" && pwd -P` yields "" for both sides and would skip
+            # the link even when the paths differ. Resolve dirname, keep basename.
+            local src_canon dst_canon
+            src_canon="$(cd "$(dirname "$npm_pxpipe")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$npm_pxpipe")")"
+            dst_canon="$(cd "$(dirname "$link_target")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$link_target")")"
+            if [[ -n "$src_canon" && "$src_canon" == "$dst_canon" ]]; then
+                : # same file — skip the symlink
+            else
+                ln -sfn "$npm_pxpipe" "$link_target" \
+                    || warn "could not link pxpipe into $USER_LOCAL_BIN"
+            fi
         fi
     fi
 
