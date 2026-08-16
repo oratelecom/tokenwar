@@ -15,6 +15,8 @@ readonly SCRIPT_DIR
 
 # shellcheck source=lib/providers.sh
 source "${SCRIPT_DIR}/lib/providers.sh"
+# shellcheck source=lib/plugins.sh
+source "${SCRIPT_DIR}/lib/plugins.sh"
 
 readonly STATUS_OK="OK"
 readonly STATUS_DISABLED="installed-disabled"
@@ -31,32 +33,12 @@ readonly MEM_BIN="claude-mem"
 readonly CLAUDE_BIN="claude"
 readonly PXPIPE_BIN="pxpipe"
 
-# Cache plugin list from installed_plugins.json to avoid repeated file reads.
+# Cache the plugin list. CLI-first with on-disk fallback lives in lib/plugins.sh
+# (tw_load_plugin_list) so every script that needs plugin state shares one path.
 PLUGIN_LIST_JSON=""
 load_plugin_list() {
-    if [[ -z "$PLUGIN_LIST_JSON" ]]; then
-        local plugins_file="${HOME}/.claude/plugins/installed_plugins.json"
-        if [[ -f "$plugins_file" ]]; then
-            PLUGIN_LIST_JSON=$(node --input-type=module -e "
-                import { readFileSync } from 'node:fs';
-                const data = JSON.parse(readFileSync('${plugins_file}', 'utf8'));
-                const pluginList = [];
-                for (const [id, installs] of Object.entries(data.plugins || {})) {
-                    if (installs && installs.length > 0) {
-                        const install = installs[0];
-                        pluginList.push({
-                            id: id,
-                            enabled: true,
-                            version: install.version || 'unknown'
-                        });
-                    }
-                }
-                console.log(JSON.stringify(pluginList));
-            " 2>/dev/null || echo '[]')
-        else
-            PLUGIN_LIST_JSON='[]'
-        fi
-    fi
+    [[ -n "$PLUGIN_LIST_JSON" ]] && return
+    PLUGIN_LIST_JSON="$(TW_CLAUDE_BIN="$CLAUDE_BIN" tw_load_plugin_list)"
 }
 
 readonly COL_GREEN=$'\033[32m'

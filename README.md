@@ -333,6 +333,15 @@ Add to `~/.bashrc` to auto-restore before each Claude Code launch:
 alias claude='bash ~/.claude/skills/tokenwar/scripts/restore-settings.sh && command claude'
 ```
 
+## Plugin-state detection (robust on any host)
+
+`tokenwar status` reads the 4 Claude Code plugins' state from `claude plugin list --json` — the authoritative source (installed **and** enabled state in one shot). On hosts where that command returns nothing (an older `claude` CLI without the subcommand, or `claude` not on `PATH` in the shell running tokenwar), status falls back to on-disk config instead of reporting every plugin as *not installed*:
+
+- `~/.claude/plugins/installed_plugins.json` → what is installed,
+- `enabledPlugins` OR-merged from `settings.json` **and** `settings.local.json` → the enabled/disabled bit (Claude Code merges both at runtime).
+
+An installed plugin absent from `enabledPlugins` is treated as enabled (Claude default); an explicit `false` stays `installed-disabled` — so `tokenwar disable <tool>` is always reflected correctly. Override the config dir with `CLAUDE_CONFIG_DIR`.
+
 ## Tests + CI
 
 ```bash
