@@ -31,11 +31,31 @@ readonly MEM_BIN="claude-mem"
 readonly CLAUDE_BIN="claude"
 readonly PXPIPE_BIN="pxpipe"
 
-# Cache `claude plugin list --json` output to avoid repeated CLI calls.
+# Cache plugin list from installed_plugins.json to avoid repeated file reads.
 PLUGIN_LIST_JSON=""
 load_plugin_list() {
     if [[ -z "$PLUGIN_LIST_JSON" ]]; then
-        PLUGIN_LIST_JSON="$("$CLAUDE_BIN" plugin list --json 2>/dev/null || echo '[]')"
+        local plugins_file="${HOME}/.claude/plugins/installed_plugins.json"
+        if [[ -f "$plugins_file" ]]; then
+            PLUGIN_LIST_JSON=$(node --input-type=module -e "
+                import { readFileSync } from 'node:fs';
+                const data = JSON.parse(readFileSync('${plugins_file}', 'utf8'));
+                const pluginList = [];
+                for (const [id, installs] of Object.entries(data.plugins || {})) {
+                    if (installs && installs.length > 0) {
+                        const install = installs[0];
+                        pluginList.push({
+                            id: id,
+                            enabled: true,
+                            version: install.version || 'unknown'
+                        });
+                    }
+                }
+                console.log(JSON.stringify(pluginList));
+            " 2>/dev/null || echo '[]')
+        else
+            PLUGIN_LIST_JSON='[]'
+        fi
     fi
 }
 
