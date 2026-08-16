@@ -31,57 +31,11 @@ readonly MEM_BIN="claude-mem"
 readonly CLAUDE_BIN="claude"
 readonly PXPIPE_BIN="pxpipe"
 
-# Claude config dir (override with CLAUDE_CONFIG_DIR — used by tests and by hosts
-# that relocate ~/.claude).
-readonly CLAUDE_CONFIG_DIR_DEFAULT="${HOME}/.claude"
-
-# Cache the plugin list. Primary source of truth is `claude plugin list --json`:
-# it reports BOTH what is installed and each plugin's `enabled` bit in one shot,
-# and is what the test harness mocks. When the claude CLI is unavailable or
-# returns no usable JSON array (old CLI without the subcommand, or `claude` not on
-# PATH), fall back to on-disk config: installed_plugins.json for what is installed
-# + settings.json → enabledPlugins for the enabled/disabled bit. We never coerce
-# an explicitly-disabled plugin to enabled — that would hide `installed-disabled`.
+# Cache `claude plugin list --json` output to avoid repeated CLI calls.
 PLUGIN_LIST_JSON=""
 load_plugin_list() {
-    [[ -n "$PLUGIN_LIST_JSON" ]] && return
-
-    # 1. Primary: the claude CLI (authoritative + mockable).
-    local cli_out
-    cli_out="$("$CLAUDE_BIN" plugin list --json 2>/dev/null)"
-    if [[ -n "$cli_out" ]] \
-        && node -e "const a=JSON.parse(process.argv[1]);process.exit(Array.isArray(a)&&a.length?0:1)" "$cli_out" 2>/dev/null; then
-        PLUGIN_LIST_JSON="$cli_out"
-        return
-    fi
-
-    # 2. Fallback: derive from on-disk config when the CLI cannot answer.
-    local config_dir="${CLAUDE_CONFIG_DIR:-$CLAUDE_CONFIG_DIR_DEFAULT}"
-    local installed_file="${config_dir}/plugins/installed_plugins.json"
-    local settings_file="${config_dir}/settings.json"
-    if [[ -f "$installed_file" ]]; then
-        PLUGIN_LIST_JSON="$(
-            INSTALLED_FILE="$installed_file" SETTINGS_FILE="$settings_file" \
-            node --input-type=module -e "
-                import { readFileSync } from 'node:fs';
-                const read = f => { try { return JSON.parse(readFileSync(f, 'utf8')); } catch { return null; } };
-                const installed = read(process.env.INSTALLED_FILE) || {};
-                const settings  = read(process.env.SETTINGS_FILE) || {};
-                const enabledMap = settings.enabledPlugins || {};
-                const out = [];
-                for (const [id, installs] of Object.entries(installed.plugins || {})) {
-                    if (!Array.isArray(installs) || installs.length === 0) continue;
-                    // The enabled bit lives in settings.json; an installed plugin
-                    // absent from enabledPlugins is enabled by default (Claude
-                    // semantics). An explicit false stays disabled.
-                    const enabled = id in enabledMap ? Boolean(enabledMap[id]) : true;
-                    out.push({ id, enabled, version: installs[0].version || 'unknown' });
-                }
-                console.log(JSON.stringify(out));
-            " 2>/dev/null || echo '[]'
-        )"
-    else
-        PLUGIN_LIST_JSON='[]'
+    if [[ -z "$PLUGIN_LIST_JSON" ]]; then
+        PLUGIN_LIST_JSON="$("$CLAUDE_BIN" plugin list --json 2>/dev/null || echo '[]')"
     fi
 }
 
