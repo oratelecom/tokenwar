@@ -117,6 +117,8 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 | `/tokenwar check` | Conflict detector — verifies the 6 tools stack additively |
 | `/tokenwar test` | End-to-end ping: is each tool actually working? |
 | `/tokenwar doctor` | Full pipeline: status → test → check → gain |
+| `/tokenwar disable <tool>` | Turn off one plugin (`context-mode`/`claude-mem`/`caveman`/`ponytail`) without uninstalling it |
+| `/tokenwar enable <tool>` | Turn a disabled plugin back on |
 
 ## Status in every CLI (Claude, Codex, Gemini, Kimi, opencode)
 
@@ -145,6 +147,8 @@ tokenwar status     # state of the 6 tools + providers
 tokenwar gain       # token savings + monthly $ value
 tokenwar upgrade    # bump managed tools (asks confirmation)
 tokenwar doctor     # status → check → gain
+tokenwar disable context-mode   # turn off one plugin without uninstalling it
+tokenwar enable  context-mode   # turn it back on
 ```
 
 > The banner is silent for non-interactive launches (`codex exec`,
