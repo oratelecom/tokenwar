@@ -74,6 +74,8 @@ context, never the screen. So tokenwar surfaces the stack differently per CLI:
 /tokenwar gain       # per-tool + global token-savings report
 /tokenwar check      # conflict detector — verifies the 6 tools are complementary
 /tokenwar doctor     # full pipeline: status → test → check → gain
+/tokenwar disable X  # turn off one plugin (context-mode|claude-mem|caveman|ponytail)
+/tokenwar enable X   # turn a disabled plugin back on
 ```
 
 ## Routing
@@ -250,6 +252,16 @@ Verdict: <ALL GREEN | ATTENTION NEEDED — see <section>>
 ```
 
 Stop at the first `FAIL` if the user typed `/tokenwar doctor --strict`; otherwise run all four sections regardless.
+
+## Subcommand: disable / enable
+
+Let a user turn ONE managed tool off (or back on) without uninstalling it. Run:
+
+```
+bash ~/.claude/skills/tokenwar/scripts/toggle.sh <enable|disable> <tool>
+```
+
+Only the four Claude Code plugins are toggleable — `context-mode`, `claude-mem`, `caveman`, `ponytail` — driven by the native `claude plugin enable|disable <slug>` (reversible, keeps the plugin installed). `rtk` and `pxpipe` are standalone binaries, not plugins: the script refuses them (exit 3) and prints the correct per-tool mechanism instead. Unknown tool/action exits 2. Remind the user to restart the CLI for the change to take effect. This is the safe alternative to hand-editing `enabledPlugins` in `~/.claude/settings.json`.
 
 ---
 

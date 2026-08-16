@@ -11,6 +11,8 @@
 #   tokenwar upgrade    # bump managed tools (asks confirmation)
 #   tokenwar updates    # show available updates (throttled cache)
 #   tokenwar doctor     # status → check → gain
+#   tokenwar disable X  # turn off one tool without uninstalling it
+#   tokenwar enable  X  # turn it back on
 #
 # install.sh wires a `tokenwar` shell function pointing here, so users type
 # `tokenwar status` directly.
@@ -33,6 +35,8 @@ Commands:
   upgrade    bump managed tools to latest (asks confirmation)
   updates    show available updates (throttled 24h cache)
   doctor     full pipeline: status -> check -> gain
+  disable X  turn off one tool (context-mode|claude-mem|caveman|ponytail) without uninstalling it
+  enable X   turn one tool back on
   help       this message
 EOF
 }
@@ -46,6 +50,7 @@ case "$cmd" in
     check)   exec bash "${SCRIPT_DIR}/check.sh" "$@" ;;
     upgrade) exec bash "${SCRIPT_DIR}/upgrade.sh" "$@" ;;
     updates) exec bash "${SCRIPT_DIR}/check-updates.sh" "$@" ;;
+    enable|disable) exec bash "${SCRIPT_DIR}/toggle.sh" "$cmd" "$@" ;;
     doctor)
         bash "${SCRIPT_DIR}/status.sh" || true
         bash "${SCRIPT_DIR}/check.sh"  || true
