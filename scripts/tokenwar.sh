@@ -32,6 +32,7 @@ Commands:
   status     state of the 6 tools + providers (codex, gemini, kimi, opencode)
   gain       per-tool + per-provider token savings + monthly \$ value
   check      complementarity / conflict detector
+  activate   install missing + enable disabled (asks confirmation)
   upgrade    bump managed tools to latest (asks confirmation)
   updates    show available updates (throttled 24h cache)
   doctor     full pipeline: status -> check -> gain
@@ -45,11 +46,12 @@ cmd="${1:-status}"
 shift || true
 
 case "$cmd" in
-    status)  exec bash "${SCRIPT_DIR}/status.sh" "$@" ;;
-    gain)    exec bash "${SCRIPT_DIR}/gain.sh" "$@" ;;
-    check)   exec bash "${SCRIPT_DIR}/check.sh" "$@" ;;
-    upgrade) exec bash "${SCRIPT_DIR}/upgrade.sh" "$@" ;;
-    updates) exec bash "${SCRIPT_DIR}/check-updates.sh" "$@" ;;
+    status)   exec bash "${SCRIPT_DIR}/status.sh" "$@" ;;
+    gain)     exec bash "${SCRIPT_DIR}/gain.sh" "$@" ;;
+    check)    exec bash "${SCRIPT_DIR}/check.sh" "$@" ;;
+    activate) exec bash "${SCRIPT_DIR}/activate.sh" "$@" ;;
+    upgrade)  exec bash "${SCRIPT_DIR}/upgrade.sh" "$@" ;;
+    updates)  exec bash "${SCRIPT_DIR}/check-updates.sh" "$@" ;;
     enable|disable) exec bash "${SCRIPT_DIR}/toggle.sh" "$cmd" "$@" ;;
     doctor)
         bash "${SCRIPT_DIR}/status.sh" || true
