@@ -147,12 +147,13 @@ check_r4() {
         return
     fi
     local missing=()
-    for slug in "context-mode@context-mode" "claude-mem@thedotmack" "caveman@caveman"; do
+    for slug in "context-mode@context-mode" "claude-mem@thedotmack" "caveman@caveman" "ponytail@ponytail"; do
         if ! grep -q "\"$slug\"" "$INSTALLED_PLUGINS"; then
             missing+=("$slug")
         fi
     done
     if command -v rtk >/dev/null 2>&1; then :; else missing+=("rtk"); fi
+    if command -v pxpipe >/dev/null 2>&1; then :; else missing+=("pxpipe"); fi
 
     if (( ${#missing[@]} == 0 )); then
         echo "$RES_PASS|core hook/plugin tools installed (latest-version check needs network; see /tokenwar upgrade)"
