@@ -31,6 +31,14 @@ readonly COL_YELLOW=$'\033[33m'
 readonly COL_DIM=$'\033[2m'
 readonly COL_RESET=$'\033[0m'
 
+json_mode=false
+for arg in "$@"; do
+    case "$arg" in
+        --json) json_mode=true ;;
+        *) echo "unknown arg: $arg" >&2; exit 2 ;;
+    esac
+done
+
 emit() {
     local rule="$1" result="$2" evidence="$3"
     local color
@@ -162,11 +170,10 @@ check_r4() {
     fi
 }
 
-echo ""
-echo "# /tokenwar check"
-echo ""
-
+# === gather results (shared) ===
 declare -A results
+declare -A evidences
+declare -A labels
 for rule_id in R1 R2 R3 R4 R5; do
     case "$rule_id" in
         R1) raw=$(check_r1); label="R1 bash double-hook" ;;
@@ -178,7 +185,8 @@ for rule_id in R1 R2 R3 R4 R5; do
     result="${raw%%|*}"
     evidence="${raw#*|}"
     results[$rule_id]="$result"
-    emit "$label" "$result" "$evidence"
+    evidences[$rule_id]="$evidence"
+    labels[$rule_id]="$label"
 done
 
 # verdict
@@ -189,6 +197,40 @@ for r in "${results[@]}"; do
         "$RES_FAIL") verdict="CONFLICT";       exit_code=1 ;;
         "$RES_WARN") [[ "$verdict" != "CONFLICT" ]] && verdict="DEGRADED"; exit_code=1 ;;
     esac
+done
+
+if $json_mode; then
+    # Build JSON via node — serialize inline blocks (results already computed)
+    R1_RESULT="${results[R1]}" R1_EVIDENCE="${evidences[R1]}" R1_LABEL="${labels[R1]}" \
+    R2_RESULT="${results[R2]}" R2_EVIDENCE="${evidences[R2]}" R2_LABEL="${labels[R2]}" \
+    R3_RESULT="${results[R3]}" R3_EVIDENCE="${evidences[R3]}" R3_LABEL="${labels[R3]}" \
+    R4_RESULT="${results[R4]}" R4_EVIDENCE="${evidences[R4]}" R4_LABEL="${labels[R4]}" \
+    R5_RESULT="${results[R5]}" R5_EVIDENCE="${evidences[R5]}" R5_LABEL="${labels[R5]}" \
+    VERDICT="$verdict" EXIT_CODE="$exit_code" \
+    node --input-type=module -e '
+        const rules = {
+            R1: { id: "R1", label: process.env.R1_LABEL, result: process.env.R1_RESULT, evidence: process.env.R1_EVIDENCE },
+            R2: { id: "R2", label: process.env.R2_LABEL, result: process.env.R2_RESULT, evidence: process.env.R2_EVIDENCE },
+            R3: { id: "R3", label: process.env.R3_LABEL, result: process.env.R3_RESULT, evidence: process.env.R3_EVIDENCE },
+            R4: { id: "R4", label: process.env.R4_LABEL, result: process.env.R4_RESULT, evidence: process.env.R4_EVIDENCE },
+            R5: { id: "R5", label: process.env.R5_LABEL, result: process.env.R5_RESULT, evidence: process.env.R5_EVIDENCE }
+        };
+        const out = {
+            rules,
+            verdict: process.env.VERDICT,
+            ok: process.env.EXIT_CODE === "0"
+        };
+        console.log(JSON.stringify(out, null, 2));
+    '
+    exit "$exit_code"
+fi
+
+echo ""
+echo "# /tokenwar check"
+echo ""
+
+for rule_id in R1 R2 R3 R4 R5; do
+    emit "${labels[$rule_id]}" "${results[$rule_id]}" "${evidences[$rule_id]}"
 done
 
 echo ""

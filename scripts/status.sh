@@ -47,9 +47,11 @@ readonly COL_YELLOW=$'\033[33m'
 readonly COL_RESET=$'\033[0m'
 
 test_mode=false
+json_mode=false
 for arg in "$@"; do
     case "$arg" in
         --test) test_mode=true ;;
+        --json) json_mode=true ;;
         *) echo "unknown arg: $arg" >&2; exit 2 ;;
     esac
 done
@@ -145,14 +147,7 @@ ping_ponytail() {
     [[ "$(plugin_state "$SLUG_PONY")" == "$STATUS_OK" ]]
 }
 
-# === report ===
-echo "# /tokenwar status"
-echo ""
-
-# ── Tools ──────────────────────────────────────────────────────────
-printf "  %s  %-14s  %-10s  %-22s  %s\n" "·" "tool" "version" "state" "note"
-printf "  ─────────────────────────────────────────────────────────────────\n"
-
+# === data gathering (shared by text and json modes) ===
 ctx_state=$(plugin_state "$SLUG_CTX");   ctx_ver=$(plugin_version "$SLUG_CTX")
 mem_state=$(plugin_state "$SLUG_MEM");   mem_ver=$(plugin_version "$SLUG_MEM")
 cave_state=$(plugin_state "$SLUG_CAVE"); cave_ver=$(plugin_version "$SLUG_CAVE")
@@ -169,6 +164,89 @@ if $test_mode; then
     ping_caveman    && cave_extra="ping=ok" || cave_extra="ping=FAIL"
     ping_ponytail   && pony_extra="ping=ok" || pony_extra="ping=FAIL"
 fi
+
+# ── JSON mode ──────────────────────────────────────────────────────
+if $json_mode; then
+    # Gather provider data for JSON
+    provider_json_entries=""
+    for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
+        pid=$(provider_id "$i")
+        pname=$(provider_name "$i")
+        pver=$(provider_version "$i")
+        pstate=$(provider_state_str "$i")
+        case "$pid" in
+            claude) pnote="telemetry: RTK + ctx_stats + chroma-sync-state" ;;
+            codex)  pnote="telemetry: ~/.codex/state_5.sqlite (tokens_used)" ;;
+            gemini) pnote="telemetry: N/A (server-side sessions)" ;;
+            kimi)   pnote="telemetry: N/A (~/.kimi-code has no token store)" ;;
+            opencode) pnote="telemetry: ~/.local/share/opencode/opencode.db (session tokens)" ;;
+            *)      pnote="" ;;
+        esac
+        # Build JSON entry via node to ensure proper escaping
+        entry=$(PID="$pid" PNAME="$pname" PVER="$pver" PSTATE="$pstate" PNOTE="$pnote" node --input-type=module -e '
+            const e = {
+                id: process.env.PID,
+                name: process.env.PNAME,
+                version: process.env.PVER,
+                state: process.env.PSTATE,
+                note: process.env.PNOTE
+            };
+            console.log(JSON.stringify(e));
+        ')
+        if [[ -z "$provider_json_entries" ]]; then
+            provider_json_entries="$entry"
+        else
+            provider_json_entries="$provider_json_entries,$entry"
+        fi
+    done
+
+    # Determine overall ok (same logic as exit code)
+    tool_failures_json=0
+    for s in "$ctx_state" "$mem_state" "$cave_state" "$pony_state" "$rtk_st" "$pxpipe_st"; do
+        [[ "$s" == "$STATUS_OK" ]] || tool_failures_json=1
+    done
+    ok_json=$([[ $tool_failures_json -eq 0 ]] && echo "true" || echo "false")
+
+    CTX_STATE="$ctx_state" CTX_VER="$ctx_ver" CTX_EXTRA="$ctx_extra" \
+    MEM_STATE="$mem_state" MEM_VER="$mem_ver" MEM_EXTRA="$mem_extra" \
+    RTK_STATE="$rtk_st" RTK_VER="$rtk_ver" RTK_EXTRA="$rtk_extra" \
+    CAVE_STATE="$cave_state" CAVE_VER="$cave_ver" CAVE_EXTRA="$cave_extra" \
+    PONY_STATE="$pony_state" PONY_VER="$pony_ver" PONY_EXTRA="$pony_extra" \
+    PXPIPE_STATE="$pxpipe_st" PXPIPE_VER="$pxpipe_ver" PXPIPE_EXTRA="$pxpipe_extra" \
+    PROVIDER_ENTRIES="[$provider_json_entries]" OK_JSON="$ok_json" \
+    node --input-type=module -e '
+        const providers = JSON.parse(process.env.PROVIDER_ENTRIES);
+        const providersById = {};
+        for (const p of providers) providersById[p.id] = p;
+        const tools = {
+            "context-mode": { version: process.env.CTX_VER, state: process.env.CTX_STATE, note: process.env.CTX_EXTRA },
+            "claude-mem":   { version: process.env.MEM_VER, state: process.env.MEM_STATE, note: process.env.MEM_EXTRA },
+            "rtk":          { version: process.env.RTK_VER, state: process.env.RTK_STATE, note: process.env.RTK_EXTRA },
+            "caveman":      { version: process.env.CAVE_VER, state: process.env.CAVE_STATE, note: process.env.CAVE_EXTRA },
+            "ponytail":     { version: process.env.PONY_VER, state: process.env.PONY_STATE, note: process.env.PONY_EXTRA },
+            "pxpipe":       { version: process.env.PXPIPE_VER, state: process.env.PXPIPE_STATE, note: process.env.PXPIPE_EXTRA }
+        };
+        const out = {
+            tools,
+            providers: providersById,
+            ok: process.env.OK_JSON === "true"
+        };
+        console.log(JSON.stringify(out, null, 2));
+    '
+    # Exit with same code as text mode
+    if (( tool_failures_json )); then
+        exit 1
+    fi
+    exit 0
+fi
+
+# === report (text mode) ===
+echo "# /tokenwar status"
+echo ""
+
+# ── Tools ──────────────────────────────────────────────────────────
+printf "  %s  %-14s  %-10s  %-22s  %s\n" "·" "tool" "version" "state" "note"
+printf "  ─────────────────────────────────────────────────────────────────\n"
 
 format_line "context-mode" "$ctx_ver"  "$ctx_state"  "$ctx_extra"
 format_line "claude-mem"   "$mem_ver"  "$mem_state"  "$mem_extra"
