@@ -8,9 +8,10 @@
 #   tokenwar status     # state of the 6 tools + providers
 #   tokenwar gain       # per-tool + per-provider token savings
 #   tokenwar check      # complementarity / conflict detector
+#   tokenwar test       # end-to-end ping: is each tool actually working?
 #   tokenwar upgrade    # bump managed tools (asks confirmation)
 #   tokenwar updates    # show available updates (throttled cache)
-#   tokenwar doctor     # status → check → gain
+#   tokenwar doctor     # full pipeline: status → test → check → gain
 #   tokenwar disable X  # turn off one tool without uninstalling it
 #   tokenwar enable  X  # turn it back on
 #
@@ -32,9 +33,10 @@ Commands:
   status     state of the 6 tools + providers (codex, gemini, kimi, opencode)
   gain       per-tool + per-provider token savings + monthly \$ value
   check      complementarity / conflict detector
+  test       end-to-end ping: is each tool actually working?
   upgrade    bump managed tools to latest (asks confirmation)
   updates    show available updates (throttled 24h cache)
-  doctor     full pipeline: status -> check -> gain
+  doctor     full pipeline: status -> test -> check -> gain
   disable X  turn off one tool (context-mode|claude-mem|caveman|ponytail) without uninstalling it
   enable X   turn one tool back on
   help       this message
@@ -48,11 +50,18 @@ case "$cmd" in
     status)  exec bash "${SCRIPT_DIR}/status.sh" "$@" ;;
     gain)    exec bash "${SCRIPT_DIR}/gain.sh" "$@" ;;
     check)   exec bash "${SCRIPT_DIR}/check.sh" "$@" ;;
+    test)
+        bash "${SCRIPT_DIR}/status.sh" --test "$@"
+        rc=$?
+        echo ""
+        echo "note: context-mode ping requires the ctx_stats MCP tool (shell cannot reach it — caller must invoke ctx_stats separately; see status.sh header)."
+        exit $rc
+        ;;
     upgrade) exec bash "${SCRIPT_DIR}/upgrade.sh" "$@" ;;
     updates) exec bash "${SCRIPT_DIR}/check-updates.sh" "$@" ;;
     enable|disable) exec bash "${SCRIPT_DIR}/toggle.sh" "$cmd" "$@" ;;
     doctor)
-        bash "${SCRIPT_DIR}/status.sh" || true
+        bash "${SCRIPT_DIR}/status.sh" --test || true
         bash "${SCRIPT_DIR}/check.sh"  || true
         bash "${SCRIPT_DIR}/gain.sh"   || true
         ;;
