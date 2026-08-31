@@ -14,13 +14,15 @@ readonly DEFAULT_MAX_FILES=200
 readonly DEFAULT_MAX_BYTES_PER_FILE=524288
 readonly DEFAULT_MIN_RECOMMENDATION_TOKENS=1000
 readonly TOKEN_CHARS_PER_TOKEN=4
-readonly STATUS_SCRIPT="${SCRIPT_DIR}/status.sh"
+readonly DEFAULT_STATUS_SCRIPT="${SCRIPT_DIR}/status.sh"
+readonly DEFAULT_TOGGLE_SCRIPT="${SCRIPT_DIR}/toggle.sh"
 
 TOKENWAR_SCAN_MAX_FILES="${TOKENWAR_SCAN_MAX_FILES:-$DEFAULT_MAX_FILES}" \
 TOKENWAR_SCAN_MAX_BYTES_PER_FILE="${TOKENWAR_SCAN_MAX_BYTES_PER_FILE:-$DEFAULT_MAX_BYTES_PER_FILE}" \
 TOKENWAR_SCAN_MIN_RECOMMENDATION_TOKENS="${TOKENWAR_SCAN_MIN_RECOMMENDATION_TOKENS:-$DEFAULT_MIN_RECOMMENDATION_TOKENS}" \
 TOKENWAR_SCAN_CHARS_PER_TOKEN="$TOKEN_CHARS_PER_TOKEN" \
-TOKENWAR_STATUS_SCRIPT="$STATUS_SCRIPT" \
+TOKENWAR_STATUS_SCRIPT="${TOKENWAR_STATUS_SCRIPT:-$DEFAULT_STATUS_SCRIPT}" \
+TOKENWAR_TOGGLE_SCRIPT="${TOKENWAR_TOGGLE_SCRIPT:-$DEFAULT_TOGGLE_SCRIPT}" \
 node --input-type=module - "$@" <<'NODE'
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -92,6 +94,14 @@ const DECISION_ENABLE = "ENABLE";
 const DECISION_KEEP = "KEEP";
 const DECISION_SKIP = "TOO MUCH";
 const DECISION_TRY = "TRY";
+const APPLY_ACTION_ENABLE = "enable";
+const APPLY_PROMPT = "Apply recommended TokenWar changes?";
+const APPLY_INPUT_PROMPT = "Apply? [y/N]";
+const APPLY_DECLINED_MESSAGE = "Apply skipped.";
+const APPLY_EMPTY_MESSAGE = "No directly applicable TokenWar changes found.";
+const APPLY_CONFIRM_ENV = "TOKENWAR_SCAN_CONFIRM";
+const APPLY_CONFIRM_COMMAND = "printf '%s ' \"$1\" > /dev/tty; IFS= read -r reply < /dev/tty; printf '%s' \"$reply\"";
+const YES_ANSWERS = new Set(["y", "yes"]);
 
 const PATTERNS = {
   shell: /\b(Bash|exec|shell|command|tool call|run command)\b/i,
@@ -111,6 +121,7 @@ function usage() {
 
 Usage:
   tokenwar scan [--client ID ...] [--clients a,b] [--all] [--json]
+  tokenwar scan --apply [--yes]
 
 Clients:
   ${CLIENTS.map((client) => client.id).join(", ")}
@@ -119,6 +130,7 @@ Environment:
   TOKENWAR_SCAN_MAX_FILES=${process.env.TOKENWAR_SCAN_MAX_FILES}
   TOKENWAR_SCAN_MAX_BYTES_PER_FILE=${process.env.TOKENWAR_SCAN_MAX_BYTES_PER_FILE}
   TOKENWAR_SCAN_MIN_RECOMMENDATION_TOKENS=${process.env.TOKENWAR_SCAN_MIN_RECOMMENDATION_TOKENS}
+  TOKENWAR_TOGGLE_SCRIPT=${process.env.TOKENWAR_TOGGLE_SCRIPT}
   TOKENWAR_<CLIENT>_LOG_ROOT=/custom/path`);
 }
 
@@ -126,6 +138,8 @@ function parseArgs(argv) {
   const selected = new Set();
   let all = false;
   let json = false;
+  let apply = false;
+  let yes = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") {
@@ -138,6 +152,14 @@ function parseArgs(argv) {
     }
     if (arg === "--json") {
       json = true;
+      continue;
+    }
+    if (arg === "--apply") {
+      apply = true;
+      continue;
+    }
+    if (arg === "--yes" || arg === "-y") {
+      yes = true;
       continue;
     }
     if (arg === "--client") {
@@ -158,7 +180,8 @@ function parseArgs(argv) {
     }
     throw new Error(`unknown arg: ${arg}`);
   }
-  return { all, json, selected };
+  if (apply && json) throw new Error("--apply cannot be combined with --json");
+  return { all, apply, json, selected, yes };
 }
 
 function expandHome(path) {
@@ -376,6 +399,7 @@ function buildRecommendations(metricsList, status) {
     },
     {
       tool: "claude-mem / OpenWiki",
+      apply_tool: "claude-mem",
       state: toolState(status, "claude-mem"),
       estimated_tokens: estimate(total * TOTAL_TOKEN_RATIO_MEMORY_CAP, aggregate.memory_hits, MEMORY_TOKEN_BUDGET),
       signal: `${aggregate.memory_hits} repeated memory/context signals`,
@@ -390,6 +414,7 @@ function buildRecommendations(metricsList, status) {
     },
     {
       tool: "caveman",
+      apply_tool: "caveman",
       state: toolState(status, "caveman"),
       estimated_tokens: Math.round(total * CAVEMAN_OUTPUT_TOKEN_RATIO),
       signal: `${aggregate.prose_hits} prose/review/summary signals`,
@@ -397,6 +422,7 @@ function buildRecommendations(metricsList, status) {
     },
     {
       tool: "ponytail",
+      apply_tool: "ponytail",
       state: toolState(status, "ponytail"),
       estimated_tokens: estimate(total * TOTAL_TOKEN_RATIO_CODE_CAP, aggregate.code_write_hits, CODE_GENERATION_TOKEN_BUDGET),
       signal: `${aggregate.code_write_hits} code-generation or diff signals`,
@@ -442,6 +468,69 @@ function printText(metricsList, recommendations) {
   }
 }
 
+function buildApplyActions(recommendations) {
+  return recommendations
+    .filter((item) => item.decision === DECISION_ENABLE && item.apply_tool)
+    .map((item) => ({
+      label: `${APPLY_ACTION_ENABLE} ${item.apply_tool}`,
+      tool: item.apply_tool,
+      estimated_tokens: item.estimated_tokens,
+      signal: item.signal,
+    }));
+}
+
+function askYesNo() {
+  const configured = process.env[APPLY_CONFIRM_ENV];
+  if (configured) {
+    console.log(`${APPLY_INPUT_PROMPT} ${configured}`);
+    return YES_ANSWERS.has(configured.trim().toLowerCase());
+  }
+
+  const result = spawnSync("sh", ["-c", APPLY_CONFIRM_COMMAND, "sh", APPLY_INPUT_PROMPT], { encoding: "utf8" });
+  if (result.status !== 0) {
+    console.log(APPLY_INPUT_PROMPT);
+    return false;
+  }
+  return YES_ANSWERS.has(result.stdout.trim().toLowerCase());
+}
+
+function applyRecommendations(recommendations, yes) {
+  const actions = buildApplyActions(recommendations);
+  if (actions.length === 0) {
+    console.log(`\n${APPLY_EMPTY_MESSAGE}`);
+    return;
+  }
+
+  if (!yes) {
+    console.log(`\n${APPLY_PROMPT}`);
+    for (const action of actions) {
+      console.log(`  - ${action.label} (${humanTokens(action.estimated_tokens)} estimated opportunity; ${action.signal})`);
+    }
+  }
+
+  if (!yes && !askYesNo()) {
+    console.log(APPLY_DECLINED_MESSAGE);
+    return;
+  }
+
+  console.log("\nApplying recommended TokenWar changes");
+  for (const action of actions) {
+    try {
+      const output = execFileSync("bash", [process.env.TOKENWAR_TOGGLE_SCRIPT, APPLY_ACTION_ENABLE, action.tool], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      const trimmed = output.trim();
+      if (trimmed) console.log(trimmed);
+    } catch (error) {
+      const stderr = error?.stderr?.toString().trim();
+      const stdout = error?.stdout?.toString().trim();
+      const detail = stderr || stdout || error.message;
+      throw new Error(`failed to ${action.label}: ${detail}`);
+    }
+  }
+}
+
 try {
   const args = parseArgs(process.argv.slice(2));
   const requestedIds = args.selected;
@@ -472,6 +561,7 @@ try {
     console.log(JSON.stringify({ clients: metricsList, recommendations }, null, 2));
   } else {
     printText(metricsList, recommendations);
+    if (args.apply) applyRecommendations(recommendations, args.yes);
   }
 } catch (error) {
   console.error(`tokenwar scan: ${error.message}`);

@@ -44,6 +44,68 @@ is often where agents quietly waste tokens before writing code.
 | Lots of generated code, repeated refactors, large diffs | ponytail | Smaller code saves output now and input later. |
 | Long provider-bound prompts/context with proxy-compatible traffic | pxpipe | It attacks the provider API payload lane, separate from shell output. |
 
+## Scan Client Compatibility
+
+`tokenwar scan` is local-only. It scans bounded log files from detected clients
+and never calls an AI provider.
+
+| Client ID | Client | Default Roots | Compatibility |
+| --- | --- | --- | --- |
+| `claude` | Claude Code | `~/.claude` | Full local log scan plus TokenWar plugin state through `status.sh`. |
+| `codex` | Codex | `~/.codex` | Full local log scan; strong signal for shell, repo discovery, and prose-heavy sessions. |
+| `gemini` | Gemini CLI | `~/.gemini` | Full local log scan; recommendations still work even though native token telemetry is unavailable. |
+| `kimi` | Kimi Code CLI | `~/.kimi-code` | Full local log scan when files exist; totals remain estimates. |
+| `opencode` | opencode | `~/.local/share/opencode`, `~/.config/opencode` | Full local log scan; pair with `tokenwar gain` for native token telemetry. |
+| `vibe` | Vibe/Ora agents | `~/.ora/tasks`, `~/.ora/contribute`, `~/.claude/contributebg/logs` | Full local log scan for background contribution and vibe-coding sessions. |
+| `cursor` | Cursor | `~/.cursor` | Detected when installed; reports no opportunity when no supported log files are found. |
+
+Every client root has an override named `TOKENWAR_<CLIENT>_LOG_ROOT`, for
+example `TOKENWAR_CODEX_LOG_ROOT=/tmp/codex-logs tokenwar scan --client codex`.
+
+`tokenwar scan --apply` turns the scan into a guarded activation flow:
+
+1. Scan local logs and print the normal recommendation table.
+2. Keep only direct TokenWar plugin toggles with decision `ENABLE`.
+3. Ask for confirmation before changing anything.
+4. Run `tokenwar enable <tool>` for each confirmed plugin.
+
+`tokenwar scan --apply --yes` is the non-interactive equivalent when the caller
+has already approved the changes. `--apply` cannot be combined with `--json`,
+because applying changes is an interactive text flow.
+
+The apply path is deliberately narrow. It can enable `caveman`, `claude-mem`,
+and `ponytail` when they are installed but disabled. It does not install missing
+tools, edit RTK hooks, remove pxpipe, or pick a third-party code-context
+candidate automatically.
+
+## Decision Vocabulary
+
+| Decision | Meaning |
+| --- | --- |
+| `KEEP` | The tool is already healthy or active enough, and the logs show matching value. |
+| `ENABLE` | The tool is installed but disabled, and the scan found enough matching signal. |
+| `TRY` | The scan found opportunity, but the best next step is a benchmark or candidate install. |
+| `TOO MUCH` | The signal is too small to justify the operational overhead right now. |
+
+## Observed Local Scan
+
+A recent multi-agent local scan over Claude, Codex, Gemini, Kimi, opencode,
+Vibe/Ora agents, and Cursor produced this ordering:
+
+| Recommendation | Decision | Estimated Opportunity | Signal |
+| --- | --- | --- | --- |
+| RTK | `KEEP` | 270.2K | 2348 shell/test command signals. |
+| context-mode alternative | `TRY` | 210.1K | 266 heavy payload or scrape signals. |
+| Probe / Stacklit / Serena / Graphify | `TRY` | 180.1K | 607 repo discovery signals. |
+| claude-mem / OpenWiki | `KEEP` | 120.1K | 468 repeated memory/context signals. |
+| pxpipe | `KEEP` | 90.1K | 600.4K scanned log tokens and 18 long-line payloads. |
+| caveman | `ENABLE` | 72.0K | 1389 prose/review/summary signals. |
+| ponytail | `KEEP` | 15.5K | 31 code-generation or diff signals. |
+
+The practical read: keep RTK, claude-mem, pxpipe, and ponytail; enable caveman
+for status/review chatter; test Probe or Stacklit before using context-mode as
+the default code-navigation path.
+
 ## Current Context-Mode Stance
 
 Do not make context-mode the default replacement for every code-navigation
