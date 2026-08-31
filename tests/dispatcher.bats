@@ -11,6 +11,7 @@ setup() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"status"* ]]
     [[ "$output" == *"gain"* ]]
+    [[ "$output" == *"scan"* ]]
     [[ "$output" == *"upgrade"* ]]
 }
 
