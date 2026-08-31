@@ -28,6 +28,33 @@ write_codex_log() {
 EOF
 }
 
+write_apply_fixtures() {
+    cat > "$HOME/status.sh" <<'EOF'
+#!/usr/bin/env bash
+cat <<'JSON'
+{
+  "tools": {
+    "context-mode": {"state": "OK"},
+    "claude-mem": {"state": "OK"},
+    "rtk": {"state": "OK"},
+    "caveman": {"state": "installed-disabled"},
+    "ponytail": {"state": "OK"},
+    "pxpipe": {"state": "OK"}
+  }
+}
+JSON
+EOF
+    cat > "$HOME/toggle.sh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s %s\n' "$1" "$2" >> "$HOME/apply.log"
+printf 'enabled %s\n' "$2"
+EOF
+    chmod +x "$HOME/status.sh" "$HOME/toggle.sh"
+    export TOKENWAR_SCAN_SKIP_STATUS=0
+    export TOKENWAR_STATUS_SCRIPT="$HOME/status.sh"
+    export TOKENWAR_TOGGLE_SCRIPT="$HOME/toggle.sh"
+}
+
 @test "scan recommends shell, context, memory, and code tools from local logs" {
     write_codex_log
 
@@ -40,6 +67,49 @@ EOF
     [[ "$output" == *"context-mode alternative"* ]]
     [[ "$output" == *"claude-mem / OpenWiki"* ]]
     [[ "$output" == *"ponytail"* ]]
+}
+
+@test "scan apply asks before enabling applicable recommendations" {
+    write_codex_log
+    write_apply_fixtures
+
+    export TOKENWAR_SCAN_CONFIRM=yes
+    run bash "$SCRIPT" --client codex --apply
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Apply recommended TokenWar changes?"* ]]
+    [[ "$output" == *"enable caveman"* ]]
+    [[ "$output" == *"enabled caveman"* ]]
+    [ "$(cat "$HOME/apply.log")" = "enable caveman" ]
+}
+
+@test "scan apply does nothing when declined" {
+    write_codex_log
+    write_apply_fixtures
+
+    export TOKENWAR_SCAN_CONFIRM=no
+    run bash "$SCRIPT" --client codex --apply
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Apply skipped"* ]]
+    [ ! -f "$HOME/apply.log" ]
+}
+
+@test "scan apply yes flag enables without prompting" {
+    write_codex_log
+    write_apply_fixtures
+
+    run bash "$SCRIPT" --client codex --apply --yes
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Applying recommended TokenWar changes"* ]]
+    [[ "$output" != *"Apply recommended TokenWar changes?"* ]]
+    [ "$(cat "$HOME/apply.log")" = "enable caveman" ]
+}
+
+@test "scan apply refuses json mode" {
+    write_codex_log
+
+    run bash "$SCRIPT" --client codex --apply --json
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"--apply cannot be combined with --json"* ]]
 }
 
 @test "scan json mode emits clients and recommendations" {

@@ -25,46 +25,11 @@ Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 | **pxpipe**       | Provider-bound prompt/context payloads | `LLM → proxy → PNG blocks → API` |
 | **ponytail**     | The code the LLM writes             | `LLM → CODE (recurs on read)`     |
 
-## Complementarity diagram
-
-```mermaid
-flowchart LR
-    USER([👤 User])
-    LLM{{🧠 LLM}}
-    SHELL[/💻 Shell · tools/]
-    SANDBOX[(🧪 Sandbox + FTS5)]
-    MEM[(💾 claude-mem store)]
-    PROXY[[🖼️ pxpipe proxy]]
-    CODE[/📄 Source on disk/]
-
-    USER -->|prompt| LLM
-    LLM -->|caveman ⤵ output compress| USER
-    LLM -->|tool calls| SHELL
-    SHELL -->|RTK ⤵ stdout compress| LLM
-    LLM -->|context-mode ⤵ offload heavy ops| SANDBOX
-    SANDBOX -->|FTS5 search results| LLM
-    LLM -.->|persist session| MEM
-    MEM -.->|recall on resume| LLM
-    LLM -->|pxpipe ⤵ text to PNG blocks| PROXY
-    PROXY -->|provider API payload| LLM
-    LLM ==>|ponytail ⤵ generate less code| CODE
-    CODE -.->|RECURS · every future read · review · diff · grep| LLM
-
-    classDef caveman fill:#fde68a,stroke:#b45309,color:#000;
-    classDef rtk fill:#bae6fd,stroke:#0369a1,color:#000;
-    classDef ctx fill:#bbf7d0,stroke:#15803d,color:#000;
-    classDef mem fill:#e9d5ff,stroke:#7e22ce,color:#000;
-    classDef pxpipe fill:#fed7aa,stroke:#c2410c,color:#000;
-    classDef pony fill:#fbcfe8,stroke:#be185d,color:#000;
-    class USER caveman
-    class SHELL rtk
-    class SANDBOX ctx
-    class MEM mem
-    class PROXY pxpipe
-    class CODE pony
-```
-
-Each tool acts on a **distinct buffer or lane** — no buffer is double-processed, so the gains stack additively. Five lanes save on the live conversation or provider request path; ponytail's lane saves on the artifact on disk (replayed on every future read via the dotted `CODE -.-> LLM` loop). Different shapes of saving, same stack.
+Each tool acts on a **distinct buffer or lane** — no buffer is double-processed,
+so the gains stack additively. Five lanes save on the live conversation or
+provider request path; ponytail's lane saves on the artifact on disk and recurs
+on every future read, review, diff, and grep. Different shapes of saving, same
+stack.
 
 ## Why we picked each one — and why all six
 
@@ -94,7 +59,7 @@ The lazy-senior-dev ruleset ([DietrichGebert/ponytail](https://github.com/Dietri
 
 ## Why complementary (not conflicting)
 
-The tokenwar `check.sh` script enforces 4 rules:
+The tokenwar `check.sh` script enforces 5 rules:
 
 | Rule | What it verifies                                                                   | Status                  |
 | ---- | ---------------------------------------------------------------------------------- | ----------------------- |
@@ -102,8 +67,12 @@ The tokenwar `check.sh` script enforces 4 rules:
 | R2   | `claude-mem` writes to `~/.claude-mem`, `context-mode` to `~/.claude/projects/...` | Disjoint storage sinks  |
 | R3   | RTK targets tool stdout; caveman targets LLM output                                | Disjoint buffers        |
 | R4   | Core hook/plugin tools installed at current versions                               | `claude plugin list`    |
+| R5   | Active providers use separate config directories                                   | Disjoint provider state |
 
-When all four PASS, the verdict is `COMPLEMENTARY`. ponytail isn't in the conflict table because it owns no hook, store, or output buffer — it only shapes what the model writes. pxpipe is tracked in `status`, `gain`, `updates`, and `upgrade`; it sits at the provider proxy boundary, separate from RTK's shell-output lane. Six tools, still zero overlap.
+When all five PASS, the verdict is `COMPLEMENTARY`. ponytail shapes what the
+model writes; pxpipe is tracked in `status`, `gain`, `updates`, and `upgrade`
+and sits at the provider proxy boundary, separate from RTK's shell-output lane.
+Six tools, still zero overlap.
 
 ## Commands
 
@@ -120,6 +89,72 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 | `/tokenwar doctor` | Full pipeline: status → test → check → gain |
 | `/tokenwar disable <tool>` | Turn off one plugin (`context-mode`/`claude-mem`/`caveman`/`ponytail`) without uninstalling it |
 | `/tokenwar enable <tool>` | Turn a disabled plugin back on |
+
+## Local log scan
+
+`tokenwar scan` is the recommendation layer. It reads local agent logs, detects
+which clients are present, and estimates which TokenWar tools would have helped
+most. It does **not** upload logs, call a provider, or present estimated numbers
+as real telemetry.
+
+```bash
+tokenwar scan                  # scan detected local clients
+tokenwar scan --all            # include every supported client
+tokenwar scan --client codex   # scan one client
+tokenwar scan --clients codex,vibe --json
+tokenwar scan --apply          # ask before applying ENABLE recommendations
+tokenwar scan --apply --yes    # apply ENABLE recommendations without prompting
+```
+
+Supported clients:
+
+| Client | Default local roots | Default selection | Notes |
+| --- | --- | --- | --- |
+| Claude Code | `~/.claude` | Yes, when CLI or logs exist | Best coverage for plugin state and TokenWar-native setup. |
+| Codex | `~/.codex` | Yes, when CLI or logs exist | Good shell, search, read, and prose signal from local state. |
+| Gemini CLI | `~/.gemini` | Yes, when CLI or logs exist | Scan can recommend tools even when native token telemetry is unavailable. |
+| Kimi Code CLI | `~/.kimi-code` | Yes, when CLI or logs exist | Local logs are scanned; token totals remain estimates. |
+| opencode | `~/.local/share/opencode`, `~/.config/opencode` | Yes, when CLI or logs exist | Combines well with native usage telemetry from `tokenwar gain`. |
+| Vibe/Ora agents | `~/.ora/tasks`, `~/.ora/contribute`, `~/.claude/contributebg/logs` | Yes, when logs exist | Covers background contribution and vibe-coding agent logs. |
+| Cursor | `~/.cursor` | Yes, when CLI or logs exist | Reports `none` when the directory exists but no supported logs are found. |
+
+Each root can be overridden without changing config:
+
+```bash
+TOKENWAR_CODEX_LOG_ROOT=/path/to/codex/logs tokenwar scan --client codex
+TOKENWAR_SCAN_MAX_FILES=50 TOKENWAR_SCAN_MAX_BYTES_PER_FILE=65536 tokenwar scan --all
+```
+
+The decision column is intentionally blunt:
+
+| Decision | Meaning |
+| --- | --- |
+| `KEEP` | The tool is already active or detected and the logs show useful signal. |
+| `ENABLE` | The tool is installed but disabled, and the scan found enough matching signal. |
+| `TRY` | The scan found opportunity, but TokenWar should benchmark or install a candidate first. |
+| `TOO MUCH` | The signal is too small for the operational cost right now. |
+
+Example from a local multi-agent scan:
+
+```text
+RTK                                  KEEP      270.2K  shell/test command signals
+context-mode alternative             TRY       210.1K  heavy payload or scrape signals
+Probe / Stacklit / Serena / Graphify TRY       180.1K  repo discovery signals
+claude-mem / OpenWiki                KEEP      120.1K  repeated memory/context signals
+pxpipe                               KEEP       90.1K  scanned log tokens and long-line payloads
+caveman                              ENABLE     72.0K  prose/review/summary signals
+ponytail                             KEEP       15.5K  code-generation or diff signals
+```
+
+That example means: keep RTK, claude-mem, pxpipe, and ponytail; enable caveman
+for operational chatter; test a lighter code-context layer before making
+context-mode the default for code navigation.
+
+`--apply` only applies direct TokenWar plugin toggles whose decision is
+`ENABLE`. Today that means enabling `caveman`, `claude-mem`, or `ponytail` when
+they are installed but disabled. It intentionally does not install new tools,
+change RTK hooks, remove pxpipe, or choose a code-context alternative for you.
+Those remain explicit setup decisions.
 
 ## Status in every CLI (Claude, Codex, Gemini, Kimi, opencode)
 
