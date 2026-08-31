@@ -65,14 +65,17 @@ EOF
 {"plugins":{
   "context-mode@context-mode":[{"version":"1.0.107"}],
   "claude-mem@thedotmack":[{"version":"12.1.4"}],
-  "caveman@caveman":[{"version":"abc"}]
+  "caveman@caveman":[{"version":"abc"}],
+  "ponytail@ponytail":[{"version":"4.2.0"}]
 }}
 EOF
-    # Provide rtk command so R4 doesn't fail
+    # Provide command stubs so R4 doesn't fail
     export PATH="$HOME/bin:$PATH"
     mkdir -p "$HOME/bin"
     echo '#!/usr/bin/env bash' > "$HOME/bin/rtk"
+    echo '#!/usr/bin/env bash' > "$HOME/bin/pxpipe"
     chmod +x "$HOME/bin/rtk"
+    chmod +x "$HOME/bin/pxpipe"
 
     run bash "$SCRIPT"
     [[ "$output" == *"COMPLEMENTARY"* ]]

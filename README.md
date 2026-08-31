@@ -113,6 +113,7 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 | --- | --- |
 | `/tokenwar status` | Health of the 6 tools — installed, enabled, version |
 | `/tokenwar gain` | Per-tool token savings + per-provider telemetry/status (Codex/Gemini/Kimi/opencode) + **monthly $ value** |
+| `/tokenwar scan` | Local agent-log scan that estimates which token-saving tools would have helped most |
 | `/tokenwar upgrade` | Bump each tool to latest (asks confirmation) |
 | `/tokenwar check` | Conflict detector — verifies the 6 tools stack additively |
 | `/tokenwar test` | End-to-end ping: is each tool actually working? |
@@ -145,6 +146,7 @@ in any shell:
 ```bash
 tokenwar status     # state of the 6 tools + providers
 tokenwar gain       # token savings + monthly $ value
+tokenwar scan       # local log scan + recommendations
 tokenwar upgrade    # bump managed tools (asks confirmation)
 tokenwar doctor     # status → check → gain
 tokenwar disable context-mode   # turn off one plugin without uninstalling it

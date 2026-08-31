@@ -7,6 +7,7 @@
 #
 #   tokenwar status     # state of the 6 tools + providers
 #   tokenwar gain       # per-tool + per-provider token savings
+#   tokenwar scan       # local agent-log scan + recommendations
 #   tokenwar check      # complementarity / conflict detector
 #   tokenwar test       # end-to-end ping: is each tool actually working?
 #   tokenwar upgrade    # bump managed tools (asks confirmation)
@@ -32,6 +33,7 @@ Usage: tokenwar <command>
 Commands:
   status     state of the 6 tools + providers (codex, gemini, kimi, opencode)
   gain       per-tool + per-provider token savings + monthly \$ value
+  scan       scan local agent logs and recommend token-saving tools
   check      complementarity / conflict detector
   test       end-to-end ping: is each tool actually working?
   upgrade    bump managed tools to latest (asks confirmation)
@@ -49,6 +51,7 @@ shift || true
 case "$cmd" in
     status)  exec bash "${SCRIPT_DIR}/status.sh" "$@" ;;
     gain)    exec bash "${SCRIPT_DIR}/gain.sh" "$@" ;;
+    scan)    exec bash "${SCRIPT_DIR}/scan.sh" "$@" ;;
     check)   exec bash "${SCRIPT_DIR}/check.sh" "$@" ;;
     test)
         bash "${SCRIPT_DIR}/status.sh" --test "$@"
