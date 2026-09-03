@@ -1,0 +1,16 @@
+You are onboarding a maintainer who must choose a `CliRunner` capture strategy.
+
+Write a concise operational decision memo that explains:
+
+- when to use the default `sys` capture and when to use `fd` capture;
+- exactly what each mode captures or misses;
+- setup and teardown behavior, including how final result streams are formed;
+- portability and concurrency risks;
+- exception/result behavior of `CliRunner.invoke`;
+- how the runner connects to `Command.main`, command/group dispatch, and
+  `Context.invoke`;
+- practical test guidance and known limitations.
+
+Cite the relevant durable wiki pages by path or title. Do not provide exact
+source line numbers. If the generated wiki does not support a claim, identify
+that gap instead of guessing.

@@ -1,0 +1,1676 @@
+{
+  "protocol": "role-aligned specialist versus all-three, n=3",
+  "rows": [
+    {
+      "name": "role_graphify_specialist_r1",
+      "role": "graphify",
+      "mode": "specialist",
+      "repetition": 1,
+      "elapsed_seconds": 162.749,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 321451,
+      "cached_input_tokens": 273152,
+      "fresh_input_tokens": 48299,
+      "output_tokens": 7504,
+      "tool_calls": 48,
+      "calls_by_source": {
+        "graphify": 48
+      },
+      "score": 19,
+      "max_score": 20,
+      "checks": [
+        {
+          "criterion": "Command.main is the CLI boundary",
+          "passed": true
+        },
+        {
+          "criterion": "sys.argv and Windows expansion",
+          "passed": true
+        },
+        {
+          "criterion": "shell completion short-circuit",
+          "passed": false
+        },
+        {
+          "criterion": "make_context creates parsing context",
+          "passed": true
+        },
+        {
+          "criterion": "parser/parse_args stage",
+          "passed": true
+        },
+        {
+          "criterion": "plain Command.invoke",
+          "passed": true
+        },
+        {
+          "criterion": "Group.parse_args token staging",
+          "passed": true
+        },
+        {
+          "criterion": "Group.invoke dispatch",
+          "passed": true
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": true
+        },
+        {
+          "criterion": "child context parent relationship",
+          "passed": true
+        },
+        {
+          "criterion": "Context.invoke callback boundary",
+          "passed": true
+        },
+        {
+          "criterion": "active context scope",
+          "passed": true
+        },
+        {
+          "criterion": "EOF/keyboard interrupt becomes Abort",
+          "passed": true
+        },
+        {
+          "criterion": "ClickException standalone handling",
+          "passed": true
+        },
+        {
+          "criterion": "EPIPE/broken pipe handling",
+          "passed": true
+        },
+        {
+          "criterion": "explicit Exit translation",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke calls Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "runner isolation/capture impact",
+          "passed": true
+        },
+        {
+          "criterion": "shell_completion audit module",
+          "passed": true
+        },
+        {
+          "criterion": "prioritized audit list",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_graphify_specialist_r2",
+      "role": "graphify",
+      "mode": "specialist",
+      "repetition": 2,
+      "elapsed_seconds": 154.962,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 345471,
+      "cached_input_tokens": 279040,
+      "fresh_input_tokens": 66431,
+      "output_tokens": 6959,
+      "tool_calls": 44,
+      "calls_by_source": {
+        "graphify": 44
+      },
+      "score": 19,
+      "max_score": 20,
+      "checks": [
+        {
+          "criterion": "Command.main is the CLI boundary",
+          "passed": true
+        },
+        {
+          "criterion": "sys.argv and Windows expansion",
+          "passed": true
+        },
+        {
+          "criterion": "shell completion short-circuit",
+          "passed": false
+        },
+        {
+          "criterion": "make_context creates parsing context",
+          "passed": true
+        },
+        {
+          "criterion": "parser/parse_args stage",
+          "passed": true
+        },
+        {
+          "criterion": "plain Command.invoke",
+          "passed": true
+        },
+        {
+          "criterion": "Group.parse_args token staging",
+          "passed": true
+        },
+        {
+          "criterion": "Group.invoke dispatch",
+          "passed": true
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": true
+        },
+        {
+          "criterion": "child context parent relationship",
+          "passed": true
+        },
+        {
+          "criterion": "Context.invoke callback boundary",
+          "passed": true
+        },
+        {
+          "criterion": "active context scope",
+          "passed": true
+        },
+        {
+          "criterion": "EOF/keyboard interrupt becomes Abort",
+          "passed": true
+        },
+        {
+          "criterion": "ClickException standalone handling",
+          "passed": true
+        },
+        {
+          "criterion": "EPIPE/broken pipe handling",
+          "passed": true
+        },
+        {
+          "criterion": "explicit Exit translation",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke calls Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "runner isolation/capture impact",
+          "passed": true
+        },
+        {
+          "criterion": "shell_completion audit module",
+          "passed": true
+        },
+        {
+          "criterion": "prioritized audit list",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_graphify_specialist_r3",
+      "role": "graphify",
+      "mode": "specialist",
+      "repetition": 3,
+      "elapsed_seconds": 103.366,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 243020,
+      "cached_input_tokens": 158336,
+      "fresh_input_tokens": 84684,
+      "output_tokens": 4350,
+      "tool_calls": 35,
+      "calls_by_source": {
+        "graphify": 35
+      },
+      "score": 20,
+      "max_score": 20,
+      "checks": [
+        {
+          "criterion": "Command.main is the CLI boundary",
+          "passed": true
+        },
+        {
+          "criterion": "sys.argv and Windows expansion",
+          "passed": true
+        },
+        {
+          "criterion": "shell completion short-circuit",
+          "passed": true
+        },
+        {
+          "criterion": "make_context creates parsing context",
+          "passed": true
+        },
+        {
+          "criterion": "parser/parse_args stage",
+          "passed": true
+        },
+        {
+          "criterion": "plain Command.invoke",
+          "passed": true
+        },
+        {
+          "criterion": "Group.parse_args token staging",
+          "passed": true
+        },
+        {
+          "criterion": "Group.invoke dispatch",
+          "passed": true
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": true
+        },
+        {
+          "criterion": "child context parent relationship",
+          "passed": true
+        },
+        {
+          "criterion": "Context.invoke callback boundary",
+          "passed": true
+        },
+        {
+          "criterion": "active context scope",
+          "passed": true
+        },
+        {
+          "criterion": "EOF/keyboard interrupt becomes Abort",
+          "passed": true
+        },
+        {
+          "criterion": "ClickException standalone handling",
+          "passed": true
+        },
+        {
+          "criterion": "EPIPE/broken pipe handling",
+          "passed": true
+        },
+        {
+          "criterion": "explicit Exit translation",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke calls Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "runner isolation/capture impact",
+          "passed": true
+        },
+        {
+          "criterion": "shell_completion audit module",
+          "passed": true
+        },
+        {
+          "criterion": "prioritized audit list",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_graphify_trio_r1",
+      "role": "graphify",
+      "mode": "trio",
+      "repetition": 1,
+      "elapsed_seconds": 138.965,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 408504,
+      "cached_input_tokens": 363648,
+      "fresh_input_tokens": 44856,
+      "output_tokens": 5495,
+      "tool_calls": 54,
+      "calls_by_source": {
+        "serena": 53,
+        "graphify": 1
+      },
+      "score": 19,
+      "max_score": 20,
+      "checks": [
+        {
+          "criterion": "Command.main is the CLI boundary",
+          "passed": true
+        },
+        {
+          "criterion": "sys.argv and Windows expansion",
+          "passed": true
+        },
+        {
+          "criterion": "shell completion short-circuit",
+          "passed": false
+        },
+        {
+          "criterion": "make_context creates parsing context",
+          "passed": true
+        },
+        {
+          "criterion": "parser/parse_args stage",
+          "passed": true
+        },
+        {
+          "criterion": "plain Command.invoke",
+          "passed": true
+        },
+        {
+          "criterion": "Group.parse_args token staging",
+          "passed": true
+        },
+        {
+          "criterion": "Group.invoke dispatch",
+          "passed": true
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": true
+        },
+        {
+          "criterion": "child context parent relationship",
+          "passed": true
+        },
+        {
+          "criterion": "Context.invoke callback boundary",
+          "passed": true
+        },
+        {
+          "criterion": "active context scope",
+          "passed": true
+        },
+        {
+          "criterion": "EOF/keyboard interrupt becomes Abort",
+          "passed": true
+        },
+        {
+          "criterion": "ClickException standalone handling",
+          "passed": true
+        },
+        {
+          "criterion": "EPIPE/broken pipe handling",
+          "passed": true
+        },
+        {
+          "criterion": "explicit Exit translation",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke calls Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "runner isolation/capture impact",
+          "passed": true
+        },
+        {
+          "criterion": "shell_completion audit module",
+          "passed": true
+        },
+        {
+          "criterion": "prioritized audit list",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_graphify_trio_r2",
+      "role": "graphify",
+      "mode": "trio",
+      "repetition": 2,
+      "elapsed_seconds": 130.975,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 225099,
+      "cached_input_tokens": 196736,
+      "fresh_input_tokens": 28363,
+      "output_tokens": 5658,
+      "tool_calls": 13,
+      "calls_by_source": {
+        "serena": 7,
+        "graphify": 6
+      },
+      "score": 20,
+      "max_score": 20,
+      "checks": [
+        {
+          "criterion": "Command.main is the CLI boundary",
+          "passed": true
+        },
+        {
+          "criterion": "sys.argv and Windows expansion",
+          "passed": true
+        },
+        {
+          "criterion": "shell completion short-circuit",
+          "passed": true
+        },
+        {
+          "criterion": "make_context creates parsing context",
+          "passed": true
+        },
+        {
+          "criterion": "parser/parse_args stage",
+          "passed": true
+        },
+        {
+          "criterion": "plain Command.invoke",
+          "passed": true
+        },
+        {
+          "criterion": "Group.parse_args token staging",
+          "passed": true
+        },
+        {
+          "criterion": "Group.invoke dispatch",
+          "passed": true
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": true
+        },
+        {
+          "criterion": "child context parent relationship",
+          "passed": true
+        },
+        {
+          "criterion": "Context.invoke callback boundary",
+          "passed": true
+        },
+        {
+          "criterion": "active context scope",
+          "passed": true
+        },
+        {
+          "criterion": "EOF/keyboard interrupt becomes Abort",
+          "passed": true
+        },
+        {
+          "criterion": "ClickException standalone handling",
+          "passed": true
+        },
+        {
+          "criterion": "EPIPE/broken pipe handling",
+          "passed": true
+        },
+        {
+          "criterion": "explicit Exit translation",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke calls Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "runner isolation/capture impact",
+          "passed": true
+        },
+        {
+          "criterion": "shell_completion audit module",
+          "passed": true
+        },
+        {
+          "criterion": "prioritized audit list",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_graphify_trio_r3",
+      "role": "graphify",
+      "mode": "trio",
+      "repetition": 3,
+      "elapsed_seconds": 143.938,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 278345,
+      "cached_input_tokens": 210944,
+      "fresh_input_tokens": 67401,
+      "output_tokens": 6401,
+      "tool_calls": 16,
+      "calls_by_source": {
+        "shell": 1,
+        "serena": 12,
+        "graphify": 3
+      },
+      "score": 20,
+      "max_score": 20,
+      "checks": [
+        {
+          "criterion": "Command.main is the CLI boundary",
+          "passed": true
+        },
+        {
+          "criterion": "sys.argv and Windows expansion",
+          "passed": true
+        },
+        {
+          "criterion": "shell completion short-circuit",
+          "passed": true
+        },
+        {
+          "criterion": "make_context creates parsing context",
+          "passed": true
+        },
+        {
+          "criterion": "parser/parse_args stage",
+          "passed": true
+        },
+        {
+          "criterion": "plain Command.invoke",
+          "passed": true
+        },
+        {
+          "criterion": "Group.parse_args token staging",
+          "passed": true
+        },
+        {
+          "criterion": "Group.invoke dispatch",
+          "passed": true
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": true
+        },
+        {
+          "criterion": "child context parent relationship",
+          "passed": true
+        },
+        {
+          "criterion": "Context.invoke callback boundary",
+          "passed": true
+        },
+        {
+          "criterion": "active context scope",
+          "passed": true
+        },
+        {
+          "criterion": "EOF/keyboard interrupt becomes Abort",
+          "passed": true
+        },
+        {
+          "criterion": "ClickException standalone handling",
+          "passed": true
+        },
+        {
+          "criterion": "EPIPE/broken pipe handling",
+          "passed": true
+        },
+        {
+          "criterion": "explicit Exit translation",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke calls Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "runner isolation/capture impact",
+          "passed": true
+        },
+        {
+          "criterion": "shell_completion audit module",
+          "passed": true
+        },
+        {
+          "criterion": "prioritized audit list",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_openwiki_specialist_r1",
+      "role": "openwiki",
+      "mode": "specialist",
+      "repetition": 1,
+      "elapsed_seconds": 47.897,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 48496,
+      "cached_input_tokens": 39808,
+      "fresh_input_tokens": 8688,
+      "output_tokens": 1948,
+      "tool_calls": 2,
+      "calls_by_source": {
+        "shell": 2
+      },
+      "score": 18,
+      "max_score": 18,
+      "checks": [
+        {
+          "criterion": "sys is default",
+          "passed": true
+        },
+        {
+          "criterion": "sys captures Python streams",
+          "passed": true
+        },
+        {
+          "criterion": "sys misses direct fd/native paths",
+          "passed": true
+        },
+        {
+          "criterion": "fileno limitation",
+          "passed": true
+        },
+        {
+          "criterion": "fd redirects descriptors 1 and 2",
+          "passed": true
+        },
+        {
+          "criterion": "fd uses temporary files/dup2",
+          "passed": true
+        },
+        {
+          "criterion": "fd captures subprocess/native/stale",
+          "passed": true
+        },
+        {
+          "criterion": "fd unavailable on Windows",
+          "passed": true
+        },
+        {
+          "criterion": "global state is not thread safe",
+          "passed": true
+        },
+        {
+          "criterion": "process parallelism recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "teardown restores state/descriptors",
+          "passed": true
+        },
+        {
+          "criterion": "captured fd bytes appended/combined",
+          "passed": true
+        },
+        {
+          "criterion": "SystemExit/exception Result behavior",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke reaches Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "dispatch and Context.invoke connection",
+          "passed": true
+        },
+        {
+          "criterion": "practical test recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "interleaving limitation",
+          "passed": true
+        },
+        {
+          "criterion": "wiki citations",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_openwiki_specialist_r2",
+      "role": "openwiki",
+      "mode": "specialist",
+      "repetition": 2,
+      "elapsed_seconds": 47.348,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 48389,
+      "cached_input_tokens": 43136,
+      "fresh_input_tokens": 5253,
+      "output_tokens": 1992,
+      "tool_calls": 2,
+      "calls_by_source": {
+        "shell": 2
+      },
+      "score": 18,
+      "max_score": 18,
+      "checks": [
+        {
+          "criterion": "sys is default",
+          "passed": true
+        },
+        {
+          "criterion": "sys captures Python streams",
+          "passed": true
+        },
+        {
+          "criterion": "sys misses direct fd/native paths",
+          "passed": true
+        },
+        {
+          "criterion": "fileno limitation",
+          "passed": true
+        },
+        {
+          "criterion": "fd redirects descriptors 1 and 2",
+          "passed": true
+        },
+        {
+          "criterion": "fd uses temporary files/dup2",
+          "passed": true
+        },
+        {
+          "criterion": "fd captures subprocess/native/stale",
+          "passed": true
+        },
+        {
+          "criterion": "fd unavailable on Windows",
+          "passed": true
+        },
+        {
+          "criterion": "global state is not thread safe",
+          "passed": true
+        },
+        {
+          "criterion": "process parallelism recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "teardown restores state/descriptors",
+          "passed": true
+        },
+        {
+          "criterion": "captured fd bytes appended/combined",
+          "passed": true
+        },
+        {
+          "criterion": "SystemExit/exception Result behavior",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke reaches Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "dispatch and Context.invoke connection",
+          "passed": true
+        },
+        {
+          "criterion": "practical test recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "interleaving limitation",
+          "passed": true
+        },
+        {
+          "criterion": "wiki citations",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_openwiki_specialist_r3",
+      "role": "openwiki",
+      "mode": "specialist",
+      "repetition": 3,
+      "elapsed_seconds": 48.503,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 48459,
+      "cached_input_tokens": 39808,
+      "fresh_input_tokens": 8651,
+      "output_tokens": 2123,
+      "tool_calls": 2,
+      "calls_by_source": {
+        "shell": 2
+      },
+      "score": 18,
+      "max_score": 18,
+      "checks": [
+        {
+          "criterion": "sys is default",
+          "passed": true
+        },
+        {
+          "criterion": "sys captures Python streams",
+          "passed": true
+        },
+        {
+          "criterion": "sys misses direct fd/native paths",
+          "passed": true
+        },
+        {
+          "criterion": "fileno limitation",
+          "passed": true
+        },
+        {
+          "criterion": "fd redirects descriptors 1 and 2",
+          "passed": true
+        },
+        {
+          "criterion": "fd uses temporary files/dup2",
+          "passed": true
+        },
+        {
+          "criterion": "fd captures subprocess/native/stale",
+          "passed": true
+        },
+        {
+          "criterion": "fd unavailable on Windows",
+          "passed": true
+        },
+        {
+          "criterion": "global state is not thread safe",
+          "passed": true
+        },
+        {
+          "criterion": "process parallelism recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "teardown restores state/descriptors",
+          "passed": true
+        },
+        {
+          "criterion": "captured fd bytes appended/combined",
+          "passed": true
+        },
+        {
+          "criterion": "SystemExit/exception Result behavior",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke reaches Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "dispatch and Context.invoke connection",
+          "passed": true
+        },
+        {
+          "criterion": "practical test recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "interleaving limitation",
+          "passed": true
+        },
+        {
+          "criterion": "wiki citations",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_openwiki_trio_r1",
+      "role": "openwiki",
+      "mode": "trio",
+      "repetition": 1,
+      "elapsed_seconds": 68.283,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 194123,
+      "cached_input_tokens": 165504,
+      "fresh_input_tokens": 28619,
+      "output_tokens": 2346,
+      "tool_calls": 6,
+      "calls_by_source": {
+        "shell": 1,
+        "serena": 5
+      },
+      "score": 18,
+      "max_score": 18,
+      "checks": [
+        {
+          "criterion": "sys is default",
+          "passed": true
+        },
+        {
+          "criterion": "sys captures Python streams",
+          "passed": true
+        },
+        {
+          "criterion": "sys misses direct fd/native paths",
+          "passed": true
+        },
+        {
+          "criterion": "fileno limitation",
+          "passed": true
+        },
+        {
+          "criterion": "fd redirects descriptors 1 and 2",
+          "passed": true
+        },
+        {
+          "criterion": "fd uses temporary files/dup2",
+          "passed": true
+        },
+        {
+          "criterion": "fd captures subprocess/native/stale",
+          "passed": true
+        },
+        {
+          "criterion": "fd unavailable on Windows",
+          "passed": true
+        },
+        {
+          "criterion": "global state is not thread safe",
+          "passed": true
+        },
+        {
+          "criterion": "process parallelism recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "teardown restores state/descriptors",
+          "passed": true
+        },
+        {
+          "criterion": "captured fd bytes appended/combined",
+          "passed": true
+        },
+        {
+          "criterion": "SystemExit/exception Result behavior",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke reaches Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "dispatch and Context.invoke connection",
+          "passed": true
+        },
+        {
+          "criterion": "practical test recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "interleaving limitation",
+          "passed": true
+        },
+        {
+          "criterion": "wiki citations",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_openwiki_trio_r2",
+      "role": "openwiki",
+      "mode": "trio",
+      "repetition": 2,
+      "elapsed_seconds": 60.32,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 129909,
+      "cached_input_tokens": 105088,
+      "fresh_input_tokens": 24821,
+      "output_tokens": 2135,
+      "tool_calls": 7,
+      "calls_by_source": {
+        "serena": 7
+      },
+      "score": 18,
+      "max_score": 18,
+      "checks": [
+        {
+          "criterion": "sys is default",
+          "passed": true
+        },
+        {
+          "criterion": "sys captures Python streams",
+          "passed": true
+        },
+        {
+          "criterion": "sys misses direct fd/native paths",
+          "passed": true
+        },
+        {
+          "criterion": "fileno limitation",
+          "passed": true
+        },
+        {
+          "criterion": "fd redirects descriptors 1 and 2",
+          "passed": true
+        },
+        {
+          "criterion": "fd uses temporary files/dup2",
+          "passed": true
+        },
+        {
+          "criterion": "fd captures subprocess/native/stale",
+          "passed": true
+        },
+        {
+          "criterion": "fd unavailable on Windows",
+          "passed": true
+        },
+        {
+          "criterion": "global state is not thread safe",
+          "passed": true
+        },
+        {
+          "criterion": "process parallelism recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "teardown restores state/descriptors",
+          "passed": true
+        },
+        {
+          "criterion": "captured fd bytes appended/combined",
+          "passed": true
+        },
+        {
+          "criterion": "SystemExit/exception Result behavior",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke reaches Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "dispatch and Context.invoke connection",
+          "passed": true
+        },
+        {
+          "criterion": "practical test recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "interleaving limitation",
+          "passed": true
+        },
+        {
+          "criterion": "wiki citations",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_openwiki_trio_r3",
+      "role": "openwiki",
+      "mode": "trio",
+      "repetition": 3,
+      "elapsed_seconds": 80.367,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 266157,
+      "cached_input_tokens": 232192,
+      "fresh_input_tokens": 33965,
+      "output_tokens": 2904,
+      "tool_calls": 10,
+      "calls_by_source": {
+        "serena": 10
+      },
+      "score": 18,
+      "max_score": 18,
+      "checks": [
+        {
+          "criterion": "sys is default",
+          "passed": true
+        },
+        {
+          "criterion": "sys captures Python streams",
+          "passed": true
+        },
+        {
+          "criterion": "sys misses direct fd/native paths",
+          "passed": true
+        },
+        {
+          "criterion": "fileno limitation",
+          "passed": true
+        },
+        {
+          "criterion": "fd redirects descriptors 1 and 2",
+          "passed": true
+        },
+        {
+          "criterion": "fd uses temporary files/dup2",
+          "passed": true
+        },
+        {
+          "criterion": "fd captures subprocess/native/stale",
+          "passed": true
+        },
+        {
+          "criterion": "fd unavailable on Windows",
+          "passed": true
+        },
+        {
+          "criterion": "global state is not thread safe",
+          "passed": true
+        },
+        {
+          "criterion": "process parallelism recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "teardown restores state/descriptors",
+          "passed": true
+        },
+        {
+          "criterion": "captured fd bytes appended/combined",
+          "passed": true
+        },
+        {
+          "criterion": "SystemExit/exception Result behavior",
+          "passed": true
+        },
+        {
+          "criterion": "CliRunner.invoke reaches Command.main",
+          "passed": true
+        },
+        {
+          "criterion": "dispatch and Context.invoke connection",
+          "passed": true
+        },
+        {
+          "criterion": "practical test recommendation",
+          "passed": true
+        },
+        {
+          "criterion": "interleaving limitation",
+          "passed": true
+        },
+        {
+          "criterion": "wiki citations",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "role_serena_v2_specialist_r1",
+      "role": "serena",
+      "mode": "specialist",
+      "repetition": 1,
+      "elapsed_seconds": 98.192,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 302056,
+      "cached_input_tokens": 281344,
+      "fresh_input_tokens": 20712,
+      "output_tokens": 3180,
+      "tool_calls": 14,
+      "calls_by_source": {
+        "serena": 14
+      },
+      "score": 10,
+      "max_score": 10,
+      "checks": [
+        {
+          "criterion": "new function definition",
+          "passed": true
+        },
+        {
+          "criterion": "production import updated",
+          "passed": true
+        },
+        {
+          "criterion": "production call updated",
+          "passed": true
+        },
+        {
+          "criterion": "test references updated",
+          "passed": true
+        },
+        {
+          "criterion": "old symbol absent from source/tests",
+          "passed": true
+        },
+        {
+          "criterion": "only three expected files changed",
+          "passed": true
+        },
+        {
+          "criterion": "semantic rename tool used",
+          "passed": true
+        },
+        {
+          "criterion": "independent targeted tests pass",
+          "passed": true
+        },
+        {
+          "criterion": "diff has no whitespace errors",
+          "passed": true
+        },
+        {
+          "criterion": "semantic navigation/reference lookup used",
+          "passed": true
+        }
+      ],
+      "changed_source_files": [
+        "src/click/core.py",
+        "src/click/utils.py",
+        "tests/test_utils/test__expand_args.py"
+      ],
+      "independent_test_return_code": 0,
+      "independent_test_output": "........................................................................ [ 69%]\n................................                                         [100%]\n104 passed in 0.06s\n"
+    },
+    {
+      "name": "role_serena_v2_specialist_r2",
+      "role": "serena",
+      "mode": "specialist",
+      "repetition": 2,
+      "elapsed_seconds": 107.231,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 363563,
+      "cached_input_tokens": 323072,
+      "fresh_input_tokens": 40491,
+      "output_tokens": 3091,
+      "tool_calls": 21,
+      "calls_by_source": {
+        "serena": 21
+      },
+      "score": 10,
+      "max_score": 10,
+      "checks": [
+        {
+          "criterion": "new function definition",
+          "passed": true
+        },
+        {
+          "criterion": "production import updated",
+          "passed": true
+        },
+        {
+          "criterion": "production call updated",
+          "passed": true
+        },
+        {
+          "criterion": "test references updated",
+          "passed": true
+        },
+        {
+          "criterion": "old symbol absent from source/tests",
+          "passed": true
+        },
+        {
+          "criterion": "only three expected files changed",
+          "passed": true
+        },
+        {
+          "criterion": "semantic rename tool used",
+          "passed": true
+        },
+        {
+          "criterion": "independent targeted tests pass",
+          "passed": true
+        },
+        {
+          "criterion": "diff has no whitespace errors",
+          "passed": true
+        },
+        {
+          "criterion": "semantic navigation/reference lookup used",
+          "passed": true
+        }
+      ],
+      "changed_source_files": [
+        "src/click/core.py",
+        "src/click/utils.py",
+        "tests/test_utils/test__expand_args.py"
+      ],
+      "independent_test_return_code": 0,
+      "independent_test_output": "........................................................................ [ 69%]\n................................                                         [100%]\n104 passed in 0.06s\n"
+    },
+    {
+      "name": "role_serena_v2_specialist_r3",
+      "role": "serena",
+      "mode": "specialist",
+      "repetition": 3,
+      "elapsed_seconds": 352.407,
+      "return_code": -15,
+      "token_telemetry_available": false,
+      "input_tokens": 0,
+      "cached_input_tokens": 0,
+      "fresh_input_tokens": 0,
+      "output_tokens": 0,
+      "tool_calls": 4,
+      "calls_by_source": {
+        "serena": 4
+      },
+      "score": 0,
+      "max_score": 10,
+      "checks": [
+        {
+          "criterion": "new function definition",
+          "passed": false
+        },
+        {
+          "criterion": "production import updated",
+          "passed": false
+        },
+        {
+          "criterion": "production call updated",
+          "passed": false
+        },
+        {
+          "criterion": "test references updated",
+          "passed": false
+        },
+        {
+          "criterion": "old symbol absent from source/tests",
+          "passed": false
+        },
+        {
+          "criterion": "only three expected files changed",
+          "passed": false
+        },
+        {
+          "criterion": "semantic rename tool used",
+          "passed": false
+        },
+        {
+          "criterion": "independent targeted tests pass",
+          "passed": false
+        },
+        {
+          "criterion": "diff has no whitespace errors",
+          "passed": false
+        },
+        {
+          "criterion": "semantic navigation/reference lookup used",
+          "passed": false
+        }
+      ],
+      "changed_source_files": [],
+      "independent_test_return_code": 0,
+      "independent_test_output": "........................................................................ [ 69%]\n................................                                         [100%]\n104 passed in 0.06s\n"
+    },
+    {
+      "name": "role_serena_v2_trio_r1",
+      "role": "serena",
+      "mode": "trio",
+      "repetition": 1,
+      "elapsed_seconds": 97.179,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 353817,
+      "cached_input_tokens": 331392,
+      "fresh_input_tokens": 22425,
+      "output_tokens": 2483,
+      "tool_calls": 19,
+      "calls_by_source": {
+        "serena": 19
+      },
+      "score": 10,
+      "max_score": 10,
+      "checks": [
+        {
+          "criterion": "new function definition",
+          "passed": true
+        },
+        {
+          "criterion": "production import updated",
+          "passed": true
+        },
+        {
+          "criterion": "production call updated",
+          "passed": true
+        },
+        {
+          "criterion": "test references updated",
+          "passed": true
+        },
+        {
+          "criterion": "old symbol absent from source/tests",
+          "passed": true
+        },
+        {
+          "criterion": "only three expected files changed",
+          "passed": true
+        },
+        {
+          "criterion": "semantic rename tool used",
+          "passed": true
+        },
+        {
+          "criterion": "independent targeted tests pass",
+          "passed": true
+        },
+        {
+          "criterion": "diff has no whitespace errors",
+          "passed": true
+        },
+        {
+          "criterion": "semantic navigation/reference lookup used",
+          "passed": true
+        }
+      ],
+      "changed_source_files": [
+        "src/click/core.py",
+        "src/click/utils.py",
+        "tests/test_utils/test__expand_args.py"
+      ],
+      "independent_test_return_code": 0,
+      "independent_test_output": "........................................................................ [ 69%]\n................................                                         [100%]\n104 passed in 0.06s\n"
+    },
+    {
+      "name": "role_serena_v2_trio_r2",
+      "role": "serena",
+      "mode": "trio",
+      "repetition": 2,
+      "elapsed_seconds": 115.051,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 414410,
+      "cached_input_tokens": 390656,
+      "fresh_input_tokens": 23754,
+      "output_tokens": 3063,
+      "tool_calls": 22,
+      "calls_by_source": {
+        "serena": 22
+      },
+      "score": 10,
+      "max_score": 10,
+      "checks": [
+        {
+          "criterion": "new function definition",
+          "passed": true
+        },
+        {
+          "criterion": "production import updated",
+          "passed": true
+        },
+        {
+          "criterion": "production call updated",
+          "passed": true
+        },
+        {
+          "criterion": "test references updated",
+          "passed": true
+        },
+        {
+          "criterion": "old symbol absent from source/tests",
+          "passed": true
+        },
+        {
+          "criterion": "only three expected files changed",
+          "passed": true
+        },
+        {
+          "criterion": "semantic rename tool used",
+          "passed": true
+        },
+        {
+          "criterion": "independent targeted tests pass",
+          "passed": true
+        },
+        {
+          "criterion": "diff has no whitespace errors",
+          "passed": true
+        },
+        {
+          "criterion": "semantic navigation/reference lookup used",
+          "passed": true
+        }
+      ],
+      "changed_source_files": [
+        "src/click/core.py",
+        "src/click/utils.py",
+        "tests/test_utils/test__expand_args.py"
+      ],
+      "independent_test_return_code": 0,
+      "independent_test_output": "........................................................................ [ 69%]\n................................                                         [100%]\n104 passed in 0.06s\n"
+    },
+    {
+      "name": "role_serena_v2_trio_r3",
+      "role": "serena",
+      "mode": "trio",
+      "repetition": 3,
+      "elapsed_seconds": 131.355,
+      "return_code": 0,
+      "token_telemetry_available": true,
+      "input_tokens": 430745,
+      "cached_input_tokens": 404992,
+      "fresh_input_tokens": 25753,
+      "output_tokens": 3785,
+      "tool_calls": 25,
+      "calls_by_source": {
+        "serena": 25
+      },
+      "score": 10,
+      "max_score": 10,
+      "checks": [
+        {
+          "criterion": "new function definition",
+          "passed": true
+        },
+        {
+          "criterion": "production import updated",
+          "passed": true
+        },
+        {
+          "criterion": "production call updated",
+          "passed": true
+        },
+        {
+          "criterion": "test references updated",
+          "passed": true
+        },
+        {
+          "criterion": "old symbol absent from source/tests",
+          "passed": true
+        },
+        {
+          "criterion": "only three expected files changed",
+          "passed": true
+        },
+        {
+          "criterion": "semantic rename tool used",
+          "passed": true
+        },
+        {
+          "criterion": "independent targeted tests pass",
+          "passed": true
+        },
+        {
+          "criterion": "diff has no whitespace errors",
+          "passed": true
+        },
+        {
+          "criterion": "semantic navigation/reference lookup used",
+          "passed": true
+        }
+      ],
+      "changed_source_files": [
+        "src/click/core.py",
+        "src/click/utils.py",
+        "tests/test_utils/test__expand_args.py"
+      ],
+      "independent_test_return_code": 0,
+      "independent_test_output": "........................................................................ [ 69%]\n................................                                         [100%]\n104 passed in 0.06s\n"
+    }
+  ],
+  "summary": [
+    {
+      "role": "graphify",
+      "mode": "specialist",
+      "runs": 3,
+      "completed_runs": 3,
+      "fully_successful_runs": 1,
+      "mean_score": 19.33,
+      "mean_score_completed": 19.33,
+      "max_score": 20,
+      "mean_elapsed_seconds": 140.36,
+      "token_telemetry_runs": 3,
+      "mean_fresh_input_tokens": 66471.33,
+      "mean_cached_input_tokens": 236842.67,
+      "mean_output_tokens": 6271.0,
+      "mean_tool_calls": 42.33
+    },
+    {
+      "role": "graphify",
+      "mode": "trio",
+      "runs": 3,
+      "completed_runs": 3,
+      "fully_successful_runs": 2,
+      "mean_score": 19.67,
+      "mean_score_completed": 19.67,
+      "max_score": 20,
+      "mean_elapsed_seconds": 137.96,
+      "token_telemetry_runs": 3,
+      "mean_fresh_input_tokens": 46873.33,
+      "mean_cached_input_tokens": 257109.33,
+      "mean_output_tokens": 5851.33,
+      "mean_tool_calls": 27.67
+    },
+    {
+      "role": "serena",
+      "mode": "specialist",
+      "runs": 3,
+      "completed_runs": 2,
+      "fully_successful_runs": 2,
+      "mean_score": 6.67,
+      "mean_score_completed": 10.0,
+      "max_score": 10,
+      "mean_elapsed_seconds": 185.94,
+      "token_telemetry_runs": 2,
+      "mean_fresh_input_tokens": 30601.5,
+      "mean_cached_input_tokens": 302208.0,
+      "mean_output_tokens": 3135.5,
+      "mean_tool_calls": 13.0
+    },
+    {
+      "role": "serena",
+      "mode": "trio",
+      "runs": 3,
+      "completed_runs": 3,
+      "fully_successful_runs": 3,
+      "mean_score": 10.0,
+      "mean_score_completed": 10.0,
+      "max_score": 10,
+      "mean_elapsed_seconds": 114.53,
+      "token_telemetry_runs": 3,
+      "mean_fresh_input_tokens": 23977.33,
+      "mean_cached_input_tokens": 375680.0,
+      "mean_output_tokens": 3110.33,
+      "mean_tool_calls": 22.0
+    },
+    {
+      "role": "openwiki",
+      "mode": "specialist",
+      "runs": 3,
+      "completed_runs": 3,
+      "fully_successful_runs": 3,
+      "mean_score": 18.0,
+      "mean_score_completed": 18.0,
+      "max_score": 18,
+      "mean_elapsed_seconds": 47.92,
+      "token_telemetry_runs": 3,
+      "mean_fresh_input_tokens": 7530.67,
+      "mean_cached_input_tokens": 40917.33,
+      "mean_output_tokens": 2021.0,
+      "mean_tool_calls": 2.0
+    },
+    {
+      "role": "openwiki",
+      "mode": "trio",
+      "runs": 3,
+      "completed_runs": 3,
+      "fully_successful_runs": 3,
+      "mean_score": 18.0,
+      "mean_score_completed": 18.0,
+      "max_score": 18,
+      "mean_elapsed_seconds": 69.66,
+      "token_telemetry_runs": 3,
+      "mean_fresh_input_tokens": 29135.0,
+      "mean_cached_input_tokens": 167594.67,
+      "mean_output_tokens": 2461.67,
+      "mean_tool_calls": 7.67
+    }
+  ]
+}

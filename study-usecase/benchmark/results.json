@@ -1,0 +1,1044 @@
+{
+  "rows": [
+    {
+      "condition": "graphify_solo",
+      "score": 15,
+      "max_score": 30,
+      "elapsed_seconds": 143.528,
+      "input_tokens": 851763,
+      "cached_input_tokens": 776064,
+      "fresh_input_tokens": 75699,
+      "output_tokens": 4555,
+      "reasoning_output_tokens": 2544,
+      "completed_tool_calls": 33,
+      "calls_by_source": {
+        "graphify": 33
+      }
+    },
+    {
+      "condition": "serena_solo",
+      "score": 28,
+      "max_score": 30,
+      "elapsed_seconds": 110.065,
+      "input_tokens": 207391,
+      "cached_input_tokens": 172544,
+      "fresh_input_tokens": 34847,
+      "output_tokens": 4543,
+      "reasoning_output_tokens": 2230,
+      "completed_tool_calls": 23,
+      "calls_by_source": {
+        "serena": 23
+      }
+    },
+    {
+      "condition": "openwiki_solo",
+      "score": 18,
+      "max_score": 30,
+      "elapsed_seconds": 88.538,
+      "input_tokens": 69725,
+      "cached_input_tokens": 58496,
+      "fresh_input_tokens": 11229,
+      "output_tokens": 4140,
+      "reasoning_output_tokens": 2015,
+      "completed_tool_calls": 3,
+      "calls_by_source": {
+        "shell": 3
+      }
+    },
+    {
+      "condition": "graphify_serena",
+      "score": 30,
+      "max_score": 30,
+      "elapsed_seconds": 119.356,
+      "input_tokens": 284109,
+      "cached_input_tokens": 243968,
+      "fresh_input_tokens": 40141,
+      "output_tokens": 4986,
+      "reasoning_output_tokens": 1563,
+      "completed_tool_calls": 34,
+      "calls_by_source": {
+        "serena": 34
+      }
+    },
+    {
+      "condition": "graphify_openwiki",
+      "score": 18,
+      "max_score": 30,
+      "elapsed_seconds": 168.403,
+      "input_tokens": 497836,
+      "cached_input_tokens": 435456,
+      "fresh_input_tokens": 62380,
+      "output_tokens": 6758,
+      "reasoning_output_tokens": 4350,
+      "completed_tool_calls": 44,
+      "calls_by_source": {
+        "shell": 2,
+        "graphify": 42
+      }
+    },
+    {
+      "condition": "serena_openwiki",
+      "score": 29,
+      "max_score": 30,
+      "elapsed_seconds": 137.669,
+      "input_tokens": 417825,
+      "cached_input_tokens": 372992,
+      "fresh_input_tokens": 44833,
+      "output_tokens": 5718,
+      "reasoning_output_tokens": 2512,
+      "completed_tool_calls": 36,
+      "calls_by_source": {
+        "serena": 36
+      }
+    },
+    {
+      "condition": "all_tools",
+      "score": 27,
+      "max_score": 30,
+      "elapsed_seconds": 160.806,
+      "input_tokens": 436669,
+      "cached_input_tokens": 383872,
+      "fresh_input_tokens": 52797,
+      "output_tokens": 7124,
+      "reasoning_output_tokens": 2915,
+      "completed_tool_calls": 64,
+      "calls_by_source": {
+        "serena": 58,
+        "graphify": 6
+      }
+    }
+  ],
+  "checklists": {
+    "graphify_solo": {
+      "A": [
+        {
+          "criterion": "make_context",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "parse_args",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Group.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "invoked_subcommand",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "child context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "callback via Context.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EOF/KeyboardInterrupt to Abort",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "ClickException behavior",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EPIPE and explicit Exit behavior",
+          "passed": true,
+          "points": 1
+        }
+      ],
+      "B": [
+        {
+          "criterion": "core.py:1415",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "core.py:2001",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "decorators.py:93",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "decorators.py:119",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "complete four-site inventory",
+          "passed": false,
+          "points": 0
+        }
+      ],
+      "C": [
+        {
+          "criterion": "sys mode Python streams",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd mode descriptors 1 and 2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "temporary file and dup2",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "fd capture before isolation",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "saved original descriptor",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "restore/stop",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "stdout/stderr/result merge",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "direct/native/subprocess output",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "Windows restriction",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "thread/concurrency limitation",
+          "passed": true,
+          "points": 1
+        }
+      ]
+    },
+    "serena_solo": {
+      "A": [
+        {
+          "criterion": "make_context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "parse_args",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Group.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "invoked_subcommand",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "child context",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "callback via Context.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EOF/KeyboardInterrupt to Abort",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "ClickException behavior",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EPIPE and explicit Exit behavior",
+          "passed": true,
+          "points": 1
+        }
+      ],
+      "B": [
+        {
+          "criterion": "core.py:1415",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "core.py:2001",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "decorators.py:93",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "decorators.py:119",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "complete four-site inventory",
+          "passed": true,
+          "points": 2
+        }
+      ],
+      "C": [
+        {
+          "criterion": "sys mode Python streams",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd mode descriptors 1 and 2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "temporary file and dup2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd capture before isolation",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "saved original descriptor",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "restore/stop",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "stdout/stderr/result merge",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "direct/native/subprocess output",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Windows restriction",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "thread/concurrency limitation",
+          "passed": true,
+          "points": 1
+        }
+      ]
+    },
+    "openwiki_solo": {
+      "A": [
+        {
+          "criterion": "make_context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "parse_args",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Group.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "invoked_subcommand",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "child context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "callback via Context.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EOF/KeyboardInterrupt to Abort",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "ClickException behavior",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EPIPE and explicit Exit behavior",
+          "passed": true,
+          "points": 1
+        }
+      ],
+      "B": [
+        {
+          "criterion": "core.py:1415",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "core.py:2001",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "decorators.py:93",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "decorators.py:119",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "complete four-site inventory",
+          "passed": false,
+          "points": 0
+        }
+      ],
+      "C": [
+        {
+          "criterion": "sys mode Python streams",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd mode descriptors 1 and 2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "temporary file and dup2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd capture before isolation",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "saved original descriptor",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "restore/stop",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "stdout/stderr/result merge",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "direct/native/subprocess output",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Windows restriction",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "thread/concurrency limitation",
+          "passed": true,
+          "points": 1
+        }
+      ]
+    },
+    "graphify_serena": {
+      "A": [
+        {
+          "criterion": "make_context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "parse_args",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Group.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "invoked_subcommand",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "child context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "callback via Context.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EOF/KeyboardInterrupt to Abort",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "ClickException behavior",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EPIPE and explicit Exit behavior",
+          "passed": true,
+          "points": 1
+        }
+      ],
+      "B": [
+        {
+          "criterion": "core.py:1415",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "core.py:2001",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "decorators.py:93",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "decorators.py:119",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "complete four-site inventory",
+          "passed": true,
+          "points": 2
+        }
+      ],
+      "C": [
+        {
+          "criterion": "sys mode Python streams",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd mode descriptors 1 and 2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "temporary file and dup2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd capture before isolation",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "saved original descriptor",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "restore/stop",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "stdout/stderr/result merge",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "direct/native/subprocess output",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Windows restriction",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "thread/concurrency limitation",
+          "passed": true,
+          "points": 1
+        }
+      ]
+    },
+    "graphify_openwiki": {
+      "A": [
+        {
+          "criterion": "make_context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "parse_args",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Group.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "invoked_subcommand",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "child context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "callback via Context.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EOF/KeyboardInterrupt to Abort",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "ClickException behavior",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EPIPE and explicit Exit behavior",
+          "passed": true,
+          "points": 1
+        }
+      ],
+      "B": [
+        {
+          "criterion": "core.py:1415",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "core.py:2001",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "decorators.py:93",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "decorators.py:119",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "complete four-site inventory",
+          "passed": false,
+          "points": 0
+        }
+      ],
+      "C": [
+        {
+          "criterion": "sys mode Python streams",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd mode descriptors 1 and 2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "temporary file and dup2",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "fd capture before isolation",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "saved original descriptor",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "restore/stop",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "stdout/stderr/result merge",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "direct/native/subprocess output",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Windows restriction",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "thread/concurrency limitation",
+          "passed": true,
+          "points": 1
+        }
+      ]
+    },
+    "serena_openwiki": {
+      "A": [
+        {
+          "criterion": "make_context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "parse_args",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Group.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "invoked_subcommand",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "child context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "callback via Context.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EOF/KeyboardInterrupt to Abort",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "ClickException behavior",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EPIPE and explicit Exit behavior",
+          "passed": true,
+          "points": 1
+        }
+      ],
+      "B": [
+        {
+          "criterion": "core.py:1415",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "core.py:2001",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "decorators.py:93",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "decorators.py:119",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "complete four-site inventory",
+          "passed": true,
+          "points": 2
+        }
+      ],
+      "C": [
+        {
+          "criterion": "sys mode Python streams",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd mode descriptors 1 and 2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "temporary file and dup2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd capture before isolation",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "saved original descriptor",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "restore/stop",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "stdout/stderr/result merge",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "direct/native/subprocess output",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Windows restriction",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "thread/concurrency limitation",
+          "passed": true,
+          "points": 1
+        }
+      ]
+    },
+    "all_tools": {
+      "A": [
+        {
+          "criterion": "make_context",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "parse_args",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Group.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "resolve_command",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "invoked_subcommand",
+          "passed": false,
+          "points": 0
+        },
+        {
+          "criterion": "child context",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "callback via Context.invoke",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EOF/KeyboardInterrupt to Abort",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "ClickException behavior",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "EPIPE and explicit Exit behavior",
+          "passed": true,
+          "points": 1
+        }
+      ],
+      "B": [
+        {
+          "criterion": "core.py:1415",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "core.py:2001",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "decorators.py:93",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "decorators.py:119",
+          "passed": true,
+          "points": 2
+        },
+        {
+          "criterion": "complete four-site inventory",
+          "passed": true,
+          "points": 2
+        }
+      ],
+      "C": [
+        {
+          "criterion": "sys mode Python streams",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd mode descriptors 1 and 2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "temporary file and dup2",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "fd capture before isolation",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "saved original descriptor",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "restore/stop",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "stdout/stderr/result merge",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "direct/native/subprocess output",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "Windows restriction",
+          "passed": true,
+          "points": 1
+        },
+        {
+          "criterion": "thread/concurrency limitation",
+          "passed": true,
+          "points": 1
+        }
+      ]
+    }
+  }
+}

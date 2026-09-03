@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://studio.oratelecom.net/tokenwar/study-usecase/">
+  <title>Benchmark réel — Graphify, Serena et OpenWiki</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #09111f;
+      --panel: #101c2e;
+      --panel2: #14243a;
+      --text: #eaf1fb;
+      --muted: #9eb0c7;
+      --line: #2a405b;
+      --cyan: #5ee7e7;
+      --blue: #76a9ff;
+      --violet: #c399ff;
+      --green: #6de4a4;
+      --amber: #ffd479;
+      --red: #ff8f9c;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 85% 0%, #17305a 0, transparent 31rem), var(--bg);
+      color: var(--text);
+      font: 16px/1.58 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { color: #d8e7ff; background: #07101d; padding: .1rem .35rem; border-radius: .3rem; }
+    .wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 72px 0 42px; border-bottom: 1px solid var(--line); }
+    .eyebrow { color: var(--cyan); text-transform: uppercase; letter-spacing: .16em; font-size: .78rem; font-weight: 800; }
+    h1 { font-size: clamp(2.25rem, 6vw, 4.8rem); line-height: 1.02; margin: .7rem 0 1.2rem; max-width: 1000px; letter-spacing: -.045em; }
+    h2 { margin: 0 0 1rem; font-size: clamp(1.65rem, 3vw, 2.45rem); letter-spacing: -.025em; }
+    h3 { margin: 0 0 .55rem; font-size: 1.2rem; }
+    p { margin: .45rem 0 1rem; }
+    .lead { color: #c8d7ea; font-size: 1.25rem; max-width: 900px; }
+    .meta { color: var(--muted); display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1.5rem; }
+    nav { position: sticky; top: 0; z-index: 5; background: rgba(9,17,31,.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+    nav .wrap { display: flex; overflow-x: auto; gap: 1.25rem; padding: .85rem 0; white-space: nowrap; }
+    nav a { color: #bed0e6; font-size: .9rem; }
+    main section { padding: 54px 0; border-bottom: 1px solid var(--line); }
+    .grid { display: grid; gap: 18px; }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card { background: linear-gradient(150deg, var(--panel2), var(--panel)); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+    .card.graphify { border-top: 3px solid var(--cyan); }
+    .card.serena { border-top: 3px solid var(--blue); }
+    .card.openwiki { border-top: 3px solid var(--violet); }
+    .tag { display: inline-block; padding: .2rem .55rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: .78rem; margin-right: .35rem; }
+    .verdict { border: 1px solid #367259; background: linear-gradient(135deg, rgba(30,91,65,.45), rgba(16,28,46,.8)); border-radius: 18px; padding: 26px; font-size: 1.12rem; }
+    .warning { border-left: 4px solid var(--amber); background: rgba(255,212,121,.08); padding: 16px 18px; border-radius: 8px; }
+    .fact { border-left: 4px solid var(--cyan); background: rgba(94,231,231,.07); padding: 16px 18px; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: #dbe9fa; background: #111f32; position: sticky; top: 48px; }
+    td:first-child { font-weight: 650; }
+    .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+    .yes { color: var(--green); font-weight: 700; }
+    .partial { color: var(--amber); font-weight: 700; }
+    .no { color: var(--muted); }
+    .score { font-size: 2rem; font-weight: 850; line-height: 1; margin: .4rem 0 .8rem; }
+    ul { padding-left: 1.25rem; }
+    li { margin: .42rem 0; }
+    .flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: 12px; margin: 24px 0; }
+    .flow .step { border: 1px solid var(--line); border-radius: 14px; padding: 18px; background: var(--panel); }
+    .arrow { align-self: center; color: var(--cyan); font-size: 1.8rem; }
+    .evidence { font-size: .9rem; color: var(--muted); }
+    .evidence a { overflow-wrap: anywhere; }
+    .kicker { color: var(--muted); font-size: .92rem; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .status-pass { color: var(--green); }
+    .status-running { color: var(--amber); }
+    .status-warn { color: var(--amber); }
+    footer { padding: 40px 0 70px; color: var(--muted); }
+    @media (max-width: 850px) {
+      .grid.three, .grid.two { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); justify-self: center; }
+      header { padding-top: 45px; }
+    }
+    @media print {
+      :root { color-scheme: light; }
+      body { background: white; color: #182235; }
+      nav { display: none; }
+      .card, .step { background: white !important; break-inside: avoid; }
+      a { color: #075ea8; }
+      main section { padding: 28px 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="eyebrow">Benchmark exécuté et auditable · 3 septembre 2026</div>
+      <h1>Oui : prenez les trois, mais rendez-les disponibles à la demande</h1>
+      <div class="verdict" style="margin-top:22px">
+        <strong>Décision claire&nbsp;: OUI pour installer et exposer les trois&nbsp;; NON pour appeler les trois à chaque tâche.</strong> Leur coexistence MCP est prouvée et leurs capacités de code sont distinctes. En revanche, ce benchmark ne prouve pas que Graphify et OpenWiki améliorent chaque réponse&nbsp;: dans les essais trio, l’agent a souvent choisi Serena et obtenu la même qualité. La bonne décision est donc <strong>trois capacités disponibles, une source choisie d’abord</strong>, puis escalade seulement si nécessaire.
+      </div>
+      <p class="fact" style="margin-top:18px"><strong>Pile opérationnelle proposée&nbsp;:</strong> agent de code = Serena + Ponytail + RTK&nbsp;; agent d’architecture = Graphify + OpenWiki, avec Serena pour confirmer&nbsp;; Claude‑mem traverse les rôles comme mémoire inter-session. OpenWiki est actualisé après les changements qui méritent une explication durable.</p>
+      <p class="lead" style="margin-top:22px">Le test principal est désormais aligné sur la promesse de chaque outil&nbsp;: architecture, refactoring multi-fichiers et documentation durable. Chaque scénario est exécuté trois fois avec le spécialiste seul, puis trois fois avec les trois sources disponibles. Les traces ont subi deux audits contradictoires par <code>claude -p</code>.</p>
+      <div class="meta">
+        <span>18 exécutions comparées</span>
+        <span>Click&nbsp;: 12&nbsp;674 lignes Python</span>
+        <span>Tokens frais + cache séparés</span>
+        <span>5 refactorings multi-fichiers réussis sur 6</span>
+      </div>
+    </div>
+  </header>
+
+  <nav>
+    <div class="wrap">
+      <a href="#benchmark">Tests / résultats</a>
+      <a href="#verdict">Verdict</a>
+      <a href="#activation">Activation des agents</a>
+      <a href="#roles">Rôles</a>
+      <a href="#matrice">Matrice</a>
+      <a href="#audit">Forces / faiblesses</a>
+      <a href="#concurrence">Concurrence</a>
+      <a href="#tokens">Tokens</a>
+      <a href="#architecture">Architecture cible</a>
+      <a href="#preuves">Méthode et preuves</a>
+      <a href="#installation">Installation</a>
+    </div>
+  </nav>
+
+  <main>
+    <section id="benchmark">
+      <div class="wrap">
+        <h2>Tests alignés sur la promesse de chaque projet</h2>
+        <div class="verdict">
+          <strong>Résultat principal&nbsp;:</strong> la qualité est équivalente quand les runs terminent, mais le coût dépend fortement du routage. Graphify seul et le trio donnent pratiquement la même carte architecturale. Serena réussit le refactoring multi-fichiers dans <strong>2/3</strong> runs seul et <strong>3/3</strong> avec le trio&nbsp;; l’échec seul est un blocage de 352,4 s avant édition. Le wiki généré par OpenWiki donne <strong>18/18</strong> en 47,9 s seul&nbsp;; le trio reste à 18/18 mais monte à 69,7 s et presque quatre fois plus de tokens frais.
+        </div>
+
+        <h3 style="margin-top:26px">Protocole</h3>
+        <p>Dépôt réel <a href="https://github.com/pallets/click">Pallets Click</a>, source figée au commit <a href="https://github.com/pallets/click/commit/36baa15ff831b939a22bc527cd76ce653ef6f66d"><code>36baa15</code></a>, 12&nbsp;674 lignes Python. Modèle <code>gpt-5.6-sol</code>, effort <code>medium</code>, contexte neuf. Pour chaque rôle, le texte de tâche est identique entre spécialiste et trio&nbsp;; seul le préfixe d’accès diffère nécessairement&nbsp;: une source imposée contre trois sources routables. Trois répétitions par cellule, soit <strong>18 runs</strong>.</p>
+        <div class="grid three" style="margin:22px 0">
+          <article class="card graphify"><h3>Test Graphify · architecture</h3><p>Construire la carte d’impact <code>argv → parsing → contextes → groupes → erreurs → CliRunner</code>, sans exiger de lignes exactes. <a href="benchmark/prompts/role_graphify_architecture.txt">Énoncé</a>.</p></article>
+          <article class="card serena"><h3>Test Serena · action</h3><p>Renommer sémantiquement <code>_expand_args</code> dans 3 fichiers&nbsp;: définition, import/appel de production et 6 références de test, puis lancer 104 tests Click. <a href="benchmark/prompts/role_serena_multifile_refactor.txt">Énoncé</a>.</p></article>
+          <article class="card openwiki"><h3>Test OpenWiki · mémoire</h3><p>Produire un mémo opérationnel <code>CliRunner sys vs fd</code> depuis le corpus Markdown déjà généré, avec décisions, limites et liens au cycle d’exécution. <a href="benchmark/prompts/role_openwiki_onboarding.txt">Énoncé</a>.</p></article>
+        </div>
+
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Test</th><th>Mode</th><th>Qualité / fiabilité</th><th>Temps moyen</th><th>Entrée fraîche</th><th>Cache lu</th><th>Sortie</th><th>Appels moyens</th></tr></thead>
+            <tbody>
+              <tr><td>Architecture</td><td><a href="benchmark/runs/role_graphify_specialist_r1/answer.md">Graphify seul</a></td><td>19,33/20 · 3/3 terminés</td><td>140,4 s</td><td>66&nbsp;471</td><td>236&nbsp;843</td><td>6&nbsp;271</td><td>42,3 · Graphify</td></tr>
+              <tr><td>Architecture</td><td><a href="benchmark/runs/role_graphify_trio_r1/answer.md">Trio disponible</a></td><td class="yes">19,67/20 · 3/3</td><td>138,0 s</td><td class="yes">46&nbsp;873</td><td>257&nbsp;109</td><td>5&nbsp;851</td><td>27,7 · surtout Serena</td></tr>
+              <tr><td>Refactoring</td><td><a href="benchmark/runs/role_serena_v2_specialist_r1/answer.md">Serena seul</a></td><td class="partial">2/3 réussis · 10/10 si terminé · 1 incident à 0/10</td><td>185,9 s incident inclus<br><span class="kicker">102,7 s sur les 2 succès</span></td><td>30&nbsp;602 <span class="kicker">n=2</span></td><td>302&nbsp;208 <span class="kicker">n=2</span></td><td>3&nbsp;136 <span class="kicker">n=2</span></td><td>13,0 · Serena</td></tr>
+              <tr><td>Refactoring</td><td><a href="benchmark/runs/role_serena_v2_trio_r1/answer.md">Trio disponible</a></td><td class="yes">3/3 réussis · 10/10</td><td>114,5 s</td><td>23&nbsp;977</td><td>375&nbsp;680</td><td>3&nbsp;110</td><td>22,0 · Serena</td></tr>
+              <tr><td>Mémo durable</td><td><a href="benchmark/runs/role_openwiki_specialist_r1/answer.md">Wiki OpenWiki seul</a></td><td class="yes">18/18 · 3/3</td><td class="yes">47,9 s</td><td class="yes">7&nbsp;531</td><td>40&nbsp;917</td><td>2&nbsp;021</td><td class="yes">2,0 · lectures Markdown</td></tr>
+              <tr><td>Mémo durable</td><td><a href="benchmark/runs/role_openwiki_trio_r1/answer.md">Trio disponible</a></td><td class="yes">18/18 · 3/3</td><td>69,7 s</td><td>29&nbsp;135</td><td>167&nbsp;595</td><td>2&nbsp;462</td><td>7,7 · surtout Serena</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="kicker">Moyennes descriptives, <strong>n=3</strong>, sans prétention de significativité statistique. «&nbsp;Entrée fraîche&nbsp;» = entrée cumulée traitée − cache lu, d’après <code>turn.completed</code>. Le run interrompu n’a pas de télémétrie tokens&nbsp;: il compte dans la fiabilité et le temps, pas dans les moyennes tokens. Les prix ne sont pas déduits de ces compteurs, car le cache peut être facturé différemment. <a href="benchmark/role-results.json">Résultats structurés des 18 runs</a> · <a href="benchmark/score_role_benchmark.py">scorer reproductible</a>.</p>
+
+        <div class="grid three" style="margin-top:24px">
+          <article class="card graphify"><h3>Graphify&nbsp;: qualité démontrée, gain non démontré</h3><p>Le graphe seul restitue 19–20 faits architecturaux sur 20. Mais le trio, routé surtout vers Serena, fait aussi bien avec moins de tokens frais. Sur ce dépôt et cette question, Graphify n’établit donc pas une supériorité de vitesse ou de tokens.</p></article>
+          <article class="card serena"><h3>Serena&nbsp;: preuve opérationnelle forte</h3><p>Cinq worktrees contiennent exactement les 3 fichiers attendus et 9 remplacements, sans erreur de diff&nbsp;; <strong>104 tests passent sur chacun</strong>. Un sixième run seul s’est bloqué avant édition et reste compté comme échec de fiabilité.</p></article>
+          <article class="card openwiki"><h3>OpenWiki&nbsp;: lecture très compacte après génération</h3><p>Le corpus pré-généré répond 18/18 avec 2 lectures et 7&nbsp;531 tokens frais en moyenne. Avec le trio, le routeur explore Serena&nbsp;: même score, +45&nbsp;% de temps et +287&nbsp;% de tokens frais. Cela mesure le corpus, pas un appel MCP de requête OpenWiki.</p></article>
+        </div>
+
+        <h3 style="margin-top:28px">Coût de préparation avant la première question</h3>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Outil</th><th>Préparation observée</th><th>Tokens modèle</th><th>Artefacts</th></tr></thead>
+            <tbody>
+              <tr><td>Graphify</td><td>Extraction 2,00 s + clustering 0,75 s&nbsp;; 2&nbsp;044 nœuds, 4&nbsp;079 arêtes</td><td class="yes">0 en <code>--code-only</code></td><td>5,1 Mo</td></tr>
+              <tr><td>Serena</td><td>Démarrage et résolution d’un symbole en 1,90 s dans le smoke test direct</td><td class="yes">0 côté serveur</td><td>0,7 Mo de config/cache local</td></tr>
+              <tr><td>OpenWiki</td><td>Génération de 4 pages en 315,46 s via Codex</td><td>1&nbsp;942&nbsp;181 entrée cumulée, dont 1&nbsp;849&nbsp;600 en cache&nbsp;; 92&nbsp;581 fraîche&nbsp;; 12&nbsp;270 sortie</td><td>120 Ko · 2&nbsp;264 mots + Claims</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="margin-top:28px">Preuve qu’ils cohabitent — et frottement découvert</h3>
+        <p>Le <a href="benchmark/mcp-coexistence-results.json">test MCP direct</a> a démarré les trois serveurs simultanément et reçu les réponses de leurs <strong>10 + 29 + 6 outils</strong> en 2,07 s&nbsp;: statistiques Graphify, symbole <code>Command/main</code> via Serena, cycle update OpenWiki. <strong>La coexistence technique est établie pour ce snapshot</strong>&nbsp;: aucun conflit de nom ni de chemin n’a été observé.</p>
+        <p class="warning"><strong>Ils ne se “marchent” pas dessus, mais il faut ignorer leurs artefacts.</strong> Sans <code>.gitignore</code>/<code>.openwikiignore</code>, OpenWiki a considéré <code>graphify-out/</code>, <code>.serena/</code> et les configs d’intégration non suivies comme des changements. Après exclusion et commit de la configuration, <code>changedPaths</code> devient vide. Dans ce snapshot, le MCP OpenWiki ouvre néanmoins encore un run et accepte un plan à zéro page au lieu de renvoyer le <code>noop</code> annoncé&nbsp;: c’est un coût d’orchestration réel à surveiller.</p>
+
+        <h3 style="margin-top:28px">Challenge indépendant par Claude</h3>
+        <p><code>claude -p</code> 2.1.259, modèle <code>claude-opus-5</code>, a challengé deux fois le protocole. <strong>Premier verdict&nbsp;: FAIL</strong>&nbsp;: rename Serena trop simple, libellé OpenWiki imprécis, regex trop stricte et conclusion de routage non prouvée. Après correction et nouveau benchmark Serena multi-fichiers, <strong>second verdict&nbsp;: PASS WITH RESERVATIONS</strong>. Claude a encore trouvé un faux positif dans le scorer d’événements&nbsp;; il est corrigé dans le résultat publié, qui donne bien 0/10 au run interrompu. <a href="benchmark/role-claude-review.md">Audits, usages et corrections appliquées</a>.</p>
+        <details style="margin-top:22px" class="warning"><summary><strong>Ancien benchmark composite — conservé comme pilote biaisé</strong></summary><p>Le tableau initial mélangeait architecture, numéros de lignes exacts et documentation dans une note unique. C’est pourquoi Serena y dominait&nbsp;: la grille favorisait sa spécialité. Les <a href="benchmark/results.json">données</a> et le <a href="benchmark/score_results.py">scorer</a> restent auditables, mais ils ne servent plus au verdict principal.</p></details>
+      </div>
+    </section>
+
+    <section id="verdict">
+      <div class="wrap">
+        <h2>Verdict exécutif</h2>
+        <div class="verdict">
+          <strong>Oui, prenez les trois comme capacités disponibles.</strong> Le smoke test prouve qu’ils cohabitent. <strong>La valeur opérationnelle de Serena est directement démontrée</strong> par les diffs et tests. Graphify et le wiki OpenWiki réussissent leurs scénarios de compréhension, mais le trio piloté par l’agent obtient la même qualité en utilisant majoritairement Serena&nbsp;: ce benchmark ne prouve ni leur nécessité systématique ni un gain universel. La recommandation est donc un choix d’architecture fondé sur leurs fonctions distinctes, avec activation à la demande.
+        </div>
+        <p class="fact" style="margin-top:18px"><strong>La formule exacte issue du code&nbsp;:</strong> OpenWiki <em>explique et mémorise</em> sous forme de pages sourcées&nbsp;; Graphify <em>modélise et traverse</em> des relations&nbsp;; Serena <em>résout et agit</em> sur les symboles du code courant.</p>
+      </div>
+    </section>
+
+    <section id="activation">
+      <div class="wrap">
+        <h2>La vraie architecture&nbsp;: activer les capacités selon le rôle de l’agent</h2>
+        <div class="verdict">
+          <strong>Règle centrale&nbsp;:</strong> la pile possède six capacités, mais une tâche ne doit pas charger six résultats. <strong>Serena</strong> agit sur le code, <strong>Graphify</strong> cartographie, <strong>OpenWiki</strong> documente, <strong>Ponytail</strong> limite le code au nécessaire, <strong>RTK</strong> compacte les sorties shell et <strong>Claude‑mem</strong> restitue l’historique utile entre sessions.
+        </div>
+
+        <h3 style="margin-top:28px">Matrice d’activation par type d’agent</h3>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Type d’agent</th><th>Socle actif</th><th>Activation à la demande</th><th>Ce qu’il ne faut pas faire</th></tr></thead>
+            <tbody>
+              <tr><td>Agent de code</td><td><strong>Serena + Ponytail + RTK</strong><br><span class="kicker">Claude‑mem en arrière-plan si la mémoire inter-session est autorisée</span></td><td>OpenWiki pour une règle ou intention documentée&nbsp;; Graphify si le changement traverse plusieurs composants.</td><td>Charger wiki, graphe et gros fichiers avant une correction locale évidente.</td></tr>
+              <tr><td>Agent d’architecture</td><td><strong>Graphify + OpenWiki</strong></td><td>Serena pour confirmer les références exactes&nbsp;; Claude‑mem pour retrouver une décision ou une tentative passée&nbsp;; RTK pour les inspections shell.</td><td>Prendre une mémoire de session Claude‑mem pour une documentation canonique.</td></tr>
+              <tr><td>Agent de correction locale</td><td><strong>Serena + Ponytail + RTK</strong></td><td>Une page OpenWiki seulement si le comportement métier est ambigu.</td><td>Construire une analyse globale sans indice de transversalité.</td></tr>
+              <tr><td>Agent de refactoring multi-modules</td><td><strong>Graphify + Serena + Ponytail + RTK</strong></td><td>OpenWiki pour préserver l’intention et préparer la mise à jour documentaire&nbsp;; Claude‑mem pour les décisions historiques.</td><td>Appliquer le graphe comme vérité finale sans validation sémantique Serena et tests.</td></tr>
+              <tr><td>Agent DevOps / SRE</td><td><strong>RTK</strong> pour logs et commandes supportées<br><span class="kicker">Ponytail pour garder scripts/configs minimaux</span></td><td>Serena pour IaC, scripts et configuration&nbsp;; OpenWiki pour runbooks&nbsp;; Graphify pour dépendances de services&nbsp;; Claude‑mem pour chronologie d’incident.</td><td>Compacter au point de masquer la sortie brute d’un échec&nbsp;: conserver l’artefact complet.</td></tr>
+              <tr><td>Agent de revue de PR</td><td><strong>Graphify + Serena + Ponytail review + RTK</strong></td><td>OpenWiki si une explication durable devient fausse&nbsp;; Claude‑mem si la PR fait suite à une investigation antérieure.</td><td>Régénérer tout OpenWiki pour chaque petite PR.</td></tr>
+              <tr><td>Agent de documentation / onboarding</td><td><strong>OpenWiki</strong></td><td>Graphify pour les relations, Serena pour vérifier le code vivant, Claude‑mem pour retrouver du contexte non encore formalisé.</td><td>Publier automatiquement une observation Claude‑mem comme vérité d’équipe sans vérification.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 style="margin-top:28px">Cycle de développement recommandé</h3>
+        <div class="flow">
+          <div class="step"><strong>1 · Reprendre le contexte</strong><br><span class="kicker">Claude‑mem recherche les observations et décisions pertinentes. OpenWiki fournit la connaissance durable du projet.</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><strong>2 · Comprendre et choisir</strong><br><span class="kicker">Graphify si l’impact est transversal. Ponytail applique YAGNI → réutilisation → stdlib/native → minimum nécessaire.</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><strong>3 · Modifier et valider</strong><br><span class="kicker">Serena navigue/refactore. RTK compacte les sorties shell, Git et tests sans remplacer les artefacts bruts d’échec.</span></div>
+        </div>
+        <div class="flow">
+          <div class="step"><strong>4 · Après le changement</strong><br><span class="kicker">Tests et revue Ponytail. Graphify actualise le snapshot structurel si nécessaire.</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><strong>5 · Après merge</strong><br><span class="kicker">OpenWiki détecte les pages touchées et ne régénère que la documentation durable concernée.</span></div>
+          <div class="arrow">→</div>
+          <div class="step"><strong>6 · Entre les sessions</strong><br><span class="kicker">Claude‑mem conserve une mémoire compressée et interrogeable&nbsp;; les décisions stabilisées remontent dans OpenWiki.</span></div>
+        </div>
+
+        <h3 style="margin-top:28px">Disponibilité et cadence</h3>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Capacité</th><th>Quand elle tourne</th><th>Quand son contenu entre dans le contexte</th></tr></thead>
+            <tbody>
+              <tr><td>Serena</td><td>Serveur disponible pendant les sessions de code.</td><td>À chaque besoin de symbole, référence, diagnostic ou édition.</td></tr>
+              <tr><td>Graphify</td><td>Index local créé une fois, puis actualisé quand le checkout change.</td><td>Seulement pour une question de relation, chemin, architecture ou impact.</td></tr>
+              <tr><td>OpenWiki</td><td>Détection après merge sur <code>main</code>, contrôle périodique, validation complète avant release majeure.</td><td>Lire l’index puis les seules pages utiles&nbsp;; ne pas injecter le wiki entier.</td></tr>
+              <tr><td>Ponytail</td><td>Couche légère active sur les tâches de code et leur revue.</td><td>Avant de choisir l’implémentation et pendant la vérification du diff.</td></tr>
+              <tr><td>RTK</td><td>Hook disponible pour les agents dev et DevOps.</td><td>Uniquement lorsqu’une commande shell supportée est exécutée&nbsp;; les outils natifs Read/Grep ne passent pas automatiquement par son hook Bash.</td></tr>
+              <tr><td>Claude‑mem</td><td>Hooks de session et worker de mémoire, si la politique de confidentialité l’autorise.</td><td>Recherche progressive&nbsp;: index compact, chronologie, puis détails des seules observations retenues.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid three" style="margin-top:24px">
+          <article class="card"><h3>Ponytail · discipline de solution</h3><p>Il ne remplace ni Serena ni les tests. Sa ladder demande d’abord si le code doit exister, peut être réutilisé, fourni par la stdlib ou la plateforme, puis choisit le minimum qui fonctionne sans sacrifier sécurité, validation ou accessibilité. <a href="https://github.com/DietrichGebert/ponytail#how-it-works">Source officielle</a>.</p></article>
+          <article class="card"><h3>RTK · hygiène du contexte shell</h3><p>Proxy Rust qui filtre les sorties de commandes courantes avant leur entrée dans le contexte&nbsp;: fichiers, recherche, Git, tests et Docker. Ses économies annoncées portent sur la sortie Bash, <strong>pas directement sur la facture totale</strong>. <a href="https://github.com/rtk-ai/rtk#what-rtk-does">Source officielle</a>.</p></article>
+          <article class="card"><h3>Claude‑mem · mémoire épisodique</h3><p>Capture les observations et résumés de sessions, puis expose une récupération progressive par recherche, chronologie et détails. Il complète OpenWiki&nbsp;: <strong>Claude‑mem se souvient de ce qui s’est passé&nbsp;; OpenWiki explique ce que le système est censé faire</strong>. <a href="https://github.com/thedotmack/claude-mem#how-it-works">Source officielle</a>.</p></article>
+        </div>
+        <p class="warning" style="margin-top:20px"><strong>Niveau de preuve&nbsp;:</strong> Ponytail, RTK et Claude‑mem sont positionnés ici d’après leur code/documentation officielle consultée le 4 septembre 2026. Ils n’ont pas été clonés ni inclus dans le benchmark Click de cette page. Leurs pourcentages publiés ne sont donc pas repris comme résultats de notre étude. Pour Claude‑mem, exclure secrets et données sensibles de la capture et ne promouvoir une observation dans OpenWiki qu’après vérification.</p>
+      </div>
+    </section>
+
+    <section id="roles">
+      <div class="wrap">
+        <h2>Le rôle réel de chaque brique</h2>
+        <div class="grid three">
+          <article class="card graphify">
+            <span class="tag">carte structurelle</span><span class="tag">persistant</span>
+            <h3>Graphify</h3>
+            <div class="score">Relier</div>
+            <p>Construit un graphe NetworkX de nœuds et relations issus du code, puis le regroupe en communautés. Le mode <code>--code-only</code> est local et sans appel modèle. Les requêtes MCP font BFS/DFS, voisins, chemins, hubs, statistiques et impact de PR.</p>
+            <p class="evidence">Preuves&nbsp;: <a href="https://github.com/Graphify-Labs/graphify/blob/33362d969292b57eda82f3fbd9eb5f3f5bc9bbc2/graphify/extract.py#L1">extraction Tree-sitter</a>, <a href="https://github.com/Graphify-Labs/graphify/blob/33362d969292b57eda82f3fbd9eb5f3f5bc9bbc2/graphify/cluster.py#L96">Leiden/Louvain</a>, <a href="https://github.com/Graphify-Labs/graphify/blob/33362d969292b57eda82f3fbd9eb5f3f5bc9bbc2/graphify/serve.py#L1614">10 outils MCP</a>, <a href="https://github.com/Graphify-Labs/graphify/blob/33362d969292b57eda82f3fbd9eb5f3f5bc9bbc2/graphify/affected.py#L190">parcours d’impact inverse</a>.</p>
+          </article>
+          <article class="card serena">
+            <span class="tag">IDE agent</span><span class="tag">vivant</span>
+            <h3>Serena</h3>
+            <div class="score">Agir</div>
+            <p>Expose au modèle hôte une couche d’IDE via LSP ou JetBrains&nbsp;: symboles, références, implémentations, diagnostics et refactorings. Son renommage LSP demande un <code>WorkspaceEdit</code> au serveur de langage puis applique les éditions dans tous les fichiers concernés.</p>
+            <p class="evidence">Preuves&nbsp;: <a href="https://github.com/oraios/serena/blob/801a388c2b7a6a8998f313291678b1609664e794/src/serena/tools/symbol_tools.py#L134">recherche symbolique</a>, <a href="https://github.com/oraios/serena/blob/801a388c2b7a6a8998f313291678b1609664e794/src/serena/code_editor.py#L381">renommage LSP</a>, <a href="https://github.com/oraios/serena/blob/801a388c2b7a6a8998f313291678b1609664e794/src/serena/tools/jetbrains_tools.py#L145">déplacement JetBrains</a>, <a href="https://github.com/oraios/serena/blob/801a388c2b7a6a8998f313291678b1609664e794/src/serena/tools/tools_base.py#L281">réduction des réponses</a>.</p>
+          </article>
+          <article class="card openwiki">
+            <span class="tag">documentation</span><span class="tag">preuves versionnées</span>
+            <h3>OpenWiki</h3>
+            <div class="score">Expliquer</div>
+            <p>Fait produire par un DeepAgent un wiki Markdown narratif, révisable et persistant. Ses Claims associent une affirmation à des ressources <code>repo://</code> versionnées. Son mode intégration délègue la recherche/rédaction à Codex, Claude, OpenCode ou Cursor et garde la file de pages, la validation et la finalisation.</p>
+            <p class="evidence">Preuves&nbsp;: <a href="https://github.com/langchain-ai/openwiki/blob/5c69350c757f3361360de26fc170e1aab6843bbc/src/agent/index.ts#L451">création du DeepAgent</a>, <a href="https://github.com/langchain-ai/openwiki/blob/5c69350c757f3361360de26fc170e1aab6843bbc/src/integrations/core/protocol.ts#L12">6 opérations MCP</a>, <a href="https://github.com/langchain-ai/openwiki/blob/5c69350c757f3361360de26fc170e1aab6843bbc/src/claims/brains/code/preflight.ts#L36">préflight des Claims</a>, <a href="https://github.com/langchain-ai/openwiki/blob/5c69350c757f3361360de26fc170e1aab6843bbc/src/agent/wiki-finalizer.ts#L248">finalisation déterministe</a>.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="matrice">
+      <div class="wrap">
+        <h2>Matrice factuelle des capacités</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Capacité</th><th>Graphify</th><th>Serena</th><th>OpenWiki</th></tr></thead>
+            <tbody>
+              <tr><td>Représentation principale</td><td>Graphe code/contenus, nœuds + arêtes + communautés</td><td>Symboles et diagnostics interrogés dans un LSP/IDE actif</td><td>Pages Markdown, liens, Claims et provenance</td></tr>
+              <tr><td>Compréhension macro</td><td class="yes">Forte structurelle</td><td class="partial">Possible par exploration</td><td class="yes">Forte narrative</td></tr>
+              <tr><td>Références exactes du code courant</td><td class="partial">Relations extraites ou inférées</td><td class="yes">Capacité centrale via LSP/JetBrains</td><td class="no">Pas un moteur de références</td></tr>
+              <tr><td>Analyse d’impact / chemin</td><td class="yes">Native&nbsp;: affected, shortest path, PR impact</td><td class="partial">Reconstruction par références</td><td class="partial">Explications pré-écrites, pas un call graph</td></tr>
+              <tr><td>Modifier/refactorer le code produit</td><td class="no">Non</td><td class="yes">Oui</td><td class="no">Non en génération&nbsp;: écrit dans <code>openwiki/</code></td></tr>
+              <tr><td>Wiki explicatif</td><td class="partial">Export mécanique par communautés/hubs</td><td class="no">Mémoires manuelles, pas un wiki généré</td><td class="yes">Produit principal, agentique et sourcé</td></tr>
+              <tr><td>Graphe visuel</td><td class="yes">Graphe des entités/relations extraites</td><td class="no">Dashboard d’outils, pas graphe d’architecture</td><td class="partial">Graphe des liens Markdown entre pages</td></tr>
+              <tr><td>Code sans coût d’API modèle</td><td class="yes"><code>--code-only</code> AST local</td><td class="yes">Le serveur n’appelle pas un modèle&nbsp;; le client agent oui</td><td class="no">La génération native appelle un modèle&nbsp;; l’intégration consomme le modèle hôte</td></tr>
+              <tr><td>Connaissances non-code</td><td class="yes">Docs/PDF/images/vidéos, souvent via passe LLM</td><td class="no">Principalement projet et fichiers</td><td class="yes">9 IDs de connecteurs&nbsp;: Git, Gmail/Google, Slack, Notion, X, web, HN, LangSmith, MCP</td></tr>
+              <tr><td>Persistance</td><td><code>graph.json</code>, rapports, wiki, mémoire de résultats</td><td>Mémoires projet + caches LSP, mais analyse surtout vivante</td><td>Wiki, sidecars Claims, checkpoint de run, SQLite agent</td></tr>
+              <tr><td>Fraîcheur</td><td>Nécessite update/watch/hooks</td><td>Synchronise le filesystem avec le LSP actif</td><td>Update planifié/manuelle, Claims détectant les preuves changées</td></tr>
+              <tr><td>Surface MCP observée</td><td>10 outils de requête/PR, lecture seule vis-à-vis du code</td><td>28 outils activés par défaut, 49 au total dans ce snapshot</td><td>6 outils de cycle de génération, pas un serveur de requête wiki générique</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="audit">
+      <div class="wrap">
+        <h2>Forces et faiblesses observées dans le code</h2>
+        <div class="grid three">
+          <article class="card graphify">
+            <h3>Graphify — forces</h3>
+            <ul>
+              <li>Extraction code locale et déterministe, très large éventail de grammaires Tree-sitter.</li>
+              <li>Modèle relationnel directement exploitable&nbsp;: BFS/DFS, voisins, chemins, communautés et blast radius.</li>
+              <li>Budgets explicites de sortie MCP, par défaut 2&nbsp;000 tokens pour les requêtes.</li>
+              <li>Mise à jour incrémentale par source avec séparation des couches AST et sémantique.</li>
+              <li>Arêtes étiquetées <code>EXTRACTED</code>, <code>INFERRED</code> ou <code>AMBIGUOUS</code>.</li>
+            </ul>
+            <h3>Graphify — faiblesses</h3>
+            <ul>
+              <li>Un extracteur Tree-sitter n’est pas un compilateur complet&nbsp;: la résolution inter-fichiers utilise aussi des heuristiques et peut rester ambiguë.</li>
+              <li>Le graphe persistant devient faux s’il n’est pas actualisé après les changements.</li>
+              <li>Le wiki exporté est assemblé depuis communautés/hubs&nbsp;: utile comme catalogue, moins apte à expliquer les intentions métier qu’un auteur agentique.</li>
+              <li>Aucun outil MCP ne renomme, déplace ou corrige le code.</li>
+              <li>Les contenus non-code et les noms riches de communautés peuvent nécessiter un modèle, donc coût et risque d’inférence.</li>
+            </ul>
+          </article>
+          <article class="card serena">
+            <h3>Serena — forces</h3>
+            <ul>
+              <li>Le meilleur niveau de précision opérationnelle des trois&nbsp;: symboles, références, implémentations, déclarations et diagnostics.</li>
+              <li>Renommage sémantique multi-fichier via le <code>WorkspaceEdit</code> produit par le serveur de langage.</li>
+              <li>Éditions au niveau du symbole, suppression sûre et diagnostics après édition.</li>
+              <li>Backend JetBrains plus riche&nbsp;: move, inline, inspections, hiérarchie, debug.</li>
+              <li>Réponses raccourcies progressivement et limite de caractères configurable.</li>
+            </ul>
+            <h3>Serena — faiblesses</h3>
+            <ul>
+              <li>La qualité dépend du serveur de langage, de sa configuration et de la qualité sémantique propre à chaque langage.</li>
+              <li>Démarrage/indexation et installation de serveurs peuvent être plus lourds qu’une recherche textuelle.</li>
+              <li>Ne fabrique pas nativement une vue macro durable ou un manuel d’architecture complet.</li>
+              <li>Les capacités JetBrains avancées nécessitent le plugin/IDE correspondant&nbsp;; plusieurs outils sont marqués optionnels ou bêta.</li>
+              <li>Sa surface d’édition et de shell est puissante&nbsp;: le contrôle d’autorisation doit venir du client/orchestrateur.</li>
+            </ul>
+          </article>
+          <article class="card openwiki">
+            <h3>OpenWiki — forces</h3>
+            <ul>
+              <li>Excellent format humain/agent pour le «&nbsp;comment&nbsp;» et le «&nbsp;pourquoi&nbsp;»&nbsp;: pages ciblées, index et liens.</li>
+              <li>Claims reliées à des preuves de dépôt versionnées, avec détection déterministe de preuves obsolètes ou introuvables.</li>
+              <li>Runs reprenables, file de pages durable, écritures confinées à <code>openwiki/</code>, validation des liens/Mermaid/provenance.</li>
+              <li>Les mises à jour acceptent un plan à zéro page et les décisions de Claims clairsemées limitent les répétitions.</li>
+              <li>Sources personnelles et runtime variées, notamment LangSmith pour relier comportement observé et code.</li>
+            </ul>
+            <h3>OpenWiki — faiblesses</h3>
+            <ul>
+              <li>La génération native est agentique&nbsp;: c’est la brique la plus susceptible de consommer temps et tokens à l’initialisation.</li>
+              <li>Une Claim «&nbsp;grounded&nbsp;» garantit une preuve versionnée et sa fraîcheur, pas automatiquement que la phrase implique correctement cette preuve&nbsp;: l’auteur reste un modèle/hôte.</li>
+              <li>Les Claims repository ne couvrent pas les faits issus des connecteurs personnels.</li>
+              <li>Son graphe visuel est construit à partir des liens Markdown, pas des appels, imports ou héritages du code.</li>
+              <li>Il documente le code mais n’est ni un moteur LSP ni un outil de refactoring.</li>
+              <li>Dans le test host-MCP, un dépôt sans chemin changé a encore ouvert un run à zéro page au lieu de retourner <code>noop</code>.</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="concurrence">
+      <div class="wrap">
+        <h2>Où sont-ils concurrents, exactement&nbsp;?</h2>
+        <div class="grid three">
+          <article class="card">
+            <h3>Graphify ↔ OpenWiki</h3>
+            <p><strong>Concurrence réelle</strong> sur le bootstrap d’un dépôt inconnu, la mémoire persistante, la navigation globale, la production d’un wiki et une visualisation en graphe.</p>
+            <p><strong>Différence décisive&nbsp;:</strong> le graphe Graphify encode des entités et relations extraites du corpus&nbsp;; le graphe OpenWiki encode les liens entre pages rédigées. Le premier répond mieux à «&nbsp;qui dépend de quoi&nbsp;?&nbsp;», le second à «&nbsp;comment ce système est-il censé fonctionner&nbsp;?&nbsp;».</p>
+          </article>
+          <article class="card">
+            <h3>Graphify ↔ Serena</h3>
+            <p><strong>Concurrence limitée</strong> sur la localisation de symboles, usages et dépendances.</p>
+            <p><strong>Différence décisive&nbsp;:</strong> Graphify interroge un snapshot relationnel large, possiblement inféré&nbsp;; Serena interroge l’état sémantique courant du projet via un serveur de langage et peut appliquer le refactoring. Le graphe cible la zone&nbsp;; Serena confirme et opère.</p>
+          </article>
+          <article class="card">
+            <h3>OpenWiki ↔ Serena</h3>
+            <p><strong>Très peu de concurrence</strong>&nbsp;: tous deux peuvent lire/rechercher des fichiers et garder de la mémoire, mais ce sont des moyens secondaires.</p>
+            <p><strong>Différence décisive&nbsp;:</strong> OpenWiki fabrique une connaissance durable à consulter plus tard&nbsp;; Serena ferme la boucle perception–action sur le code courant. L’un ne remplace pas l’autre.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="tokens">
+      <div class="wrap">
+        <h2>Les trois vont-ils gaspiller des tokens&nbsp;?</h2>
+        <p><strong>Installés sur disque&nbsp;: non. Exposés tous les trois à l’agent&nbsp;: parfois.</strong> Les schémas d’outils, les résultats renvoyés et l’exploration supplémentaire peuvent grossir le contexte. Ce n’est toutefois pas automatique&nbsp;: sur le test architecture et le refactoring terminé, le trio a consommé moins de tokens frais en moyenne&nbsp;; sur la lecture du wiki, il en a consommé <strong>+287&nbsp;%</strong> sans gain de score.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Source de coût</th><th>Constat code</th><th>Garde-fou recommandé</th></tr></thead>
+            <tbody>
+              <tr><td>Initialisation OpenWiki</td><td>Planner puis workers DeepAgents par page en mode natif.</td><td>Réserver aux dépôts durables&nbsp;; utiliser le mode hôte si l’abonnement/session existante convient.</td></tr>
+              <tr><td>Mise à jour OpenWiki</td><td>Le test host-MCP a accepté zéro page mais n’a pas renvoyé <code>noop</code>, même avec <code>changedPaths: []</code>.</td><td>Ignorer les artefacts Graphify/Serena et court-circuiter explicitement un plan vide dans l’orchestrateur.</td></tr>
+              <tr><td>Extraction Graphify</td><td>Code-only local&nbsp;; passe LLM seulement pour documents/médias ou labels riches.</td><td>Commencer par <code>--code-only</code>, requêter un sous-graphe, ne jamais injecter <code>graph.json</code> entier.</td></tr>
+              <tr><td>Requêtes Graphify</td><td>Budget MCP paramétrable, défaut 2&nbsp;000 tokens.</td><td>Budget 600–1&nbsp;500 pour le routage initial, augmenter seulement si nécessaire.</td></tr>
+              <tr><td>Exploration Serena</td><td>Corps optionnel, résultats raccourcis et limites configurables.</td><td>Vue symbolique sans corps → références ciblées → corps d’un seul symbole avant édition.</td></tr>
+              <tr><td>Règles Ponytail</td><td>La discipline de minimalisme est injectée dans les tâches de code&nbsp;; elle peut elle-même ajouter du contexte ou du raisonnement.</td><td>Mode léger par défaut, modes renforcés pour conception/revue&nbsp;; mesurer sur les modèles et tâches Ora au lieu de reprendre les gains publiés.</td></tr>
+              <tr><td>Sorties RTK</td><td>Réduit la sortie des commandes shell supportées, pas le prompt système, la conversation ni les outils natifs qui contournent le hook Bash.</td><td>Le laisser intercepter les commandes dev/DevOps supportées et conserver la sortie brute des échecs via l’artefact prévu.</td></tr>
+              <tr><td>Mémoire Claude‑mem</td><td>Capture, résume et peut réinjecter des observations historiques&nbsp;; une récupération trop large ou une donnée sensible devient un coût et un risque.</td><td>Recherche progressive, limites par projet/date/type, balises privées et promotion manuelle des décisions stables vers OpenWiki.</td></tr>
+              <tr><td>Duplication de contexte</td><td>Les trois peuvent révéler certains fichiers/composants communs.</td><td>Une seule sortie par étape&nbsp;; ne pas charger simultanément page wiki complète + gros sous-graphe + fichiers complets.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="warning" style="margin-top:18px"><strong>Conclusion tokens précise.</strong> Il n’existe pas de pénalité fixe «&nbsp;trois outils&nbsp;». L’effet observé va de −29&nbsp;% de tokens frais sur l’architecture à +287&nbsp;% sur le mémo wiki. Le coût dépend de la décision de l’agent et du nombre d’allers-retours. Avec n=3 et un seul dépôt, ce sont des observations descriptives, pas une loi universelle.</p>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="wrap">
+        <h2>Architecture recommandée pour les prendre tous les trois</h2>
+        <p class="warning"><strong>Statut de cette section&nbsp;:</strong> recommandation tirée des capacités lues dans le code, pas classement prouvé par le benchmark. Dans les runs trio, l’agent a souvent utilisé Serena à la place de l’outil associé au scénario et n’a pas perdu de points.</p>
+        <div class="flow">
+          <div class="step openwiki"><strong>1 · OpenWiki, si besoin</strong><br><span class="kicker">Intentions, règles métier, architecture documentée. Lire l’index puis une page, jamais tout le wiki.</span></div>
+          <div class="arrow">→</div>
+          <div class="step graphify"><strong>2 · Graphify, si transversal</strong><br><span class="kicker">Sous-graphe ciblé, chemin ou impact pour produire une courte liste de symboles/fichiers candidats.</span></div>
+          <div class="arrow">→</div>
+          <div class="step serena"><strong>3 · Serena, pour confirmer/agir</strong><br><span class="kicker">Références exactes, diagnostics, corps ciblés, édition/refactoring puis validation.</span></div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Tâche</th><th>Route minimale</th><th>Pourquoi</th></tr></thead>
+            <tbody>
+              <tr><td>Correction évidente dans une méthode</td><td><strong>Serena</strong></td><td>La carte et le manuel n’ajoutent rien si le symbole est déjà connu.</td></tr>
+              <tr><td>Repo inconnu, bug transversal</td><td><strong>Graphify → Serena</strong></td><td>Réduit d’abord la zone, confirme ensuite dans l’état vivant.</td></tr>
+              <tr><td>Règle métier ou convention obscure</td><td><strong>OpenWiki → Serena</strong></td><td>Comprendre l’intention, puis vérifier/appliquer dans le code.</td></tr>
+              <tr><td>Refactor architecture multi-modules</td><td><strong>OpenWiki → Graphify → Serena</strong></td><td>Intention + impact + opération sémantique.</td></tr>
+              <tr><td>PR ponctuelle sur dépôt externe</td><td><strong>Graphify → Serena</strong>, OpenWiki généralement omis</td><td>Le coût initial d’un wiki durable est peu amorti.</td></tr>
+              <tr><td>Produit interne maintenu longtemps</td><td><strong>Les trois, routés à la demande</strong></td><td>La mémoire durable est amortie sur les futures tâches.</td></tr>
+              <tr><td>Simple question «&nbsp;où est X&nbsp;?&nbsp;»</td><td><strong>Serena</strong> ou <strong>Graphify</strong>, pas les deux</td><td>Serena si symbole exact et repo prêt&nbsp;; Graphify si concept transversal.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3 style="margin-top:24px">Règle de routage simple</h3>
+        <p class="mono">Commencer par une seule source&nbsp;: symbole/édition → Serena&nbsp;; explication déjà documentée → page OpenWiki&nbsp;; requête explicite de chemin/relations/impact → Graphify. Ajouter une deuxième source seulement si la première laisse un manque vérifiable.</p>
+        <h3 style="margin-top:24px">Après modification</h3>
+        <ul>
+          <li>Tests et diagnostics d’abord.</li>
+          <li><code>graphify update .</code> pour remettre le snapshot structurel à jour sans modèle.</li>
+          <li><code>openwiki --update</code> seulement si le changement invalide une explication durable ou si le cycle planifié le demande&nbsp;; ignorer <code>graphify-out/</code> et <code>.serena/</code>, puis traiter un plan vide sans génération.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="preuves">
+      <div class="wrap">
+        <h2>Méthode, versions et niveau de preuve</h2>
+        <p>L’audit a cloné les dépôts officiels, figé leurs commits, inventorié les arbres source, lu les manifests et consignes, puis suivi les chemins d’exécution pertinents&nbsp;: extraction/requêtes/impact pour Graphify, registre MCP/LSP/éditeurs pour Serena, DeepAgent/page jobs/Claims/finalisation/visualisation pour OpenWiki. L’inventaire couvre 181&nbsp;761 lignes de source&nbsp;; cela ne signifie pas qu’un humain ou ce rapport affirme avoir interprété chaque ligne individuellement.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Projet</th><th>Snapshot analysé</th><th>Source inventoriée</th><th>Licence</th><th>État public au 03/09/2026</th></tr></thead>
+            <tbody>
+              <tr><td>Graphify</td><td><a href="https://github.com/Graphify-Labs/graphify/commit/33362d969292b57eda82f3fbd9eb5f3f5bc9bbc2"><code>33362d9</code></a> · v0.9.53</td><td>85 fichiers Python · 65&nbsp;540 lignes</td><td>Apache-2.0 (manifest)</td><td>114&nbsp;334 stars · branche par défaut <code>v8</code></td></tr>
+              <tr><td>Serena</td><td><a href="https://github.com/oraios/serena/commit/801a388c2b7a6a8998f313291678b1609664e794"><code>801a388</code></a> · 1.7.1.dev0</td><td>158 fichiers Python · 62&nbsp;446 lignes</td><td>MIT</td><td>28&nbsp;783 stars · branche <code>main</code></td></tr>
+              <tr><td>OpenWiki</td><td><a href="https://github.com/langchain-ai/openwiki/commit/5c69350c757f3361360de26fc170e1aab6843bbc"><code>5c69350</code></a> · v0.5.0</td><td>167 fichiers TS/TSX · 53&nbsp;775 lignes</td><td>MIT</td><td>16&nbsp;076 stars · branche <code>main</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="kicker">Les compteurs GitHub sont une photographie volatile, obtenue via l’API GitHub. Ils indiquent l’adoption, pas la qualité technique ni l’adéquation au besoin.</p>
+        <h3 style="margin-top:28px">Preuves particulièrement discriminantes</h3>
+        <ul class="evidence">
+          <li><a href="https://github.com/Graphify-Labs/graphify/blob/33362d969292b57eda82f3fbd9eb5f3f5bc9bbc2/graphify/llm.py#L637">Graphify sépare explicitement le code AST de la passe LLM documentaire</a>.</li>
+          <li><a href="https://github.com/Graphify-Labs/graphify/blob/33362d969292b57eda82f3fbd9eb5f3f5bc9bbc2/graphify/wiki.py#L273">Graphify possède bien son propre export wiki</a>&nbsp;: le chevauchement avec OpenWiki n’est donc pas imaginaire.</li>
+          <li><a href="https://github.com/langchain-ai/openwiki/blob/5c69350c757f3361360de26fc170e1aab6843bbc/src/visualize/graph.ts#L238">Le graphe OpenWiki dérive des liens Markdown</a>, ce qui prouve qu’il n’équivaut pas au graphe d’appels/imports de Graphify.</li>
+          <li><a href="https://github.com/oraios/serena/blob/801a388c2b7a6a8998f313291678b1609664e794/src/serena/code_editor.py#L348">Serena transforme les WorkspaceEdit LSP en opérations de fichiers</a>, capacité absente des deux autres.</li>
+          <li><a href="https://github.com/langchain-ai/openwiki/blob/5c69350c757f3361360de26fc170e1aab6843bbc/src/agent/docs-only-backend.ts#L147">OpenWiki confine les écritures repository au wiki</a>, donc ne doit pas être présenté comme outil de correction du produit.</li>
+          <li><a href="https://github.com/langchain-ai/openwiki/blob/5c69350c757f3361360de26fc170e1aab6843bbc/src/claims/brains/code/preflight.ts#L55">Le préflight OpenWiki compare les versions des ressources des Claims</a>&nbsp;; il ne réalise pas ici une preuve logique automatique du texte.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="installation">
+      <div class="wrap">
+        <h2>Installation réalisée et validation</h2>
+        <div class="grid two">
+          <article class="card">
+            <h3>Claude Code réparé</h3>
+            <p>Cause&nbsp;: sous Node&nbsp;20, le lien <code>claude</code> pointait vers un fichier de secours non exécutable parce que le paquet natif optionnel était absent. Une installation Claude Code fonctionnelle existait sous Node&nbsp;22.</p>
+            <p>Correction&nbsp;: installation courante sous Node&nbsp;22 puis authentification OAuth, l’ancienne clé d’environnement renvoyant 401. Validation&nbsp;: <code>claude --version</code> → <strong>2.1.259 (Claude Code)</strong> et <code>claude -p</code> → succès JSON.</p>
+          </article>
+          <article class="card">
+            <h3>Dossier d’étude</h3>
+            <p><code>/path/to/study-token</code></p>
+            <ul>
+              <li><code>graphify/.venv</code> — <code>uv sync</code>, CLI v0.9.53 validée.</li>
+              <li><code>serena/.venv</code> — <code>uv sync --extra dev</code>, CLI et inventaire d’outils validés.</li>
+              <li><code>openwiki/node_modules</code> + <code>dist</code> — pnpm 10.33.2 sous Node 22, TypeScript build réussi.</li>
+            </ul>
+          </article>
+        </div>
+        <h3 style="margin-top:26px">Commandes locales</h3>
+        <div class="card mono">
+          cd /path/to/study-token<br>
+          ./graphify/.venv/bin/graphify --help<br>
+          ./serena/.venv/bin/serena --help<br>
+          PATH=/path/to/node/bin:$PATH node ./openwiki/dist/cli/cli.js
+        </div>
+        <h3 style="margin-top:26px">Tests du snapshot</h3>
+        <p class="kicker">Ces suites sont celles des auteurs et valident l’installation&nbsp;; elles ne classent pas les trois outils. Le comparatif utile est le benchmark Click ci-dessus.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Projet</th><th>Commande</th><th>Résultat</th></tr></thead>
+            <tbody>
+              <tr><td>Graphify</td><td><code>.venv/bin/pytest -q</code></td><td id="graphify-test" class="status-warn">5&nbsp;173 réussis, 92 ignorés. Six échecs initiaux venaient de la clé DeepSeek ambiante et de l’extra OpenAI absent&nbsp;; après correction de l’environnement, les 17 tests ciblés concernés passent.</td></tr>
+              <tr><td>Serena</td><td><code>.venv/bin/python -m pytest … -q</code></td><td id="serena-test" class="status-warn">Suite cœur ciblée&nbsp;: 617 réussis. La matrice complète a été interrompue à 58&nbsp;% après 14&nbsp;min&nbsp;30&nbsp;: 1&nbsp;070 réussis, 168 ignorés, 29 échecs et 30 erreurs, principalement sur des serveurs/toolchains externes absents ou incomplets (Java, Haxe, C#, Go, Ruby, Clojure). Des erreurs de journalisation asynchrone ont aussi été observées.</td></tr>
+              <tr><td>OpenWiki</td><td><code>pnpm test</code></td><td id="openwiki-test" class="status-pass">3&nbsp;038 réussis, 3 ignorés&nbsp;; 225 fichiers de tests réussis, 2 ignorés&nbsp;; couverture des lignes&nbsp;: 90,26&nbsp;%.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <strong>Conclusion finale&nbsp;:</strong> OUI pour rendre Graphify, Serena et OpenWiki disponibles, NON pour les consulter systématiquement ensemble. Pour le cycle réel&nbsp;: Serena agit, Ponytail réduit la solution au nécessaire, RTK compacte les sorties, Graphify suit la structure, OpenWiki formalise la connaissance durable et Claude‑mem conserve l’histoire des sessions. Coexistence des trois outils étudiés prouvée&nbsp;; positionnement des trois couches ajoutées documenté mais pas encore benchmarké localement.
+    </div>
+  </footer>
+</body>
+</html>

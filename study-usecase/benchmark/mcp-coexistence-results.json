@@ -1,0 +1,240 @@
+{
+  "all_concurrent": true,
+  "wall_seconds": 2.067,
+  "results": [
+    {
+      "server": "graphify",
+      "elapsed_seconds": 0.556,
+      "tool_count": 10,
+      "tool_names": [
+        "query_graph",
+        "get_node",
+        "get_neighbors",
+        "get_community",
+        "god_nodes",
+        "graph_stats",
+        "shortest_path",
+        "list_prs",
+        "get_pr_impact",
+        "triage_prs"
+      ],
+      "result": "Nodes: 2044\nEdges: 4079\nCommunities: 159\nEXTRACTED: 87%\nINFERRED: 13%\nAMBIGUOUS: 0%\n"
+    },
+    {
+      "server": "serena",
+      "elapsed_seconds": 1.897,
+      "tool_count": 29,
+      "tool_names": [
+        "create_text_file",
+        "replace_content",
+        "replace_in_files",
+        "replace_symbol_body",
+        "insert_after_symbol",
+        "insert_before_symbol",
+        "read_file",
+        "list_dir",
+        "find_file",
+        "search_for_pattern",
+        "get_symbols_overview",
+        "find_symbol",
+        "find_referencing_symbols",
+        "find_implementations",
+        "find_declaration",
+        "get_diagnostics_for_file",
+        "rename_symbol",
+        "safe_delete_symbol",
+        "write_memory",
+        "read_memory",
+        "list_memories",
+        "delete_memory",
+        "rename_memory",
+        "edit_memory",
+        "execute_shell_command",
+        "activate_project",
+        "get_current_config",
+        "onboarding",
+        "initial_instructions"
+      ],
+      "result": {
+        "result": "[{\"name_path\": \"Command/main\", \"kind\": \"Method\", \"relative_path\": \"src/click/core.py\", \"body_location\": {\"start_line\": 1483, \"end_line\": 1594}}]"
+      }
+    },
+    {
+      "server": "openwiki",
+      "elapsed_seconds": 2.066,
+      "tool_count": 6,
+      "tool_names": [
+        "openwiki_begin",
+        "openwiki_submit_plan",
+        "openwiki_next_page",
+        "openwiki_inspect_page_claims",
+        "openwiki_submit_page",
+        "openwiki_finish"
+      ],
+      "result": [
+        {
+          "begin_1": {
+            "status": "active",
+            "runId": "3a7f3781-8022-403e-a610-0d1470ef2597",
+            "root": "/local-study/benchmark/click-target",
+            "mode": "update",
+            "language": "en",
+            "languageChanged": false,
+            "phase": "planning",
+            "resumed": true,
+            "lastUpdate": {
+              "updatedAt": "2026-09-03T21:06:05.042Z",
+              "command": "update",
+              "gitHead": "36baa15ff831b939a22bc527cd76ce653ef6f66d",
+              "model": "host-agent/codex",
+              "status": "complete",
+              "language": "en"
+            },
+            "changedPaths": [
+              ".gitignore",
+              ".openwikiignore"
+            ],
+            "pageUpdateWindows": [
+              {
+                "baseGitHead": "36baa15ff831b939a22bc527cd76ce653ef6f66d",
+                "pages": [
+                  "/openwiki/execution/command-and-group-dispatch.md",
+                  "/openwiki/execution/context-invoke.md",
+                  "/openwiki/quickstart.md",
+                  "/openwiki/testing/cli-runner-isolation.md"
+                ],
+                "changedPaths": [
+                  ".gitignore",
+                  ".openwikiignore"
+                ],
+                "fullReview": false
+              }
+            ],
+            "claimIssues": [],
+            "completedPages": 0
+          }
+        },
+        {
+          "submit_1": {
+            "status": "accepted",
+            "totalPages": 0
+          }
+        },
+        {
+          "next_1": {
+            "status": "complete"
+          }
+        },
+        {
+          "finish_1": {
+            "status": "complete"
+          }
+        },
+        {
+          "begin_2": {
+            "status": "active",
+            "runId": "fb47b7c8-2ba2-4536-8425-3f27edf56032",
+            "root": "/local-study/benchmark/click-target",
+            "mode": "update",
+            "language": "en",
+            "languageChanged": false,
+            "phase": "planning",
+            "resumed": false,
+            "lastUpdate": {
+              "updatedAt": "2026-09-03T21:07:08.711Z",
+              "command": "update",
+              "gitHead": "55b784c98e45f2a0ab346a527560e446b2bad9f0",
+              "model": "host-agent/codex",
+              "status": "complete",
+              "language": "en"
+            },
+            "changedPaths": [],
+            "pageUpdateWindows": [
+              {
+                "baseGitHead": "55b784c98e45f2a0ab346a527560e446b2bad9f0",
+                "pages": [
+                  "/openwiki/execution/command-and-group-dispatch.md",
+                  "/openwiki/execution/context-invoke.md",
+                  "/openwiki/quickstart.md",
+                  "/openwiki/testing/cli-runner-isolation.md"
+                ],
+                "changedPaths": [],
+                "fullReview": false
+              }
+            ],
+            "claimIssues": [],
+            "completedPages": 0
+          }
+        },
+        {
+          "submit_2": {
+            "status": "accepted",
+            "totalPages": 0
+          }
+        },
+        {
+          "next_2": {
+            "status": "complete"
+          }
+        },
+        {
+          "finish_2": {
+            "status": "complete"
+          }
+        },
+        {
+          "begin_3": {
+            "status": "active",
+            "runId": "a79a17f3-0e1a-4774-8b73-2a5c517bfdbb",
+            "root": "/local-study/benchmark/click-target",
+            "mode": "update",
+            "language": "en",
+            "languageChanged": false,
+            "phase": "planning",
+            "resumed": false,
+            "lastUpdate": {
+              "updatedAt": "2026-09-03T21:07:08.989Z",
+              "command": "update",
+              "gitHead": "55b784c98e45f2a0ab346a527560e446b2bad9f0",
+              "model": "host-agent/codex",
+              "status": "complete",
+              "language": "en"
+            },
+            "changedPaths": [],
+            "pageUpdateWindows": [
+              {
+                "baseGitHead": "55b784c98e45f2a0ab346a527560e446b2bad9f0",
+                "pages": [
+                  "/openwiki/execution/command-and-group-dispatch.md",
+                  "/openwiki/execution/context-invoke.md",
+                  "/openwiki/quickstart.md",
+                  "/openwiki/testing/cli-runner-isolation.md"
+                ],
+                "changedPaths": [],
+                "fullReview": false
+              }
+            ],
+            "claimIssues": [],
+            "completedPages": 0
+          }
+        },
+        {
+          "submit_3": {
+            "status": "accepted",
+            "totalPages": 0
+          }
+        },
+        {
+          "next_3": {
+            "status": "complete"
+          }
+        },
+        {
+          "finish_3": {
+            "status": "complete"
+          }
+        }
+      ]
+    }
+  ]
+}

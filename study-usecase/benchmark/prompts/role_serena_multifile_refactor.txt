@@ -1,0 +1,17 @@
+Perform this real cross-file refactoring in the current Click worktree:
+
+Rename the private top-level function `click.utils._expand_args` to
+`click.utils._expand_windows_args` everywhere it is semantically referenced.
+The definition, production import/callers, and tests must remain consistent.
+
+Requirements:
+
+1. Use semantic symbol navigation and rename/refactoring, not a blind text
+   replacement.
+2. Keep behavior unchanged and make no unrelated source or test edits.
+3. Verify the old symbol is gone and the new definition/import/calls resolve.
+4. Run
+   `uv run --frozen pytest tests/test_utils/test__expand_args.py tests/test_commands.py`.
+5. Report changed files, semantic verification, and tests concisely.
+
+This is an execution task: actually edit the worktree and run verification.

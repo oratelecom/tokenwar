@@ -1,0 +1,17 @@
+You are preparing an impact analysis for a maintainer of the Click repository.
+
+Task: map the execution architecture and audit surface for a hypothetical change
+to `Command.main` or `Context.invoke`. Explain, as a compact connected map, how:
+
+- argv and Windows expansion enter the system;
+- shell completion can short-circuit normal execution;
+- contexts and parsing are created;
+- plain commands and groups dispatch callbacks and subcommands;
+- group token staging, command resolution, and child contexts work;
+- context activation affects callbacks;
+- normal exits and error paths are translated;
+- `CliRunner` reaches this path and what testing surface is therefore at risk.
+
+End with a prioritized list of modules/components that should be audited. Do not
+give exact line numbers. Be explicit about relationships and call direction;
+avoid generic descriptions that are not grounded in the repository.
