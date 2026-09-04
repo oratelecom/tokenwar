@@ -214,6 +214,7 @@ if $json_mode; then
             gemini) pnote="telemetry: N/A (server-side sessions)" ;;
             kimi)   pnote="telemetry: N/A (~/.kimi-code has no token store)" ;;
             opencode) pnote="telemetry: ~/.local/share/opencode/opencode.db (session tokens)" ;;
+            copilot) pnote="telemetry: ~/.copilot/session-store.db (assistant_usage_events)" ;;
             *)      pnote="" ;;
         esac
         # Build JSON entry via node to ensure proper escaping
@@ -313,6 +314,7 @@ for i in $(seq 0 $((PROVIDER_COUNT - 1))); do
         gemini) pnote="telemetry: N/A (server-side sessions)" ;;
         kimi)   pnote="telemetry: N/A (~/.kimi-code has no token store)" ;;
         opencode) pnote="telemetry: ~/.local/share/opencode/opencode.db (session tokens)" ;;
+        copilot) pnote="telemetry: ~/.copilot/session-store.db (assistant_usage_events)" ;;
         *)      pnote="" ;;
     esac
 

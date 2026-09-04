@@ -130,3 +130,45 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"# /tokenwar scan"* ]]
 }
+
+@test "scan detects GitHub Copilot CLI logs as a client" {
+    # Copilot writes session state under ~/.copilot; the scan must pick it up
+    # like any other local client, without a CLI on PATH.
+    mkdir -p "$HOME/.copilot/session-state/abc"
+    cat > "$HOME/.copilot/session-state/abc/events.jsonl" <<'EOF'
+{"text":"rg --files then sed -n '1,220p' scripts/tokenwar.sh"}
+{"text":"git diff and gh pr view produced a large payload"}
+EOF
+    run bash "$SCRIPT" --client copilot
+    [ "$status" -eq 0 ]
+    # The client row is keyed by id and reports how many log files were read —
+    # asserting the file count proves the root was scanned, not just listed.
+    [[ "$output" == *"copilot"*" 1 "* ]]
+    [[ "$output" == *"repo discovery signals"* ]]
+}
+
+@test "scan honours TOKENWAR_COPILOT_LOG_ROOT" {
+    local root="$HOME/elsewhere"
+    mkdir -p "$root"
+    cat > "$root/events.jsonl" <<'EOF'
+{"text":"rg --files and grep -rn across the repo"}
+EOF
+    TOKENWAR_COPILOT_LOG_ROOT="$root" run bash "$SCRIPT" --client copilot
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"copilot"*" 1 "* ]]
+}
+
+@test "scan --json exposes copilot as a known client" {
+    mkdir -p "$HOME/.copilot"
+    printf '{"text":"rg --files"}\n' > "$HOME/.copilot/events.jsonl"
+    run bash "$SCRIPT" --client copilot --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+        let s = "";
+        process.stdin.on("data", d => s += d).on("end", () => {
+            const j = JSON.parse(s);
+            const ids = (j.clients || []).map(c => c.id);
+            if (!ids.includes("copilot")) process.exit(1);
+        });
+    '
+}

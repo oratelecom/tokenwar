@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # tokenwar launch banner — shown when a wrapped CLI starts.
 #
-# Codex, Gemini, Kimi, and opencode do NOT expose a persistent status-bar API the way Claude
-# Code does (their footers are hardcoded in their TUIs). The closest we can do
-# without touching their binaries is a one-time banner at launch:
+# Codex, Gemini, Kimi, opencode, and GitHub Copilot CLI do NOT expose a
+# persistent status-bar API the way Claude Code does (their footers are
+# hardcoded in their TUIs). The closest we can do without touching their
+# binaries is a one-time banner at launch:
 #   1. print the tokenwar stack bar (same renderer as the Claude statusline)
 #   2. remind the user that `tokenwar status` shows the full state on demand
 #   3. leave upgrade drift as a statusline hint only
 #
 # This is intentionally non-blocking and silent for non-interactive launches
-# (`codex exec`, `gemini -p ...`, `kimi -p ...`, `opencode run ...`, pipes) so it never pollutes
-# scripted output.
+# (`codex exec`, `gemini -p ...`, `kimi -p ...`, `opencode run ...`,
+# `copilot -p ...`, pipes) so it never pollutes scripted output.
 #
 # Usage: tokenwar-launch.sh <provider> [original CLI args...]
 #   <provider> is the CLI being launched — used only for the
@@ -32,7 +33,10 @@ readonly COL_RESET=$'\033[0m'
 
 # Non-interactive subcommands that must NEVER get a banner (scripted/automation
 # entrypoints whose stdout is consumed by tooling).
-readonly NONINTERACTIVE_SUBCMDS=" exec e completion mcp mcp-server app-server apply a review cloud exec-server resume fork run serve "
+# Subcommands whose stdout is consumed by tooling or which exit immediately.
+# Copilot contributes app / help / init / login / plugin / plugins / skill /
+# update / version on top of the shared ones (completion, mcp) it already used.
+readonly NONINTERACTIVE_SUBCMDS=" exec e completion mcp mcp-server app-server apply a review cloud exec-server resume fork run serve app help init login plugin plugins skill update version "
 
 # Bail silently unless this is a genuine interactive TUI launch.
 should_banner() {
@@ -43,10 +47,12 @@ should_banner() {
     if [[ -n "$first" && "$NONINTERACTIVE_SUBCMDS" == *" $first "* ]]; then
         return 1
     fi
-    # Gemini headless flags.
+    # Headless / immediate-exit flags across the wrapped CLIs. `--acp` starts
+    # Copilot as an Agent Client Protocol server, which is a machine channel.
     for a in "$@"; do
         case "$a" in
             -p|--prompt|-o|--output-format|-l|--list-extensions|--list-sessions) return 1 ;;
+            --acp|-v|--version|-h|--help) return 1 ;;
         esac
     done
     return 0

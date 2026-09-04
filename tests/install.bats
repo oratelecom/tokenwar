@@ -359,6 +359,36 @@ EOF
     grep -qx "install" "$GRAPHIFY_LOG"
 }
 
+@test "--with-copilot delegates to scripts/copilot.sh rather than re-implementing it" {
+    # One implementation of the wiring, shared with `tokenwar copilot wire`.
+    # If install.sh ever grows its own copy, this test stops seeing the call.
+    mock_claude_empty
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    export COPILOT_WIRE_LOG="$HOME/copilot-wire.log"
+    cat > "$TOKENWAR_DIR/scripts/copilot.sh" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$COPILOT_WIRE_LOG"
+exit 0
+EOF
+    chmod +x "$TOKENWAR_DIR/scripts/copilot.sh"
+    printf '#!/usr/bin/env bash\nexit 0\n' > "$MOCK_BIN/copilot"
+    chmod +x "$MOCK_BIN/copilot"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
+    run bash "$SCRIPT" --with-copilot
+    [ "$status" -eq 0 ]
+    grep -qx "wire --yes" "$COPILOT_WIRE_LOG"
+}
+
+@test "--with-copilot warns and skips when the Copilot CLI is absent" {
+    mock_claude_empty
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    rm -f "$MOCK_BIN/copilot"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
+    run bash "$SCRIPT" --with-copilot
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Copilot CLI not found"* ]]
+}
+
 @test "unknown argument exits non-zero" {
     mock_claude_empty
     run bash "$SCRIPT" --bogus
