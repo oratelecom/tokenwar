@@ -30,6 +30,18 @@ echo "\$*" >> "$RTK_LOG"
 exit 0
 EOF
     chmod +x "$MOCK_BIN/rtk"
+
+    # Mock graphify (records args). Present by default so every test that is NOT
+    # about graphify takes the "already installed — skipping" short-circuit
+    # instead of reaching a real uv/pipx/pip on the runner.
+    export GRAPHIFY_LOG="$HOME/graphify-calls.log"
+    cat > "$MOCK_BIN/graphify" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$GRAPHIFY_LOG"
+[[ "\$1" == "--version" ]] && echo "graphify 0.0.0-test"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/graphify"
 }
 
 # Write a fake rtk binary at $1 that records its args to $RTK_LOG.
@@ -281,6 +293,70 @@ EOF
     grep -q "plugin install ponytail@ponytail" "$CLAUDE_LOG"
     grep -q "init -g" "$RTK_LOG"
     grep -q "install -g pxpipe-proxy@0.10.0" "$NPM_LOG"
+}
+
+@test "--with-graphify installs via uv tool and registers the skill when absent" {
+    mock_claude_empty
+    rm -f "$MOCK_BIN/graphify"
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    export UV_LOG="$HOME/uv-calls.log"
+    cat > "$MOCK_BIN/uv" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$UV_LOG"
+mkdir -p "$HOME/.local/bin"
+cat > "$HOME/.local/bin/graphify" <<'GRAPHIFY'
+#!/usr/bin/env bash
+echo "\$*" >> "$GRAPHIFY_LOG"
+[[ "\$1" == "--version" ]] && echo "graphify 0.9.53"
+exit 0
+GRAPHIFY
+chmod +x "$HOME/.local/bin/graphify"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/uv"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
+    run bash "$SCRIPT" --with-graphify
+    [ "$status" -eq 0 ]
+    grep -qx "tool install graphifyy" "$UV_LOG"
+    # The CLI alone is half the tool — the skill has to be registered too.
+    grep -qx "install" "$GRAPHIFY_LOG"
+    [ -x "$HOME/.local/bin/graphify" ]
+}
+
+@test "--with-graphify skips the install when graphify is already present" {
+    mock_claude_empty
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    export UV_LOG="$HOME/uv-calls.log"
+    cat > "$MOCK_BIN/uv" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$UV_LOG"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/uv"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
+    run bash "$SCRIPT" --with-graphify
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"graphify already installed"* ]]
+    [ ! -s "${UV_LOG:-/dev/null}" ]
+}
+
+@test "--all also covers graphify" {
+    mock_claude_empty
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    cat > "$MOCK_BIN/npm" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1 \$2 \$3" == "config get prefix" ]]; then
+    echo "$HOME/.local"
+    exit 0
+fi
+echo "\$*" >> "$NPM_LOG"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/npm"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
+    run bash "$SCRIPT" --all
+    [ "$status" -eq 0 ]
+    grep -qx "install" "$GRAPHIFY_LOG"
 }
 
 @test "unknown argument exits non-zero" {

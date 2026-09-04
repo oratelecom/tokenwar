@@ -148,3 +148,84 @@ EOF
     run bash "$SCRIPT"
     [[ "$output" != *"Monthly value"* ]]
 }
+
+# ── graphify (repo/doc structure lane) ────────────────────────────
+# graphify's own `benchmark` reports a per-QUERY reduction ratio, not a running
+# total of tokens already saved. So it is surfaced as N/A + a note and must never
+# be summed into TOTAL — that would credit the stack for queries never made.
+
+mock_graphify_benchmark() {
+    cat > "$MOCK_BIN/graphify" <<EOF
+#!/usr/bin/env bash
+if [[ "\$1" == "benchmark" ]]; then
+cat <<'BENCH'
+
+graphify token reduction benchmark
+──────────────────────────────────────────────────
+  Corpus:          11,800 words → ~15,733 tokens (naive)
+  Graph:           236 nodes, 284 edges
+  Avg query cost:  ~347 tokens
+  Reduction:       45.3x fewer tokens per query
+BENCH
+fi
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/graphify"
+}
+
+@test "graphify N/A with an actionable note when no global graph exists" {
+    mock_rtk
+    mock_graphify_benchmark
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"graphify"*"N/A"* ]]
+    [[ "$output" == *"graphify extract"* ]]
+}
+
+@test "graphify N/A when the CLI is not installed" {
+    mock_rtk
+    ln -sf "$(command -v node)" "$MOCK_BIN/node"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
+    run bash "$SCRIPT"
+    [[ "$output" == *"graphify"*"N/A"*"CLI not installed"* ]]
+}
+
+@test "graphify surfaces the measured reduction ratio from its own benchmark" {
+    mock_rtk
+    mock_graphify_benchmark
+    mkdir -p "$HOME/.graphify"
+    echo '{}' > "$HOME/.graphify/global-graph.json"
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"236 nodes in the global graph"* ]]
+    [[ "$output" == *"45.3x fewer tokens per query"* ]]
+}
+
+@test "graphify's per-query ratio is NOT summed into TOTAL" {
+    # RTK alone reports 44.7M. Adding graphify must leave the total untouched.
+    mock_rtk
+    mock_graphify_benchmark
+    mkdir -p "$HOME/.graphify"
+    echo '{}' > "$HOME/.graphify/global-graph.json"
+    run bash "$SCRIPT"
+    [[ "$output" == *"TOTAL (tools)"*"44.7M"* ]]
+}
+
+@test "--json exposes graphify with zero saved_tokens and the ratio in its note" {
+    mock_rtk
+    mock_graphify_benchmark
+    mkdir -p "$HOME/.graphify"
+    echo '{}' > "$HOME/.graphify/global-graph.json"
+    run bash "$SCRIPT" --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+        let s = "";
+        process.stdin.on("data", d => s += d).on("end", () => {
+            const j = JSON.parse(s);
+            const g = j.tools["graphify"];
+            if (g.saved !== "N/A") process.exit(1);
+            if (g.saved_tokens !== 0) process.exit(1);
+            if (!/45\.3x fewer tokens per query/.test(g.note)) process.exit(1);
+        });
+    '
+}

@@ -6,10 +6,10 @@
 #   tokenwar enable  context-mode   # turn it back on
 #
 # The four Claude Code plugins share one native, reversible mechanism
-# (`claude plugin enable|disable <slug>`), so we drive that directly. rtk and
-# pxpipe are standalone binaries, not plugins — there is no plugin toggle for
-# them, so we point the user at the correct per-tool mechanism instead of doing
-# risky settings.json / npm surgery here.
+# (`claude plugin enable|disable <slug>`), so we drive that directly. rtk,
+# pxpipe, and graphify are standalone binaries, not plugins — there is no plugin
+# toggle for them, so we point the user at the correct per-tool mechanism instead
+# of doing risky settings.json / npm / PyPI surgery here.
 
 set -euo pipefail
 
@@ -22,7 +22,7 @@ readonly SLUG_CAVEMAN="caveman@caveman"
 readonly SLUG_PONYTAIL="ponytail@ponytail"
 
 # Non-plugin tools we recognise but cannot toggle via `claude plugin`.
-readonly NON_PLUGIN_TOOLS=" rtk pxpipe "
+readonly NON_PLUGIN_TOOLS=" rtk pxpipe graphify "
 
 readonly ACTION_ENABLE="enable"
 readonly ACTION_DISABLE="disable"
@@ -47,8 +47,9 @@ Examples:
   tokenwar ${ACTION_DISABLE} context-mode
   tokenwar ${ACTION_ENABLE}  context-mode
 
-Note: rtk and pxpipe are standalone binaries, not Claude Code plugins, so they
-are not toggled here — see the message printed when you name them.
+Note: rtk, pxpipe, and graphify are standalone binaries, not Claude Code
+plugins, so they are not toggled here — see the message printed when you name
+them.
 EOF
 }
 
@@ -88,6 +89,11 @@ if [[ "$NON_PLUGIN_TOOLS" == *" $tool "* ]]; then
             echo "${COL_YELLOW}pxpipe is a standalone proxy binary, not a Claude Code plugin.${COL_RESET}" >&2
             echo "  enable : install it (tokenwar install --with-pxpipe)" >&2
             echo "  disable: npm rm -g pxpipe-proxy" >&2
+            ;;
+        graphify)
+            echo "${COL_YELLOW}graphify is a standalone CLI + skill, not a Claude Code plugin.${COL_RESET}" >&2
+            echo "  enable : graphify install          (re-registers the skill with your assistant)" >&2
+            echo "  disable: graphify uninstall        (removes the skill; keeps the CLI and graphs)" >&2
             ;;
     esac
     exit "$EXIT_UNSUPPORTED"

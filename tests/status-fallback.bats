@@ -39,6 +39,17 @@ EOF
 exit 0
 EOF
     chmod +x "$MOCK_BIN/pxpipe"
+
+    # graphify healthy too (CLI + skill under the injected config dir) so only
+    # plugin state varies across these tests.
+    cat > "$MOCK_BIN/graphify" <<'EOF'
+#!/usr/bin/env bash
+[[ "$1" == "--version" ]] && echo "graphify 0.9.53"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/graphify"
+    mkdir -p "$CLAUDE_CONFIG_DIR/skills/graphify"
+    echo "# graphify skill" > "$CLAUDE_CONFIG_DIR/skills/graphify/SKILL.md"
 }
 
 teardown() {
@@ -93,6 +104,12 @@ write_settings_local() { printf '%s\n' "$1" > "$CLAUDE_CONFIG_DIR/settings.local
     write_settings        '{"enabledPlugins":{"context-mode@context-mode":false}}'
     write_settings_local  '{"enabledPlugins":{"context-mode@context-mode":true}}'
     run bash "$SCRIPT"
-    [[ "$output" == *"context-mode"*"OK"* ]]
-    [[ "$output" != *"context-mode"*"installed-disabled"* ]]
+    # Scope the assertions to the context-mode ROW. A whole-output glob spans
+    # newlines, so any later row carrying "installed-disabled" would satisfy
+    # `*"context-mode"*"installed-disabled"*` and the guard would silently stop
+    # guarding anything.
+    local ctx_row
+    ctx_row="$(printf '%s\n' "$output" | grep -F 'context-mode' | head -1)"
+    [[ "$ctx_row" == *"OK"* ]]
+    [[ "$ctx_row" != *"installed-disabled"* ]]
 }

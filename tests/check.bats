@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for check.sh — conflict detection rules R1-R4.
+# Tests for check.sh — conflict detection rules R1-R5.
 
 setup() {
     SCRIPT="$BATS_TEST_DIRNAME/../scripts/check.sh"
@@ -69,14 +69,44 @@ EOF
   "ponytail@ponytail":[{"version":"4.2.0"}]
 }}
 EOF
-    # Provide command stubs so R4 doesn't fail
+    # Provide command stubs so R4 doesn't fail. Every non-plugin tool R4 checks
+    # needs one — a runner has none of them installed, so a missing stub turns
+    # the verdict into DEGRADED and this test stops testing the verdict.
     export PATH="$HOME/bin:$PATH"
     mkdir -p "$HOME/bin"
-    echo '#!/usr/bin/env bash' > "$HOME/bin/rtk"
-    echo '#!/usr/bin/env bash' > "$HOME/bin/pxpipe"
-    chmod +x "$HOME/bin/rtk"
-    chmod +x "$HOME/bin/pxpipe"
+    for tool in rtk pxpipe graphify; do
+        echo '#!/usr/bin/env bash' > "$HOME/bin/$tool"
+        chmod +x "$HOME/bin/$tool"
+    done
 
     run bash "$SCRIPT"
     [[ "$output" == *"COMPLEMENTARY"* ]]
+}
+
+@test "R4 WARN — graphify CLI absent" {
+    cat > "$HOME/.claude/settings.json" <<'EOF'
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/x/rtk-rewrite.sh"}]}]}}
+EOF
+    mkdir -p "$HOME/.claude/plugins" "$HOME/.claude-mem" "$HOME/bin"
+    cat > "$HOME/.claude/plugins/installed_plugins.json" <<'EOF'
+{"plugins":{
+  "context-mode@context-mode":[{"version":"1.0.107"}],
+  "claude-mem@thedotmack":[{"version":"12.1.4"}],
+  "caveman@caveman":[{"version":"abc"}],
+  "ponytail@ponytail":[{"version":"4.2.0"}]
+}}
+EOF
+    for tool in rtk pxpipe; do
+        echo '#!/usr/bin/env bash' > "$HOME/bin/$tool"
+        chmod +x "$HOME/bin/$tool"
+    done
+    # graphify deliberately absent. Narrow PATH so the developer's own
+    # ~/.local/bin/graphify cannot satisfy the check and hide the regression.
+    ln -sf "$(command -v node)" "$HOME/bin/node"
+    PATH="$HOME/bin:/usr/bin:/bin"
+
+    run bash "$SCRIPT"
+    [[ "$output" == *"R4 version drift"*WARN* ]]
+    [[ "$output" == *"not installed: graphify"* ]]
+    [ "$status" -eq 1 ]
 }

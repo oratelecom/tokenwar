@@ -6,6 +6,7 @@
 #   R2 memory overlap     — claude-mem and context-mode both store recall
 #   R3 output compression — caveman vs RTK target overlap
 #   R4 version drift      — any tool more than one minor behind
+#   R5 provider overlap   — active provider CLIs must use disjoint config dirs
 #
 # Exit 0 if all PASS, 1 if any WARN or FAIL.
 
@@ -162,6 +163,7 @@ check_r4() {
     done
     if command -v rtk >/dev/null 2>&1; then :; else missing+=("rtk"); fi
     if command -v pxpipe >/dev/null 2>&1; then :; else missing+=("pxpipe"); fi
+    if command -v graphify >/dev/null 2>&1; then :; else missing+=("graphify"); fi
 
     if (( ${#missing[@]} == 0 )); then
         echo "$RES_PASS|core hook/plugin tools installed (latest-version check needs network; see /tokenwar upgrade)"

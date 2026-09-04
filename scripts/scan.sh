@@ -346,7 +346,7 @@ function decisionFor(item) {
   const minRecommendationTokens = Number(process.env.TOKENWAR_SCAN_MIN_RECOMMENDATION_TOKENS);
   if (item.estimated_tokens < minRecommendationTokens) return DECISION_SKIP;
   if (item.tool === "context-mode alternative") return DECISION_TRY;
-  if (item.tool === "Probe / Stacklit / Serena / Graphify") return DECISION_TRY;
+  if (item.tool === "Probe / Stacklit / Serena") return DECISION_TRY;
   if (item.state === "OK") return DECISION_KEEP;
   if (item.state === "installed-disabled") return DECISION_ENABLE;
   if (item.state === "not-installed" || item.state === "unknown") return DECISION_TRY;
@@ -384,18 +384,25 @@ function buildRecommendations(metricsList, status) {
       action: "Keep RTK enabled; route noisy shell discovery through Bash or direct rtk commands.",
     },
     {
-      tool: "Probe / Stacklit / Serena / Graphify",
+      tool: "graphify",
+      state: toolState(status, "graphify"),
+      estimated_tokens: estimate(total * TOTAL_TOKEN_RATIO_REPO_CAP, repoDiscoveryHits, REPO_DISCOVERY_TOKEN_BUDGET),
+      signal: `${repoDiscoveryHits} repo discovery signals`,
+      action: "Build the repo graph once, then answer structure questions with `graphify query` instead of rg/find/sed sweeps.",
+    },
+    {
+      tool: "Probe / Stacklit / Serena",
       state: "candidate",
       estimated_tokens: estimate(total * TOTAL_TOKEN_RATIO_REPO_CAP, repoDiscoveryHits, REPO_DISCOVERY_TOKEN_BUDGET),
       signal: `${repoDiscoveryHits} repo discovery signals`,
-      action: "Use a repo-map/code-context layer before broad rg/find/sed sweeps.",
+      action: "Benchmark an additional symbol/repo-map layer if graphify alone leaves discovery sweeps in the logs.",
     },
     {
       tool: "context-mode alternative",
       state: toolState(status, "context-mode"),
       estimated_tokens: estimate(total * TOTAL_TOKEN_RATIO_HEAVY_CAP, heavyPayloadHits, HEAVY_PAYLOAD_TOKEN_BUDGET),
       signal: `${heavyPayloadHits} heavy payload or scrape signals`,
-      action: "Prefer Probe/Stacklit for code; reserve context-mode or context-link for sandboxed heavy data.",
+      action: "Prefer graphify for code structure; reserve context-mode or context-link for sandboxed heavy data.",
     },
     {
       tool: "claude-mem / OpenWiki",

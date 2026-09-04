@@ -4,6 +4,8 @@
 # Plugins (context-mode, claude-mem, caveman) → `claude plugin update <slug> --scope <scope>`.
 # RTK (path-installed dev build)              → `cargo install --path <repo> --force`.
 # pxpipe                                      → `npm install -g pxpipe-proxy@<pinned>`.
+# graphify                                    → its own installer (uv tool / pipx / pip),
+#                                               then `graphify install` to refresh the skill.
 #
 # Source of "what needs updating": the throttled upgrade-check cache written by
 # check-updates.sh. If the cache is absent, all tools are attempted. The cache is
@@ -28,6 +30,12 @@ readonly NPM_BIN="npm"
 readonly PXPIPE_NPM_PACKAGE="pxpipe-proxy"
 readonly PXPIPE_NPM_VERSION="0.10.0"
 readonly PXPIPE_NPM_SPEC="${PXPIPE_NPM_PACKAGE}@${PXPIPE_NPM_VERSION}"
+
+readonly UV_BIN="uv"
+readonly PIPX_BIN="pipx"
+readonly PIP_BIN="pip"
+readonly GRAPHIFY_BIN="graphify"
+readonly GRAPHIFY_PYPI_PACKAGE="graphifyy"
 
 readonly UPGRADE_CACHE_FILE="${HOME}/.claude/tokenwar/upgrade-check.json"
 readonly STATE_UPDATE="update-available"
@@ -70,20 +78,20 @@ tty_readable() { { : <"$TTY_DEVICE"; } 2>/dev/null; }
 # Reads the cache; with --all or no cache, returns every managed updater.
 tools_needing_update() {
     if $force_all || [[ ! -f "$UPGRADE_CACHE_FILE" ]]; then
-        echo "ctx mem cave rtk pxpipe"; return
+        echo "ctx mem cave rtk pxpipe graphify"; return
     fi
     CACHE="$UPGRADE_CACHE_FILE" TW_STATE="$STATE_UPDATE" node --input-type=module -e '
         import { readFileSync } from "node:fs";
-        let d; try { d = JSON.parse(readFileSync(process.env.CACHE, "utf8")); } catch { console.log("ctx mem cave rtk pxpipe"); process.exit(0); }
+        let d; try { d = JSON.parse(readFileSync(process.env.CACHE, "utf8")); } catch { console.log("ctx mem cave rtk pxpipe graphify"); process.exit(0); }
         const t = d.tools || {};
         const want = process.env.TW_STATE;
-        const map = { "context-mode": "ctx", "claude-mem": "mem", "caveman": "cave", "rtk": "rtk", "pxpipe": "pxpipe" };
+        const map = { "context-mode": "ctx", "claude-mem": "mem", "caveman": "cave", "rtk": "rtk", "pxpipe": "pxpipe", "graphify": "graphify" };
         const out = [];
         for (const [name, key] of Object.entries(map)) {
             if (t[name] && t[name].state === want) out.push(key);
         }
         console.log(out.join(" "));
-    ' 2>/dev/null || echo "ctx mem cave rtk pxpipe"
+    ' 2>/dev/null || echo "ctx mem cave rtk pxpipe graphify"
 }
 
 # Look up a plugin's install scope (user|local|project|managed) from
@@ -169,6 +177,43 @@ upgrade_pxpipe() {
     "$NPM_BIN" install -g "$PXPIPE_NPM_SPEC"
 }
 
+# Upgrade graphify with whichever Python installer actually owns it. Order
+# matters: `uv tool` and `pipx` each keep the package in their own isolated venv,
+# and running `pip install -U` against a uv/pipx install writes to an unrelated
+# environment — the `graphify` on PATH would stay on the old version while the
+# check reported success. So we ask each manager whether it owns the package and
+# only fall back to plain pip when neither does.
+#
+# The skill files are copied at install time, so a version bump alone leaves the
+# assistant reading the previous playbook: re-run `graphify install` after the
+# package upgrade to refresh them.
+upgrade_graphify() {
+    local upgraded=false
+    if command -v "$UV_BIN" >/dev/null 2>&1 \
+        && "$UV_BIN" tool list 2>/dev/null | grep -q "^${GRAPHIFY_PYPI_PACKAGE} "; then
+        say "Updating graphify via uv tool ($GRAPHIFY_PYPI_PACKAGE)"
+        "$UV_BIN" tool upgrade "$GRAPHIFY_PYPI_PACKAGE" || return 1
+        upgraded=true
+    elif command -v "$PIPX_BIN" >/dev/null 2>&1 \
+        && "$PIPX_BIN" list --short 2>/dev/null | grep -q "^${GRAPHIFY_PYPI_PACKAGE} "; then
+        say "Updating graphify via pipx ($GRAPHIFY_PYPI_PACKAGE)"
+        "$PIPX_BIN" upgrade "$GRAPHIFY_PYPI_PACKAGE" || return 1
+        upgraded=true
+    elif command -v "$PIP_BIN" >/dev/null 2>&1; then
+        say "Updating graphify via pip ($GRAPHIFY_PYPI_PACKAGE)"
+        "$PIP_BIN" install --upgrade "$GRAPHIFY_PYPI_PACKAGE" || return 1
+        upgraded=true
+    fi
+    if ! $upgraded; then
+        warn "no uv/pipx/pip found — cannot update graphify"; return 1
+    fi
+    if command -v "$GRAPHIFY_BIN" >/dev/null 2>&1; then
+        say "Refreshing graphify skill files (graphify install)"
+        "$GRAPHIFY_BIN" install >/dev/null 2>&1 \
+            || warn "graphify install failed — run it manually to refresh the skill"
+    fi
+}
+
 # === collect work ===
 read -r -a needing <<<"$(tools_needing_update)"
 if (( ${#needing[@]} == 0 )); then
@@ -185,6 +230,7 @@ for key in "${needing[@]}"; do
         cave) printf "  %s\n" "caveman" ;;
         rtk)  printf "  %s\n" "rtk" ;;
         pxpipe) printf "  %s\n" "pxpipe" ;;
+        graphify) printf "  %s\n" "graphify" ;;
     esac
 done
 echo ""
@@ -218,6 +264,7 @@ for key in "${needing[@]}"; do
         cave) upgrade_plugin "$SLUG_CAVE" || rc=1 ;;
         rtk)  upgrade_rtk                 || rc=1 ;;
         pxpipe) upgrade_pxpipe            || rc=1 ;;
+        graphify) upgrade_graphify        || rc=1 ;;
     esac
 done
 

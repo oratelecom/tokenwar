@@ -31,6 +31,17 @@ readonly RTK_BIN="rtk"
 readonly PXPIPE_BIN="pxpipe"
 readonly PXPIPE_NPM_VERSION="0.10.0"
 
+# graphify publishes to PyPI as `graphifyy` (the plain `graphify` name on PyPI is
+# an unaffiliated package — see the upstream README). Unlike pxpipe we do NOT
+# pin a "latest" constant here: graphify ships weekly, so a hardcoded number
+# would go stale between tokenwar releases and report phantom up-to-date. The
+# registry is queried instead, with a hard timeout, and any failure degrades to
+# an honest `unknown` rather than a wrong verdict.
+readonly GRAPHIFY_BIN="graphify"
+readonly GRAPHIFY_PYPI_PACKAGE="graphifyy"
+readonly GRAPHIFY_PYPI_URL="https://pypi.org/pypi/${GRAPHIFY_PYPI_PACKAGE}/json"
+readonly GRAPHIFY_PYPI_TIMEOUT_SECS=10
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 # shellcheck source=lib/providers.sh
@@ -156,6 +167,32 @@ pxpipe_installed_version() {
     "$PXPIPE_BIN" --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | awk '{print $1}'
 }
 
+graphify_installed_version() {
+    command -v "$GRAPHIFY_BIN" >/dev/null 2>&1 || { echo ""; return; }
+    "$GRAPHIFY_BIN" --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | awk '{print $1}'
+}
+
+# Latest graphify from the PyPI JSON API. Empty on any failure (no curl, no
+# network, malformed payload) so classify() returns `unknown` instead of
+# inventing drift. Overridable via TW_GRAPHIFY_PYPI_URL for tests.
+#
+# The payload is piped straight into node rather than staged in an environment
+# variable: PyPI's project JSON lists every release file ever published and
+# already exceeds the kernel's argv/env limit, which fails with
+# "Argument list too long" and silently degrades the check to `unknown`.
+graphify_latest_version() {
+    command -v curl >/dev/null 2>&1 || { echo ""; return; }
+    local url="${TW_GRAPHIFY_PYPI_URL:-$GRAPHIFY_PYPI_URL}"
+    curl -fsSL --max-time "$GRAPHIFY_PYPI_TIMEOUT_SECS" "$url" 2>/dev/null \
+        | node --input-type=module -e '
+            let s = "";
+            process.stdin.on("data", d => s += d).on("end", () => {
+                let d; try { d = JSON.parse(s); } catch { return; }
+                process.stdout.write(String(d?.info?.version || ""));
+            });
+        ' 2>/dev/null || echo ""
+}
+
 # Determine rtk's authoritative latest version.
 #
 # Two install paths exist:
@@ -221,6 +258,7 @@ if $force_refresh || ! cache_is_fresh; then
     cave_installed=$(installed_plugin_version "$SLUG_CAVE")
     rtk_installed=$(rtk_installed_version)
     pxpipe_installed=$(pxpipe_installed_version)
+    graphify_installed=$(graphify_installed_version)
 
     # Provider CLI versions
     codex_installed=$(provider_version "$PROVIDER_IDX_CODEX")
@@ -244,12 +282,14 @@ if $force_refresh || ! cache_is_fresh; then
     cave_latest=$(marketplace_version "$MARKETPLACE_CAVE" "caveman")
     rtk_latest=$(rtk_latest_version)
     pxpipe_latest="$PXPIPE_NPM_VERSION"
+    graphify_latest=$(graphify_latest_version)
 
     ctx_state=$(classify "$ctx_installed" "$ctx_latest")
     mem_state=$(classify "$mem_installed" "$mem_latest")
     cave_state=$(classify "$cave_installed" "$cave_latest")
     rtk_state=$(classify "$rtk_installed" "$rtk_latest")
     pxpipe_state=$(classify "$pxpipe_installed" "$pxpipe_latest")
+    graphify_state=$(classify "$graphify_installed" "$graphify_latest")
     codex_state=$(classify "$codex_installed" "$codex_latest")
     gemini_state=$(classify "$gemini_installed" "$gemini_latest")
     kimi_state=$(classify "$kimi_installed" "$kimi_latest")
@@ -264,6 +304,7 @@ if $force_refresh || ! cache_is_fresh; then
     CAVE_I="$cave_installed" CAVE_L="$cave_latest" CAVE_S="$cave_state" \
     RTK_I="$rtk_installed" RTK_L="$rtk_latest" RTK_S="$rtk_state" \
     PXPIPE_I="$pxpipe_installed" PXPIPE_L="$pxpipe_latest" PXPIPE_S="$pxpipe_state" \
+    GRAPHIFY_I="$graphify_installed" GRAPHIFY_L="$graphify_latest" GRAPHIFY_S="$graphify_state" \
     CODEX_I="$codex_installed" CODEX_L="$codex_latest" CODEX_S="$codex_state" \
     GEMINI_I="$gemini_installed" GEMINI_L="$gemini_latest" GEMINI_S="$gemini_state" \
     KIMI_I="$kimi_installed" KIMI_L="$kimi_latest" KIMI_S="$kimi_state" \
@@ -279,7 +320,8 @@ if $force_refresh || ! cache_is_fresh; then
                 'claude-mem':   { installed: e.MEM_I, latest: e.MEM_L, state: e.MEM_S, slug: '$SLUG_MEM' },
                 'caveman':      { installed: e.CAVE_I, latest: e.CAVE_L, state: e.CAVE_S, slug: '$SLUG_CAVE' },
                 'rtk':          { installed: e.RTK_I, latest: e.RTK_L, state: e.RTK_S, slug: 'cargo:rtk' },
-                'pxpipe':       { installed: e.PXPIPE_I, latest: e.PXPIPE_L, state: e.PXPIPE_S, slug: 'npm:pxpipe-proxy' }
+                'pxpipe':       { installed: e.PXPIPE_I, latest: e.PXPIPE_L, state: e.PXPIPE_S, slug: 'npm:pxpipe-proxy' },
+                'graphify':     { installed: e.GRAPHIFY_I, latest: e.GRAPHIFY_L, state: e.GRAPHIFY_S, slug: 'pypi:$GRAPHIFY_PYPI_PACKAGE' }
             },
             providers: {
                 'codex':  { installed: e.CODEX_I, latest: e.CODEX_L, state: e.CODEX_S },
