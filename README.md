@@ -168,15 +168,16 @@ wires it once:
 | CLI         | What you get                                                          |
 | ----------- | --------------------------------------------------------------------- |
 | Claude Code | Native persistent bottom bar (always visible)                         |
-| Codex       | Launch banner + `tokenwar status` reminder + inline upgrade prompt    |
-| Gemini CLI  | Launch banner + `tokenwar status` reminder + inline upgrade prompt    |
-| Kimi Code CLI | Launch banner + `tokenwar status` reminder + inline upgrade prompt  |
-| opencode    | Launch banner + `tokenwar status` reminder + inline upgrade prompt    |
+| Codex       | Launch banner + `tokenwar status` reminder + update status hint       |
+| Gemini CLI  | Launch banner + `tokenwar status` reminder + update status hint       |
+| Kimi Code CLI | Launch banner + `tokenwar status` reminder + update status hint     |
+| opencode    | Launch banner + `tokenwar status` reminder + update status hint       |
 
 After install you simply type `codex`, `gemini`, `kimi`, or `opencode` as usual —
-the banner prints, and if updates are pending you get **"⬆ N updates available.
-Upgrade now? [y/N]"** which bumps managed tools. A `tokenwar` command also works
-in any shell:
+the banner prints the stack bar. If updates are pending, the bar shows
+**"⬆ N updates · /tokenwar upgrade"** as an informational hint only; upgrades
+run only when you call `tokenwar upgrade` yourself. A `tokenwar` command also
+works in any shell:
 
 ```bash
 tokenwar status     # state of the 6 tools + providers
