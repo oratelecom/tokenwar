@@ -46,10 +46,10 @@ context, never the screen. So tokenwar surfaces the stack differently per CLI:
 | CLI        | How the stack is surfaced                                              |
 | ---------- | --------------------------------------------------------------------- |
 | Claude Code | Native persistent bottom bar via `statusLine` (auto, always visible)  |
-| Codex      | **Launch banner** + reminder + upgrade prompt (via shell wrapper)     |
-| Gemini CLI | **Launch banner** + reminder + upgrade prompt (via shell wrapper)     |
-| Kimi Code CLI | **Launch banner** + reminder + upgrade prompt (via shell wrapper)  |
-| opencode   | **Launch banner** + reminder + upgrade prompt (via shell wrapper)     |
+| Codex      | **Launch banner** + reminder + update status hint (via shell wrapper) |
+| Gemini CLI | **Launch banner** + reminder + update status hint (via shell wrapper) |
+| Kimi Code CLI | **Launch banner** + reminder + update status hint (via shell wrapper) |
+| opencode   | **Launch banner** + reminder + update status hint (via shell wrapper) |
 
 `install.sh` wires the shell functions (one-time, then zero effort):
 
@@ -57,9 +57,9 @@ context, never the screen. So tokenwar surfaces the stack differently per CLI:
   `upgrade` work in **any** shell (Codex, Gemini, Kimi, opencode, plain terminal).
 - `codex` / `gemini` / `kimi` / `opencode` — wrapped so that launching any of
   them prints the tokenwar banner (`scripts/tokenwar-launch.sh`), reminds the
-  user to run `tokenwar status`, and — if the throttled cache shows pending
-  updates — offers an inline **"Upgrade now? [y/N]"** that runs
-  `scripts/upgrade.sh` for managed tools. The banner is silent for
+  user to run `tokenwar status`, and leaves pending updates as the statusline's
+  informational **"⬆ N updates · /tokenwar upgrade"** hint. It never runs
+  `scripts/upgrade.sh` automatically from provider launch. The banner is silent for
   non-interactive launches (`codex exec`, `gemini -p …`, `kimi -p …`,
   `opencode run …`, pipes) so it never pollutes scripted output.
 

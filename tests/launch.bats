@@ -59,3 +59,15 @@ EOF
     [[ "$output" != *"Upgrade now?"* ]]
     [[ "$output" != *"update available"* ]]
 }
+
+@test "interactive launch with pending tool update shows status hint without upgrade prompt" {
+    command -v script >/dev/null 2>&1 || skip "script command not available"
+    cat > "$HOME/.claude/tokenwar/upgrade-check.json" <<'EOF'
+{"tools":{"context-mode":{"state":"up-to-date"},"claude-mem":{"state":"up-to-date"},"caveman":{"state":"update-available"},"rtk":{"state":"up-to-date"},"pxpipe":{"state":"up-to-date"}},"providers":{"codex":{"state":"up-to-date"}}}
+EOF
+
+    run script -qfec "env HOME='$HOME' bash '$SCRIPT' codex" /dev/null
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"/tokenwar upgrade"* ]]
+    [[ "$output" != *"Upgrade now?"* ]]
+}
