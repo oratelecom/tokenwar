@@ -8,8 +8,12 @@
 #   2. remove ~/.claude/skills/tokenwar
 #
 # Does NOT touch:
-#   - context-mode, claude-mem, caveman plugins (those are separate; remove with `claude plugin uninstall`)
+#   - context-mode, claude-mem, caveman, ponytail plugins (those are separate;
+#     remove with `claude plugin uninstall`)
 #   - the RTK CLI or its hook (delete ~/.claude/hooks/rtk-rewrite.sh manually if wanted)
+#   - the pxpipe CLI (`npm rm -g pxpipe-proxy`)
+#   - the graphify CLI, its skill, or any built graph (`graphify uninstall`, then
+#     `uv tool uninstall graphifyy` / `pipx uninstall graphifyy`)
 #   - settings.json backups created by install.sh (kept on purpose)
 
 set -euo pipefail

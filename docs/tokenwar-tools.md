@@ -13,16 +13,18 @@ whether the host can install it safely.
 | [claude-mem](https://github.com/thedotmack/claude-mem) | Cross-session memory and compact recall. | Recall quality depends on write quality; can duplicate another memory layer if unmanaged. | Logs repeat project setup, rules, prior decisions, PR state, or "resume where we were" context. | One-shot work with no future session value. | Native state in `~/.claude-mem/chroma-sync-state.json`; token count is estimated per memory item. |
 | [caveman](https://github.com/JuliusBrussee/caveman) | Cutting verbose assistant prose. | Style-only; no native before/after byte telemetry. | The agent writes long explanations, status updates, reviews, or commit summaries. | User-facing prose needs normal tone, legal/medical nuance, or detailed teaching. | Presence only; scan can estimate opportunity from transcript volume, not actual savings. |
 | [ponytail](https://github.com/DietrichGebert/ponytail) | Smaller code and less abstraction. | Ruleset only; needs review discipline to avoid under-building. | Vibe coding, greenfield code, refactors, UI work, and repeated agent-authored diffs. | Protocol-heavy or compatibility-heavy code where explicit structure is required. | Presence only; savings compound through smaller future reads/diffs/reviews. |
+| [graphify](https://github.com/Graphify-Labs/graphify) | Turning a repo — code, docs, SQL schemas, configs, PDFs — into a local knowledge graph that answers structure questions in one bounded query. | Needs a build step per repo, and semantic extraction (not the AST pass) wants an LLM backend. Per-repo artifacts live in `graphify-out/`. | Logs show repeated cross-file discovery: `rg`/`find`/`sed` sweeps, "where is X wired", impact analysis before a refactor. | Single-file work, or a repo small enough that one `rg` answers the question. | Native `graphify benchmark` — deterministic naive-corpus vs per-query cost. Reported as a per-query ratio, never summed into TOTAL. |
 | [context-mode](https://github.com/mksglu/context-mode) | Sandboxed heavy data processing and FTS-backed recall. | MCP startup/tool latency, broader moving parts, and license review risk before bundling. | Huge files, HTTP responses, PDFs, scraped pages, or data that should be queried instead of pasted. | Fast local code lookup is the main need; prefer a lighter repo-map/code-search tool. | `ctx_stats` MCP data, injected into `gain.sh` as `CTX_STATS_JSON`. |
 
 ## Knowledge And Navigation Tools
 
-These do not replace the six core lanes. They reduce exploration loops, which
-is often where agents quietly waste tokens before writing code.
+These do not replace the seven core lanes. They reduce exploration loops, which
+is often where agents quietly waste tokens before writing code. graphify used to
+sit in this table as a candidate; it is now part of the core stack above and
+carries a real managed state in `tokenwar status`.
 
 | Tool | Best At | Weakness | TokenWar Position |
 | --- | --- | --- | --- |
-| [Graphify](https://github.com/Graphify-Labs/graphify) | Local knowledge graph over code, docs, SQL, configs, and PDFs; queryable structure across a project. | Graph build step and project artifacts must stay scoped to repos that actually use it. | Recommend when logs show repeated cross-file discovery, architecture questions, or `rg/find/sed` sweeps. |
 | [OpenWiki](https://github.com/langchain-ai/openwiki) | Durable Markdown wiki maintained by an agent, good for onboarding and purpose memory. | It creates/maintains docs; it is not a live low-latency grep replacement. | Recommend when agents keep re-reading project rules, architecture, setup, and "why" context. |
 | [Serena](https://github.com/oraios/serena) | MCP-backed IDE-like symbol retrieval, reference lookup, refactoring, and debugging. | MCP dependency and language-server quality vary by repo/language. | Strong candidate when exact symbol navigation would replace many file reads. |
 | [Probe](https://github.com/probelabs/probe) | Code and Markdown context engine with AST parsing, semantic search, CLI, MCP, and SDK modes. | Smaller ecosystem than Serena; benchmark locally before defaulting. | Preferred context-mode alternative for code search because it offers direct CLI usage, not only MCP. |
@@ -37,7 +39,7 @@ is often where agents quietly waste tokens before writing code.
 | Log Signal | Recommend | Reason |
 | --- | --- | --- |
 | Many shell calls or huge command outputs | RTK | It owns `SHELL -> LLM` stdout compression. |
-| Repeated `rg/find/sed/cat/ls/git diff` exploration | Probe, Stacklit, Graphify, Serena | Replace multi-step discovery with maps, symbol lookup, or graph queries. |
+| Repeated `rg/find/sed/cat/ls/git diff` exploration | graphify first (managed), then Probe / Stacklit / Serena if sweeps survive | Replace multi-step discovery with graph queries, maps, or symbol lookup. |
 | Huge HTTP/file/PDF/scrape payloads | Probe for code, context-mode or context-link for sandboxed heavy data | Do not paste raw payloads into the transcript. Query/index them locally. |
 | Repeated project recap after session restarts | claude-mem and OpenWiki | Persist facts once, recall compactly later. |
 | Long assistant prose or long review comments | caveman | It targets `LLM -> USER` output. |
@@ -75,8 +77,11 @@ because applying changes is an interactive text flow.
 
 The apply path is deliberately narrow. It can enable `caveman`, `claude-mem`,
 and `ponytail` when they are installed but disabled. It does not install missing
-tools, edit RTK hooks, remove pxpipe, or pick a third-party code-context
-candidate automatically.
+tools, edit RTK hooks, remove pxpipe, register the graphify skill, or pick a
+third-party code-context candidate automatically. graphify is a CLI + skill
+rather than a Claude Code plugin, so there is no `claude plugin enable` to drive:
+its on/off mechanism is `graphify install` / `graphify uninstall`, which the
+apply flow deliberately leaves to an explicit human decision.
 
 ## Decision Vocabulary
 
@@ -96,15 +101,19 @@ Vibe/Ora agents, and Cursor produced this ordering:
 | --- | --- | --- | --- |
 | RTK | `KEEP` | 270.2K | 2348 shell/test command signals. |
 | context-mode alternative | `TRY` | 210.1K | 266 heavy payload or scrape signals. |
-| Probe / Stacklit / Serena / Graphify | `TRY` | 180.1K | 607 repo discovery signals. |
+| graphify | `KEEP` | 180.1K | 607 repo discovery signals. |
+| Probe / Stacklit / Serena | `TRY` | 180.1K | 607 repo discovery signals. |
 | claude-mem / OpenWiki | `KEEP` | 120.1K | 468 repeated memory/context signals. |
 | pxpipe | `KEEP` | 90.1K | 600.4K scanned log tokens and 18 long-line payloads. |
 | caveman | `ENABLE` | 72.0K | 1389 prose/review/summary signals. |
 | ponytail | `KEEP` | 15.5K | 31 code-generation or diff signals. |
 
-The practical read: keep RTK, claude-mem, pxpipe, and ponytail; enable caveman
-for status/review chatter; test Probe or Stacklit before using context-mode as
-the default code-navigation path.
+The practical read: keep RTK, graphify, claude-mem, pxpipe, and ponytail; enable
+caveman for status/review chatter; test Probe or Stacklit before using
+context-mode as the default code-navigation path. graphify now reports a real
+managed state (`OK` / `installed-disabled` / `not-installed`), while
+`Probe / Stacklit / Serena` stays a `candidate` row — reach for one of those only
+if discovery sweeps are still in the logs once graphify is in place.
 
 ## Current Context-Mode Stance
 
@@ -112,10 +121,11 @@ Do not make context-mode the default replacement for every code-navigation
 case. It remains valuable for sandboxed heavy data and FTS-style offload, but
 for local code navigation TokenWar should test lighter alternatives first:
 
-1. Probe when a direct CLI/MCP code context engine is enough.
-2. Stacklit when a compact repo map should replace first-pass exploration.
-3. Serena when symbol-aware MCP/LSP navigation is worth the MCP overhead.
-4. Graphify when project structure and cross-document relationships matter.
+1. graphify first — it is managed by TokenWar, needs no MCP server, and covers
+   project structure plus cross-document relationships.
+2. Probe when a direct CLI/MCP code context engine is enough.
+3. Stacklit when a compact repo map should replace first-pass exploration.
+4. Serena when symbol-aware MCP/LSP navigation is worth the MCP overhead.
 5. context-mode only when the workload is heavy data offload or sandboxed
    content processing rather than normal repo search.
 
@@ -125,7 +135,7 @@ for local code navigation TokenWar should test lighter alternatives first:
 numbers as real savings.
 
 - Actual savings: only from native telemetry (`rtk gain`, `pxpipe stats`,
-  Codex/opencode token databases, `ctx_stats`).
+  `graphify benchmark`, Codex/opencode token databases, `ctx_stats`).
 - Estimated opportunity: derived from local logs by matching command, search,
   scrape, memory, verbosity, and code-generation signals.
 - Recommendation output must include both: `estimated avoidable tokens` and

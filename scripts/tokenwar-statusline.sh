@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tokenwar statusline — combined badge for the 6-tool token-saving stack.
-# Emits: [ctx vX] [mem vY] [rtk SAVED] [caveman vZ] [ponytail on] [pxpipe vX]
+# tokenwar statusline — combined badge for the 7-tool token-saving stack.
+# Emits: [ctx vX] [mem vY] [rtk SAVED] [caveman vZ] [ponytail on] [pxpipe vX] [graphify vX]
 # Each badge: GREEN if active, RED if inactive. A yellow ⬆ is appended to any
 # tool with an available update (per the check-updates.sh cache), and when at
 # least one update exists the bar ends with a "⬆ N updates · /tokenwar upgrade"
@@ -21,6 +21,7 @@ readonly PLUGIN_CACHE="${CACHE_DIR}/tokenwar-plugins-${USER}.json"
 readonly RTK_GAIN_CACHE="${CACHE_DIR}/tokenwar-rtk-gain-${USER}.txt"
 readonly RTK_BIN="rtk"
 readonly PXPIPE_BIN="pxpipe"
+readonly GRAPHIFY_BIN="graphify"
 readonly CLAUDE_BIN="claude"
 readonly SLUG_CTX="context-mode@context-mode"
 readonly SLUG_MEM="claude-mem@thedotmack"
@@ -74,6 +75,7 @@ readonly KEY_MEM="claude-mem"
 readonly KEY_RTK="rtk"
 readonly KEY_CAVE="caveman"
 readonly KEY_PXPIPE="pxpipe"
+readonly KEY_GRAPHIFY="graphify"
 
 readonly COL_GREEN=$'\033[32m'
 readonly COL_RED=$'\033[31m'
@@ -141,22 +143,24 @@ maybe_refresh_updates() {
     disown 2>/dev/null || true
 }
 
-# Echo "ctx|mem|rtk|caveman|pxpipe", each "true"/"false" for update-available, from the
-# cache only (no network). Missing/corrupt cache → all "false".
+# Echo "ctx|mem|rtk|caveman|pxpipe|graphify", each "true"/"false" for
+# update-available, from the cache only (no network). Missing/corrupt cache →
+# all "false".
 update_states() {
     UPD_CACHE="$UPDATE_CACHE" STATE_AVAIL="$UPDATE_STATE_AVAILABLE" \
     K_CTX="$KEY_CTX" K_MEM="$KEY_MEM" K_RTK="$KEY_RTK" K_CAVE="$KEY_CAVE" K_PXPIPE="$KEY_PXPIPE" \
+    K_GRAPHIFY="$KEY_GRAPHIFY" \
     node --input-type=module -e '
         import { readFileSync } from "fs";
         let tools = {};
         try { tools = (JSON.parse(readFileSync(process.env.UPD_CACHE, "utf8")).tools) || {}; } catch {}
         const up = (k) => (tools[k] && tools[k].state === process.env.STATE_AVAIL) ? "true" : "false";
-        console.log([up(process.env.K_CTX), up(process.env.K_MEM), up(process.env.K_RTK), up(process.env.K_CAVE), up(process.env.K_PXPIPE)].join("|"));
-    ' 2>/dev/null || echo "false|false|false|false|false"
+        console.log([up(process.env.K_CTX), up(process.env.K_MEM), up(process.env.K_RTK), up(process.env.K_CAVE), up(process.env.K_PXPIPE), up(process.env.K_GRAPHIFY)].join("|"));
+    ' 2>/dev/null || echo "false|false|false|false|false|false"
 }
 
 maybe_refresh_updates
-IFS='|' read -r ctx_upd mem_upd rtk_upd cave_upd pxpipe_upd <<<"$(update_states)"
+IFS='|' read -r ctx_upd mem_upd rtk_upd cave_upd pxpipe_upd graphify_upd <<<"$(update_states)"
 
 plugin_list_json=$(cache_or_run "$PLUGIN_CACHE" "$CACHE_TTL_SECS" "$LOOKUP_TIMEOUT_SECS" "$CLAUDE_BIN" plugin list --json)
 plugin_list_json="${plugin_list_json:-[]}"
@@ -239,6 +243,16 @@ if command -v "$PXPIPE_BIN" >/dev/null 2>&1; then
     pxpipe_active="true"
 fi
 
+# graphify: CLI presence/version. Like pxpipe the badge reports availability —
+# the graph itself is per-repo (graphify-out/) and is not a host-level daemon.
+graphify_ver="-"
+graphify_active="false"
+if command -v "$GRAPHIFY_BIN" >/dev/null 2>&1; then
+    graphify_ver=$("$GRAPHIFY_BIN" --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | awk '{print $1}')
+    graphify_ver="${graphify_ver:--}"
+    graphify_active="true"
+fi
+
 # ponytail: real runtime state from the plugin. Green with the active intensity
 # iff the plugin is enabled AND the flag reports a live mode (full renders as a
 # plain "on"); red "off" when the plugin is disabled or toggled off.
@@ -260,7 +274,7 @@ fi
 # Aggregate call-to-action: when ≥1 tool has an update, append a single hint
 # pointing at the upgrade command. Clean bar (no suffix) when all up-to-date.
 update_count=0
-for u in "$ctx_upd" "$mem_upd" "$rtk_upd" "$cave_upd" "$pxpipe_upd"; do
+for u in "$ctx_upd" "$mem_upd" "$rtk_upd" "$cave_upd" "$pxpipe_upd" "$graphify_upd"; do
     [[ "$u" == "true" ]] && update_count=$((update_count + 1))
 done
 summary=""
@@ -271,11 +285,12 @@ if (( update_count > 0 )); then
         "$COL_YELLOW" "$UPDATE_MARKER" "$update_count" "$word" "$UPDATE_CTA_CMD" "$COL_RESET")
 fi
 
-printf "%s %s %s %s %s %s%s" \
+printf "%s %s %s %s %s %s %s%s" \
     "$(badge ctx               "$ctx_ver"      "$ctx_enabled"   "$ctx_upd")" \
     "$(badge mem               "$mem_ver"      "$mem_enabled"   "$mem_upd")" \
     "$(badge rtk               "$rtk_saved"    "$rtk_active"    "$rtk_upd")" \
     "$(badge caveman           "$cave_ver"     "$cave_enabled"  "$cave_upd")" \
     "$(badge "$PONYTAIL_LABEL" "$ponytail_val" "$ponytail_active" "false")" \
     "$(badge pxpipe            "$pxpipe_ver"   "$pxpipe_active" "$pxpipe_upd")" \
+    "$(badge graphify          "$graphify_ver" "$graphify_active" "$graphify_upd")" \
     "$summary"

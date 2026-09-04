@@ -3,7 +3,7 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash
 #   curl -fsSL .../install.sh | bash -s -- --with-plugins   # + the 4 plugins
-#   curl -fsSL .../install.sh | bash -s -- --all            # + plugins + RTK + pxpipe
+#   curl -fsSL .../install.sh | bash -s -- --all            # + plugins + RTK + pxpipe + graphify
 #
 # Does:
 #   1. git clone https://github.com/oratelecom/tokenwar ~/.claude/skills/tokenwar
@@ -17,8 +17,10 @@
 #      --with-rtk      install the RTK binary via rtk's official prebuilt
 #                      installer (prebuilt, no toolchain), then wire its hook.
 #      --with-pxpipe  install pxpipe proxy from a pinned npm package.
-#      --all           plugins + RTK + pxpipe. After plugins/RTK, RTK's hook is
-#                      wired via `rtk init -g`.
+#      --with-graphify install the graphify CLI (PyPI `graphifyy`) and register
+#                      its assistant skill via `graphify install`.
+#      --all           plugins + RTK + pxpipe + graphify. After plugins/RTK,
+#                      RTK's hook is wired via `rtk init -g`.
 #      Without any flag, plugin/RTK setup is left to /tokenwar activate.
 #
 # Idempotent: re-running pulls the latest tokenwar and only patches settings.json
@@ -67,6 +69,19 @@ readonly PXPIPE_NPM_VERSION="0.10.0"
 readonly PXPIPE_NPM_SPEC="${PXPIPE_NPM_PACKAGE}@${PXPIPE_NPM_VERSION}"
 readonly USER_LOCAL_BIN="$HOME/.local/bin"
 
+# graphify (--with-graphify): the repo/doc structure lane. Published on PyPI as
+# `graphifyy` — the plain `graphify` name there is an unaffiliated package, per
+# upstream's README — while the installed command stays `graphify`. Installed
+# through an isolated-env manager when one exists (uv tool, then pipx): a plain
+# `pip install` into a shared environment is what produces the upstream
+# "ModuleNotFoundError: No module named 'graphify'" report, because the skill
+# resolves its interpreter at runtime and can land on a different env.
+readonly UV_BIN="uv"
+readonly PIPX_BIN="pipx"
+readonly PIP_BIN="pip"
+readonly GRAPHIFY_BIN="graphify"
+readonly GRAPHIFY_PYPI_PACKAGE="graphifyy"
+
 # Shell-integration block markers — used to idempotently inject/remove the
 # `tokenwar`, `codex`, `gemini`, `kimi`, and `opencode` wrapper functions in the
 # user's shell rc.
@@ -90,20 +105,23 @@ die()    { printf '%s %s\n' "$(red 'ERR')" "$*" >&2; exit 1; }
 WITH_PLUGINS=false
 WITH_RTK=false
 WITH_PXPIPE=false
+WITH_GRAPHIFY=false
 for arg in "$@"; do
     case "$arg" in
-        --with-plugins) WITH_PLUGINS=true ;;
-        --with-rtk)     WITH_RTK=true ;;
-        --with-pxpipe)  WITH_PXPIPE=true ;;
-        --all)          WITH_PLUGINS=true; WITH_RTK=true; WITH_PXPIPE=true ;;
+        --with-plugins)  WITH_PLUGINS=true ;;
+        --with-rtk)      WITH_RTK=true ;;
+        --with-pxpipe)   WITH_PXPIPE=true ;;
+        --with-graphify) WITH_GRAPHIFY=true ;;
+        --all)           WITH_PLUGINS=true; WITH_RTK=true; WITH_PXPIPE=true; WITH_GRAPHIFY=true ;;
         -h|--help)
-            printf 'Usage: install.sh [--with-plugins] [--with-rtk] [--with-pxpipe] [--all]\n'
-            printf '  --with-plugins  install+enable the 4 Claude Code plugins (incl. ponytail)\n'
-            printf '  --with-rtk      install the RTK binary (official prebuilt installer) + wire its hook\n'
-            printf '  --with-pxpipe   install pxpipe proxy (%s)\n' "$PXPIPE_NPM_SPEC"
-            printf '  --all           all of the above\n'
+            printf 'Usage: install.sh [--with-plugins] [--with-rtk] [--with-pxpipe] [--with-graphify] [--all]\n'
+            printf '  --with-plugins   install+enable the 4 Claude Code plugins (incl. ponytail)\n'
+            printf '  --with-rtk       install the RTK binary (official prebuilt installer) + wire its hook\n'
+            printf '  --with-pxpipe    install pxpipe proxy (%s)\n' "$PXPIPE_NPM_SPEC"
+            printf '  --with-graphify  install the graphify CLI (PyPI %s) + register its skill\n' "$GRAPHIFY_PYPI_PACKAGE"
+            printf '  --all            all of the above\n'
             exit 0 ;;
-        *) die "unknown argument: $arg (supported: --with-plugins, --with-rtk, --with-pxpipe, --all)" ;;
+        *) die "unknown argument: $arg (supported: --with-plugins, --with-rtk, --with-pxpipe, --with-graphify, --all)" ;;
     esac
 done
 
@@ -350,6 +368,42 @@ install_pxpipe() {
         || warn "pxpipe install finished, but pxpipe is not on PATH. Add npm's global bin directory or $USER_LOCAL_BIN to PATH."
 }
 
+# --with-graphify: install the graphify CLI, then register its assistant skill.
+# Both halves are required — the CLI alone builds graphs no agent knows to query.
+install_graphify() {
+    if command -v "$GRAPHIFY_BIN" >/dev/null 2>&1; then
+        say "graphify already installed ($("$GRAPHIFY_BIN" --version 2>/dev/null || echo present)) — skipping install"
+    elif command -v "$UV_BIN" >/dev/null 2>&1; then
+        say "Installing graphify via uv tool ($GRAPHIFY_PYPI_PACKAGE)"
+        "$UV_BIN" tool install "$GRAPHIFY_PYPI_PACKAGE" >/dev/null 2>&1 \
+            || warn "uv tool install $GRAPHIFY_PYPI_PACKAGE failed — see https://github.com/Graphify-Labs/graphify"
+    elif command -v "$PIPX_BIN" >/dev/null 2>&1; then
+        say "Installing graphify via pipx ($GRAPHIFY_PYPI_PACKAGE)"
+        "$PIPX_BIN" install "$GRAPHIFY_PYPI_PACKAGE" >/dev/null 2>&1 \
+            || warn "pipx install $GRAPHIFY_PYPI_PACKAGE failed — see https://github.com/Graphify-Labs/graphify"
+    elif command -v "$PIP_BIN" >/dev/null 2>&1; then
+        warn "no uv/pipx found — falling back to pip. Upstream recommends an isolated env (uv tool / pipx)."
+        "$PIP_BIN" install "$GRAPHIFY_PYPI_PACKAGE" >/dev/null 2>&1 \
+            || warn "pip install $GRAPHIFY_PYPI_PACKAGE failed — see https://github.com/Graphify-Labs/graphify"
+    else
+        warn "no uv/pipx/pip found — cannot install graphify. See https://github.com/Graphify-Labs/graphify"
+        return 0
+    fi
+
+    # Both managers drop the command in ~/.local/bin, which the shell block above
+    # exports but this process may not have picked up yet.
+    case ":$PATH:" in *":$USER_LOCAL_BIN:"*) : ;; *) PATH="$USER_LOCAL_BIN:$PATH" ;; esac
+
+    if command -v "$GRAPHIFY_BIN" >/dev/null 2>&1; then
+        say "Registering the graphify skill (graphify install)"
+        "$GRAPHIFY_BIN" install >/dev/null 2>&1 \
+            || warn "graphify install failed — run it manually to register the skill"
+        say "graphify installed ($("$GRAPHIFY_BIN" --version 2>/dev/null || echo ok))."
+    else
+        warn "graphify install finished, but graphify is not on PATH. Add $USER_LOCAL_BIN to PATH (or run \`uv tool update-shell\`)."
+    fi
+}
+
 say "Wiring shell integration"
 wired_any=false
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
@@ -363,14 +417,17 @@ if ! $wired_any; then
     wire_shell_rc "$HOME/.bashrc" || warn "could not create shell integration in ~/.bashrc"
 fi
 
-# 5. plugins + rtk + pxpipe (opt-in)
+# 5. plugins + rtk + pxpipe + graphify (opt-in)
 if $WITH_PLUGINS; then install_plugins; fi
 if $WITH_RTK; then install_rtk; fi
 if $WITH_PXPIPE; then install_pxpipe; fi
+if $WITH_GRAPHIFY; then install_graphify; fi
 if $WITH_PLUGINS || $WITH_RTK; then wire_rtk_hook; fi
 
-if $WITH_PLUGINS && $WITH_RTK && $WITH_PXPIPE; then
-    next_steps="Plugins + RTK + pxpipe installed and RTK's hook wired. Restart Claude Code to load the plugins. Start pxpipe when you want proxy-side prompt-to-PNG savings."
+if $WITH_PLUGINS && $WITH_RTK && $WITH_PXPIPE && $WITH_GRAPHIFY; then
+    next_steps="Plugins + RTK + pxpipe + graphify installed and RTK's hook wired. Restart Claude Code to load the plugins. Start pxpipe when you want proxy-side prompt-to-PNG savings, and run \`graphify .\` inside a repo to build its first graph."
+elif $WITH_PLUGINS && $WITH_RTK && $WITH_PXPIPE; then
+    next_steps="Plugins + RTK + pxpipe installed and RTK's hook wired. graphify not installed — add --with-graphify for the repo-structure lane. Restart Claude Code to load the plugins."
 elif $WITH_PLUGINS && $WITH_RTK; then
     next_steps="Plugins + RTK installed and RTK's hook wired. pxpipe not installed — add --with-pxpipe if you want proxy-side prompt-to-PNG savings. Restart Claude Code to load the plugins."
 elif $WITH_PLUGINS; then
@@ -380,7 +437,7 @@ elif $WITH_RTK; then
 elif $WITH_PXPIPE; then
     next_steps="pxpipe installed. Start it when you want proxy-side prompt-to-PNG savings; install the Claude plugins/RTK with --all for the full stack."
 else
-    next_steps="Activate the tools (4 plugins incl. ponytail + the RTK hook + pxpipe) via the tokenwar skill:
+    next_steps="Activate the tools (4 plugins incl. ponytail + the RTK hook + pxpipe + graphify) via the tokenwar skill:
   /tokenwar activate
 (or re-run with --all to install everything in one shot)"
 fi

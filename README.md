@@ -5,16 +5,18 @@
 </p>
 
 <p align="center">
-  <img src="docs/tokenwar-stack.png" alt="tokenwar — 1 project → 6 token-saving lanes. The savings stack." width="100%">
+  <img src="docs/tokenwar-stack.png" alt="tokenwar — 1 project, many token-saving lanes. The savings stack." width="100%">
 </p>
 
 [![CI](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml/badge.svg)](https://github.com/oratelecom/tokenwar/actions/workflows/ci.yml)
 
-**Six token-saving tools, run as one stack.** Built for Claude Code first — but the stack reaches further: RTK, ponytail, caveman, context-mode, and pxpipe work across agents (Codex, Gemini, Kimi, opencode, Cursor…), with provider token usage tracked only where native telemetry exists. Each saves a buffer or lane the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, provider-bound prompt payloads, and the code itself — so the savings stack instead of competing. None of the six is the headliner; the point is running all six at once. **6-in-1.**
+**Seven token-saving tools, run as one stack.** Built for Claude Code first — but the stack reaches further: RTK, ponytail, caveman, context-mode, pxpipe, and graphify work across agents (Codex, Gemini, Kimi, opencode, Cursor…), with provider token usage tracked only where native telemetry exists. Each saves a buffer or lane the others can't touch — the model's response, tool stdout, heavy data, cross-session memory, provider-bound prompt payloads, the repo's own shape, and the code itself — so the savings stack instead of competing. None of the seven is the headliner; the point is running all seven at once. **7-in-1.**
+
+> The stack diagram above still pictures six lanes; graphify joined afterwards and the artwork has not been regenerated yet.
 
 Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 
-## The six tools
+## The seven tools
 
 | Tool             | What it compresses                  | Buffer / flow                     |
 | ---------------- | ----------------------------------- | --------------------------------- |
@@ -23,17 +25,18 @@ Stack diagram: <https://studio.oratelecom.net/tokenwar/>
 | **context-mode** | Heavy data (HTTP, large files, MCP) | `LLM → SANDBOX → (FTS5) → LLM`    |
 | **claude-mem**   | Cross-session knowledge             | `LLM → store → LLM (next session)`|
 | **pxpipe**       | Provider-bound prompt/context payloads | `LLM → proxy → PNG blocks → API` |
+| **graphify**     | Repo/doc discovery sweeps           | `REPO → graph → query → LLM`      |
 | **ponytail**     | The code the LLM writes             | `LLM → CODE (recurs on read)`     |
 
 Each tool acts on a **distinct buffer or lane** — no buffer is double-processed,
-so the gains stack additively. Five lanes save on the live conversation or
+so the gains stack additively. Six lanes save on the live conversation or
 provider request path; ponytail's lane saves on the artifact on disk and recurs
 on every future read, review, diff, and grep. Different shapes of saving, same
 stack.
 
-## Why we picked each one — and why all six
+## Why we picked each one — and why all seven
 
-No tool here is the headliner. Each was chosen because it owns a buffer the others physically can't reach, and on its own lane each is a killer. The point isn't any single one — it's that the six run together with zero overlap, so every saving stacks. **Six tools, one stack, 6-in-1.**
+No tool here is the headliner. Each was chosen because it owns a buffer the others physically can't reach, and on its own lane each is a killer. The point isn't any single one — it's that the seven run together with zero overlap, so every saving stacks. **Seven tools, one stack, 7-in-1.**
 
 ### RTK — the shell/tool firehose
 Tool output is the heaviest, most frequent buffer in an agent loop: every `git diff`, `ls`, test run, and API dump lands in context raw. RTK rewrites those commands at the hook level so only a compressed form reaches the model — transparently, zero prompt overhead, written in Rust so it's instant. It's the single biggest *measured* saver in the stack. **Picked because the firehose is where the tokens actually are.**
@@ -47,15 +50,18 @@ Re-explaining the project every time you `/clear` or restart is pure repeated co
 ### pxpipe — the provider-bound prompt payload
 [teamchong/pxpipe](https://github.com/teamchong/pxpipe) is a local API proxy that converts selected prompt/context text into PNG blocks before forwarding the request to the provider. That attacks a different lane from RTK: RTK compresses shell output before it enters model context; pxpipe compresses expensive prompt payloads at the provider boundary and records savings in `~/.pxpipe/events.jsonl`. **Picked because some repeated or bulky text is cheaper as pixels than as input tokens.**
 
+### graphify — the repo's shape, asked instead of grepped
+[Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) parses a repo — code, docs, SQL schemas, configs, PDFs — into a local knowledge graph with deterministic AST parsing and every edge explained. The lane it owns is *discovery*: "where is this wired", "what breaks if I change X", "how does the api reach the data layer". Without it an agent answers those with a burst of `rg`/`find`/`sed`/`cat` sweeps whose combined output is the single largest avoidable read in most logs — and RTK can only compress what those commands already printed, it cannot stop them being run. graphify replaces the sweep with one bounded `graphify query`. Its own `graphify benchmark` measures the delta on your graph (a 236-node graph here: ~15.7K tokens to read the corpus naively vs ~347 per graph query). **Picked because the cheapest discovery output is the one that was never printed.**
+
 ### caveman — the response on a diet
 The model's own prose is tokens too. caveman strips articles, filler, and hedging from what the LLM says while keeping the technical substance exact — terse output, same information. **Picked because a 5-line answer beats three paragraphs, every single turn.** (It's the prose twin of ponytail's code.)
 
 ### ponytail — the code itself
 The lazy-senior-dev ruleset ([DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)): a YAGNI ladder — stdlib before custom, native before dependency, one line before fifty, deletion before addition — so the model writes the *smallest correct* code, not an over-engineered one. Its saving lands twice: fewer **output** tokens at generation, then fewer **input** tokens on every future read/review/diff of a smaller file. **Picked because the cheapest code to maintain is the code that was never written.**
 
-> Five save on the conversation/provider path, one saves on the artifact. One's a Rust hook, one's an MCP sandbox, one's a memory store, one's a proxy, one's a response filter, one's a ruleset. Different shapes, different lanes — that's exactly why they stack. Run one and you compress one buffer; run all six and almost nothing in the loop is left uncompressed. **That's the 6-in-1.**
+> Six save on the conversation/provider path, one saves on the artifact. One's a Rust hook, one's an MCP sandbox, one's a memory store, one's a proxy, one's a graph, one's a response filter, one's a ruleset. Different shapes, different lanes — that's exactly why they stack. Run one and you compress one buffer; run all seven and almost nothing in the loop is left uncompressed. **That's the 7-in-1.**
 
-> Honest accounting: RTK / context-mode / claude-mem / pxpipe report real telemetry; caveman and ponytail are presence-only (a style nudge and a plugin ruleset — no metered buffer), so they show `on`, never a fabricated number. pxpipe savings come only from its native `~/.pxpipe/events.jsonl`; if no events exist, tokenwar prints `N/A`. Measure ponytail by A/B-ing `/ponytail` on vs off — the [`examples/`](https://github.com/DietrichGebert/ponytail/tree/main/examples) show before/after diffs.
+> Honest accounting: RTK / context-mode / claude-mem / pxpipe report real telemetry; caveman and ponytail are presence-only (a style nudge and a plugin ruleset — no metered buffer), so they show `on`, never a fabricated number. graphify reports a *per-query* reduction ratio measured by its own `graphify benchmark`, which is not a cumulative saved-token counter — so tokenwar prints the ratio in the note and leaves the token column `N/A` rather than summing a per-query figure into the TOTAL. pxpipe savings come only from its native `~/.pxpipe/events.jsonl`; if no events exist, tokenwar prints `N/A`. Measure ponytail by A/B-ing `/ponytail` on vs off — the [`examples/`](https://github.com/DietrichGebert/ponytail/tree/main/examples) show before/after diffs.
 
 ## Why complementary (not conflicting)
 
@@ -66,13 +72,14 @@ The tokenwar `check.sh` script enforces 5 rules:
 | R1   | Single `PreToolUse` Bash hook in `settings.json` (RTK only — no double-rewrite)    | settings.json inspected |
 | R2   | `claude-mem` writes to `~/.claude-mem`, `context-mode` to `~/.claude/projects/...` | Disjoint storage sinks  |
 | R3   | RTK targets tool stdout; caveman targets LLM output                                | Disjoint buffers        |
-| R4   | Core hook/plugin tools installed at current versions                               | `claude plugin list`    |
+| R4   | Core hook/plugin/CLI tools installed (incl. rtk, pxpipe, graphify)                 | `claude plugin list` + `command -v` |
 | R5   | Active providers use separate config directories                                   | Disjoint provider state |
 
 When all five PASS, the verdict is `COMPLEMENTARY`. ponytail shapes what the
 model writes; pxpipe is tracked in `status`, `gain`, `updates`, and `upgrade`
-and sits at the provider proxy boundary, separate from RTK's shell-output lane.
-Six tools, still zero overlap.
+and sits at the provider proxy boundary, separate from RTK's shell-output lane;
+graphify sits one step earlier still, cutting the discovery commands before RTK
+ever has stdout to compress. Seven tools, still zero overlap.
 
 ## Commands
 
@@ -80,14 +87,14 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 
 | Command | What it does |
 | --- | --- |
-| `/tokenwar status` | Health of the 6 tools — installed, enabled, version |
+| `/tokenwar status` | Health of the 7 tools — installed, enabled, version |
 | `/tokenwar gain` | Per-tool token savings + per-provider telemetry/status (Codex/Gemini/Kimi/opencode) + **monthly $ value** |
 | `/tokenwar scan` | Local agent-log scan that estimates which token-saving tools would have helped most |
 | `/tokenwar upgrade` | Bump each tool to latest (asks confirmation) |
-| `/tokenwar check` | Conflict detector — verifies the 6 tools stack additively |
+| `/tokenwar check` | Conflict detector — verifies the 7 tools stack additively |
 | `/tokenwar test` | End-to-end ping: is each tool actually working? |
 | `/tokenwar doctor` | Full pipeline: status → test → check → gain |
-| `/tokenwar disable <tool>` | Turn off one plugin (`context-mode`/`claude-mem`/`caveman`/`ponytail`) without uninstalling it |
+| `/tokenwar disable <tool>` | Turn off one plugin (`context-mode`/`claude-mem`/`caveman`/`ponytail`) without uninstalling it. `rtk`, `pxpipe`, and `graphify` are binaries, not plugins — the command prints their own on/off mechanism instead |
 | `/tokenwar enable <tool>` | Turn a disabled plugin back on |
 
 ## Local log scan
@@ -139,16 +146,20 @@ Example from a local multi-agent scan:
 ```text
 RTK                                  KEEP      270.2K  shell/test command signals
 context-mode alternative             TRY       210.1K  heavy payload or scrape signals
-Probe / Stacklit / Serena / Graphify TRY       180.1K  repo discovery signals
+graphify                             KEEP      180.1K  repo discovery signals
+Probe / Stacklit / Serena            TRY       180.1K  repo discovery signals
 claude-mem / OpenWiki                KEEP      120.1K  repeated memory/context signals
 pxpipe                               KEEP       90.1K  scanned log tokens and long-line payloads
 caveman                              ENABLE     72.0K  prose/review/summary signals
 ponytail                             KEEP       15.5K  code-generation or diff signals
 ```
 
-That example means: keep RTK, claude-mem, pxpipe, and ponytail; enable caveman
-for operational chatter; test a lighter code-context layer before making
-context-mode the default for code navigation.
+That example means: keep RTK, graphify, claude-mem, pxpipe, and ponytail; enable
+caveman for operational chatter; test a lighter code-context layer before making
+context-mode the default for code navigation. graphify carries a real state
+(`OK` / `installed-disabled` / `not-installed`) because tokenwar manages it;
+`Probe / Stacklit / Serena` stays a `candidate` row — benchmark one of those only
+if discovery sweeps survive in the logs after graphify is in place.
 
 `--apply` only applies direct TokenWar plugin toggles whose decision is
 `ENABLE`. Today that means enabling `caveman`, `claude-mem`, or `ponytail` when
@@ -180,7 +191,7 @@ run only when you call `tokenwar upgrade` yourself. A `tokenwar` command also
 works in any shell:
 
 ```bash
-tokenwar status     # state of the 6 tools + providers
+tokenwar status     # state of the 7 tools + providers
 tokenwar gain       # token savings + monthly $ value
 tokenwar scan       # local log scan + recommendations
 tokenwar upgrade    # bump managed tools (asks confirmation)
@@ -240,7 +251,7 @@ Steps:
 2. Activate: reload the shell (`source ~/.bashrc`) so the tokenwar / codex /
    gemini / kimi / opencode wrappers take effect. For Claude Code, restart it so
    the statusLine loads.
-3. Verify: run `tokenwar status` — every one of the 6 tools must report OK.
+3. Verify: run `tokenwar status` — every one of the 7 tools must report OK.
    Then run `tokenwar check` (must print COMPLEMENTARY) and `tokenwar gain`
    (must show real per-tool token savings, not all N/A).
 4. Report back the status table and the total tokens saved. If any tool is
@@ -250,12 +261,12 @@ Steps:
 One line, if your agent likes it terse:
 
 ```text
-Install, activate, and verify https://github.com/oratelecom/tokenwar — run its install.sh --all, reload the shell, then confirm `tokenwar status` shows all 6 tools OK, `tokenwar check` says COMPLEMENTARY, and `tokenwar gain` reports real savings.
+Install, activate, and verify https://github.com/oratelecom/tokenwar — run its install.sh --all, reload the shell, then confirm `tokenwar status` shows all 7 tools OK, `tokenwar check` says COMPLEMENTARY, and `tokenwar gain` reports real savings.
 ```
 
 ### 👤 Human install
 
-One command — the whole stack: the 4 Claude Code plugins (context-mode, claude-mem, caveman, **ponytail**), the **RTK** binary (via rtk's official prebuilt installer), **pxpipe** (via pinned `pxpipe-proxy@0.10.0`), the statusline + shell functions, and RTK's hook:
+One command — the whole stack: the 4 Claude Code plugins (context-mode, claude-mem, caveman, **ponytail**), the **RTK** binary (via rtk's official prebuilt installer), **pxpipe** (via pinned `pxpipe-proxy@0.10.0`), **graphify** (via PyPI `graphifyy` + `graphify install`), the statusline + shell functions, and RTK's hook:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --all
@@ -265,12 +276,12 @@ Then activate + verify:
 
 ```bash
 source ~/.bashrc      # load the shell wrappers (or open a new terminal)
-tokenwar status       # all 6 tools should report OK
+tokenwar status       # all 7 tools should report OK
 tokenwar check        # must print COMPLEMENTARY
 tokenwar gain         # real per-tool token savings
 ```
 
-Restart Claude Code to load the plugins. `--all` = `--with-plugins --with-rtk --with-pxpipe`; use individual flags if you only want one part. RTK installs from a prebuilt binary (no toolchain, no compiling) on every major platform via rtk's own official installer. pxpipe installs from the pinned npm package `pxpipe-proxy@0.10.0`.
+Restart Claude Code to load the plugins. `--all` = `--with-plugins --with-rtk --with-pxpipe --with-graphify`; use individual flags if you only want one part. RTK installs from a prebuilt binary (no toolchain, no compiling) on every major platform via rtk's own official installer. pxpipe installs from the pinned npm package `pxpipe-proxy@0.10.0`. graphify installs from PyPI — package `graphifyy`, command `graphify` — preferring an isolated environment (`uv tool`, then `pipx`) over a shared `pip`, because the skill resolves its interpreter at runtime and a shared env is what produces upstream's `ModuleNotFoundError: No module named 'graphify'`; the install then runs `graphify install` to register the skill.
 
 Prefer no surprise mutations? Drop the flags — `… | bash` just wires the statusline + shell functions, then `/tokenwar activate` installs the plugins on confirmation:
 
@@ -303,9 +314,13 @@ bash ~/.claude/skills/tokenwar/scripts/gain.sh
 
 `gain.sh` reads each tool from its **own native telemetry** — never fabricated:
 RTK (`rtk gain`), context-mode (`ctx_stats`), claude-mem
-(`~/.claude-mem/chroma-sync-state.json` stored-memory counts), and pxpipe
-(`~/.pxpipe/events.jsonl` proxy events). caveman is a
-style-only nudge with no measurable buffer, so it is always `N/A`. It also
+(`~/.claude-mem/chroma-sync-state.json` stored-memory counts), pxpipe
+(`~/.pxpipe/events.jsonl` proxy events), and graphify (`graphify benchmark` on
+`~/.graphify/global-graph.json`). caveman is a
+style-only nudge with no measurable buffer, so it is always `N/A`; graphify's
+benchmark is a per-query ratio rather than a cumulative counter, so its ratio is
+printed in the note while its token column stays `N/A` and it never inflates the
+TOTAL. It also
 prints a per-month breakdown from `rtk gain --monthly`, valuing each month's
 saved tokens at Claude and Codex input list prices (the API-equivalent $ saved).
 
@@ -324,6 +339,7 @@ tool's own telemetry, nothing invented:
   claude-mem      4.9M        ~est: 98401 obs + 23338 summaries across 36 projects
   caveman         N/A         style-only hook — no measurable buffer
   pxpipe          N/A         pxpipe events log not found
+  graphify        N/A         236 nodes in the global graph, 45.3x fewer tokens per query
   ─────────────────────────────────────────────────────────────
   TOTAL (tools)   13.4M       summed across tools with telemetry
 
@@ -355,7 +371,7 @@ Wire the combined statusline (Claude Code, `~/.claude/settings.json`):
 }
 ```
 
-Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>] [ponytail on]` — green if active, red if down. The `ponytail` badge reflects the plugin's real runtime mode: green with the active intensity (`on` for full, else `lite`/`ultra`) when the `ponytail@ponytail` plugin is enabled and not toggled off, red `off` when disabled or after `/ponytail off` — read live from the plugin's `~/.claude/.ponytail-active` flag, no version, no telemetry, by design. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action. The bar is **Claude-only** — Codex/Gemini/Kimi/opencode are tracked in `/tokenwar gain`, not on the Claude status bar.
+Statusline renders `[ctx <v>] [mem <v>] [rtk <saved>] [caveman <v>] [ponytail on] [pxpipe <v>] [graphify <v>]` — green if active, red if down. The `ponytail` badge reflects the plugin's real runtime mode: green with the active intensity (`on` for full, else `lite`/`ultra`) when the `ponytail@ponytail` plugin is enabled and not toggled off, red `off` when disabled or after `/ponytail off` — read live from the plugin's `~/.claude/.ponytail-active` flag, no version, no telemetry, by design. A yellow `⬆` is appended to any tool with an available update (from the throttled `check-updates.sh` cache, refreshed in the background), and when ≥1 update exists the bar ends with a `⬆ N updates · /tokenwar upgrade` call-to-action. The bar is **Claude-only** — Codex/Gemini/Kimi/opencode are tracked in `/tokenwar gain`, not on the Claude status bar.
 
 ## Settings.json wipe protection
 
@@ -386,7 +402,11 @@ An installed plugin absent from `enabledPlugins` is treated as enabled (Claude d
 bats tests/
 ```
 
-CI on every push to `main` and every PR — installs bats + shellcheck, runs full suite on `ubuntu-latest`.
+CI on every push to `main` and every PR — installs bats + shellcheck, runs the
+full suite on `ubuntu-latest`, then a contract smoke that asserts every managed
+tool is present in `status.sh --json` and `gain.sh --json`. The smoke is what
+catches a tool added to the text table but forgotten in the JSON contract that
+`tokenwar scan` and downstream consumers read.
 
 ## Credits
 
@@ -400,6 +420,7 @@ Our open-source footprint on the stack:
 | ✓ | **context-mode** | upstream contributor |
 | ✓ | **claude-mem**   | upstream contributor |
 | ✦ | **caveman**      | Ora maintenance landing soon |
+| ✓ | **graphify**     | upstream contributor |
 
 ## License
 

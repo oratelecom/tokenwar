@@ -5,7 +5,7 @@
 # Gemini, plain shell) there is no slash command, so this dispatcher gives the
 # same verbs as a normal command:
 #
-#   tokenwar status     # state of the 6 tools + providers
+#   tokenwar status     # state of the 7 tools + providers
 #   tokenwar gain       # per-tool + per-provider token savings
 #   tokenwar scan       # local agent-log scan + recommendations
 #   tokenwar check      # complementarity / conflict detector
@@ -31,7 +31,7 @@ tokenwar — token-saving stack manager
 Usage: tokenwar <command>
 
 Commands:
-  status     state of the 6 tools + providers (codex, gemini, kimi, opencode)
+  status     state of the 7 tools + providers (codex, gemini, kimi, opencode)
   gain       per-tool + per-provider token savings + monthly \$ value
   scan       scan local agent logs and recommend token-saving tools
   check      complementarity / conflict detector

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# tokenwar status — report state of the 6 token-saving tools + AI providers.
+# tokenwar status — report state of the 7 token-saving tools + AI providers.
 #
-# Exit 0 if all 6 tools are healthy, 1 otherwise. Providers are
+# Exit 0 if all 7 tools are healthy, 1 otherwise. Providers are
 # OPTIONAL — they are reported for information but their absence never fails the
 # exit code (a Claude-only host has no other provider CLIs and must still exit 0).
 # Pass --test to additionally run a liveness ping for each tool
@@ -32,6 +32,13 @@ readonly RTK_BIN="rtk"
 readonly MEM_BIN="claude-mem"
 readonly CLAUDE_BIN="claude"
 readonly PXPIPE_BIN="pxpipe"
+readonly GRAPHIFY_BIN="graphify"
+
+# graphify ships as a PyPI package (`graphifyy`) whose CLI is `graphify`, plus a
+# per-assistant skill that `graphify install` copies into the assistant's config
+# dir. Both halves matter: the CLI alone builds graphs nobody's agent knows to
+# query. CLAUDE_CONFIG_DIR keeps this testable and honours a relocated ~/.claude.
+readonly GRAPHIFY_CLAUDE_SKILL="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}/skills/graphify/SKILL.md"
 
 # Cache the plugin list. CLI-first with on-disk fallback lives in lib/plugins.sh
 # (tw_load_plugin_list) so every script that needs plugin state shares one path.
@@ -109,6 +116,24 @@ pxpipe_version() {
     "$PXPIPE_BIN" --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | awk '{print $1}'
 }
 
+# graphify: CLI on PATH + the skill registered with the assistant. A CLI without
+# a registered skill is "installed-disabled" — the graph can be built by hand but
+# the agent never reaches for it, which is the whole point of the tool.
+graphify_state() {
+    if ! command -v "$GRAPHIFY_BIN" >/dev/null 2>&1; then
+        echo "$STATUS_MISSING"; return
+    fi
+    if [[ ! -f "$GRAPHIFY_CLAUDE_SKILL" ]]; then
+        echo "$STATUS_DISABLED"; return
+    fi
+    echo "$STATUS_OK"
+}
+
+graphify_version() {
+    if ! command -v "$GRAPHIFY_BIN" >/dev/null 2>&1; then echo "-"; return; fi
+    "$GRAPHIFY_BIN" --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | awk '{print $1}'
+}
+
 # Provider state detection
 provider_state_str() {
     provider_is_installed "$1" && echo "$STATUS_OK" || echo "$STATUS_MISSING"
@@ -142,6 +167,12 @@ ping_caveman() {
     local cache_root="${HOME}/.claude/plugins/cache/caveman/caveman"
     [[ -d "$cache_root" ]] && find "$cache_root" -mindepth 2 -maxdepth 4 -type d -name skills 2>/dev/null | grep -q .
 }
+ping_graphify() {
+    # graphify is a CLI + skill, no daemon. `--version` is the cheapest call that
+    # proves the Python entrypoint resolves (the common failure is a broken
+    # interpreter path after a pip/uv reinstall, which --version catches).
+    "$GRAPHIFY_BIN" --version >/dev/null 2>&1
+}
 ping_ponytail() {
     # ponytail is a mode-gated plugin, no CLI ping. Alive iff installed + enabled.
     [[ "$(plugin_state "$SLUG_PONY")" == "$STATUS_OK" ]]
@@ -154,8 +185,10 @@ cave_state=$(plugin_state "$SLUG_CAVE"); cave_ver=$(plugin_version "$SLUG_CAVE")
 pony_state=$(plugin_state "$SLUG_PONY"); pony_ver=$(plugin_version "$SLUG_PONY")
 rtk_st=$(rtk_state);                     rtk_ver=$(rtk_version)
 pxpipe_st=$(pxpipe_state);               pxpipe_ver=$(pxpipe_version)
+graphify_st=$(graphify_state);           graphify_ver=$(graphify_version)
 
 ctx_extra=""; mem_extra=""; cave_extra=""; pony_extra=""; rtk_extra=""; pxpipe_extra=""
+graphify_extra=""
 if $test_mode; then
     ctx_extra="ping=via MCP (caller)"
     ping_claude_mem && mem_extra="ping=ok" || mem_extra="ping=FAIL"
@@ -163,6 +196,7 @@ if $test_mode; then
     ping_pxpipe     && pxpipe_extra="ping=ok" || pxpipe_extra="ping=FAIL"
     ping_caveman    && cave_extra="ping=ok" || cave_extra="ping=FAIL"
     ping_ponytail   && pony_extra="ping=ok" || pony_extra="ping=FAIL"
+    ping_graphify   && graphify_extra="ping=ok" || graphify_extra="ping=FAIL"
 fi
 
 # ── JSON mode ──────────────────────────────────────────────────────
@@ -202,7 +236,7 @@ if $json_mode; then
 
     # Determine overall ok (same logic as exit code)
     tool_failures_json=0
-    for s in "$ctx_state" "$mem_state" "$cave_state" "$pony_state" "$rtk_st" "$pxpipe_st"; do
+    for s in "$ctx_state" "$mem_state" "$cave_state" "$pony_state" "$rtk_st" "$pxpipe_st" "$graphify_st"; do
         [[ "$s" == "$STATUS_OK" ]] || tool_failures_json=1
     done
     ok_json=$([[ $tool_failures_json -eq 0 ]] && echo "true" || echo "false")
@@ -213,6 +247,7 @@ if $json_mode; then
     CAVE_STATE="$cave_state" CAVE_VER="$cave_ver" CAVE_EXTRA="$cave_extra" \
     PONY_STATE="$pony_state" PONY_VER="$pony_ver" PONY_EXTRA="$pony_extra" \
     PXPIPE_STATE="$pxpipe_st" PXPIPE_VER="$pxpipe_ver" PXPIPE_EXTRA="$pxpipe_extra" \
+    GRAPHIFY_STATE="$graphify_st" GRAPHIFY_VER="$graphify_ver" GRAPHIFY_EXTRA="$graphify_extra" \
     PROVIDER_ENTRIES="[$provider_json_entries]" OK_JSON="$ok_json" \
     node --input-type=module -e '
         const providers = JSON.parse(process.env.PROVIDER_ENTRIES);
@@ -224,7 +259,8 @@ if $json_mode; then
             "rtk":          { version: process.env.RTK_VER, state: process.env.RTK_STATE, note: process.env.RTK_EXTRA },
             "caveman":      { version: process.env.CAVE_VER, state: process.env.CAVE_STATE, note: process.env.CAVE_EXTRA },
             "ponytail":     { version: process.env.PONY_VER, state: process.env.PONY_STATE, note: process.env.PONY_EXTRA },
-            "pxpipe":       { version: process.env.PXPIPE_VER, state: process.env.PXPIPE_STATE, note: process.env.PXPIPE_EXTRA }
+            "pxpipe":       { version: process.env.PXPIPE_VER, state: process.env.PXPIPE_STATE, note: process.env.PXPIPE_EXTRA },
+            "graphify":     { version: process.env.GRAPHIFY_VER, state: process.env.GRAPHIFY_STATE, note: process.env.GRAPHIFY_EXTRA }
         };
         const out = {
             tools,
@@ -254,6 +290,7 @@ format_line "rtk"          "$rtk_ver"  "$rtk_st"     "$rtk_extra"
 format_line "caveman"      "$cave_ver" "$cave_state" "$cave_extra"
 format_line "ponytail"     "$pony_ver" "$pony_state" "$pony_extra"
 format_line "pxpipe"       "$pxpipe_ver" "$pxpipe_st" "$pxpipe_extra"
+format_line "graphify"     "$graphify_ver" "$graphify_st" "$graphify_extra"
 
 echo ""
 
@@ -314,10 +351,10 @@ if [[ -x "$CHECK_UPDATES_SCRIPT" ]]; then
     fi
 fi
 
-# Exit code: gated ONLY on the 6 managed tools. Providers are optional and never
+# Exit code: gated ONLY on the 7 managed tools. Providers are optional and never
 # fail the exit (absent provider CLIs on a Claude-only host are not an error).
 tool_failures=0
-for s in "$ctx_state" "$mem_state" "$cave_state" "$pony_state" "$rtk_st" "$pxpipe_st"; do
+for s in "$ctx_state" "$mem_state" "$cave_state" "$pony_state" "$rtk_st" "$pxpipe_st" "$graphify_st"; do
     [[ "$s" == "$STATUS_OK" ]] || tool_failures=1
 done
 

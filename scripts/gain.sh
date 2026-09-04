@@ -9,6 +9,11 @@
 #   caveman      — a SessionStart style nudge with no buffer transform, hence
 #                  no measurable byte delta → honest N/A (no telemetry surface).
 #   pxpipe       — ~/.pxpipe/events.jsonl (real proxy-side token deltas).
+#   graphify     — `graphify benchmark` on the global graph. It reports a
+#                  per-query reduction ratio, not a cumulative saved-token
+#                  counter, so the ratio goes in the note and the token column
+#                  stays N/A — mixing a per-query figure into the cumulative
+#                  TOTAL would overstate the stack.
 #
 # Each AI provider is read from its OWN native telemetry:
 #   Codex  — ~/.codex/state_5.sqlite → threads.tokens_used (real per-session)
@@ -35,6 +40,13 @@ readonly RTK_BIN="rtk"
 readonly MEM_SYNC_STATE="${HOME}/.claude-mem/chroma-sync-state.json"
 readonly MEM_EST_TOKENS_PER_ITEM=40
 readonly PXPIPE_EVENTS_LOG="${HOME}/.pxpipe/events.jsonl"
+
+# graphify keeps per-repo graphs under <repo>/graphify-out/ and an optional
+# cross-repo graph at ~/.graphify/global-graph.json. Only the global one is a
+# host-level source, so that is what `tokenwar gain` measures.
+readonly GRAPHIFY_BIN="graphify"
+readonly GRAPHIFY_GLOBAL_GRAPH="${HOME}/.graphify/global-graph.json"
+readonly GRAPHIFY_BENCHMARK_TIMEOUT_SECS=30
 
 # Financial valuation constants — provider-specific rates live in providers.sh.
 # These are kept here for the tool-level (RTK) monthly section which is
@@ -182,15 +194,50 @@ pxpipe_summary() {
     ' 2>/dev/null || echo "N/A|pxpipe events log read failed|0"
 }
 
+# === graphify from its own benchmark ===
+# `graphify benchmark <graph.json>` is deterministic and offline: it compares the
+# naive "read the whole corpus" token cost against the average cost of answering
+# through the graph. That is a RATIO per query, not a running total of tokens
+# already saved, so it is reported as N/A + a note rather than being summed into
+# TOTAL. Reporting it as a cumulative number would double-count every future
+# query the user has not made yet.
+graphify_summary() {
+    if ! command -v "$GRAPHIFY_BIN" >/dev/null 2>&1; then
+        echo "N/A|graphify CLI not installed|0"; return
+    fi
+    if [[ ! -f "$GRAPHIFY_GLOBAL_GRAPH" ]]; then
+        echo "N/A|no global graph — run \`graphify extract <repo> --global\` to register one|0"; return
+    fi
+    local raw
+    if command -v timeout >/dev/null 2>&1; then
+        raw=$(timeout "$GRAPHIFY_BENCHMARK_TIMEOUT_SECS" "$GRAPHIFY_BIN" benchmark "$GRAPHIFY_GLOBAL_GRAPH" 2>/dev/null)
+    else
+        raw=$("$GRAPHIFY_BIN" benchmark "$GRAPHIFY_GLOBAL_GRAPH" 2>/dev/null)
+    fi
+    if [[ -z "$raw" ]]; then
+        echo "N/A|graphify benchmark produced no output|0"; return
+    fi
+    GRAPHIFY_BENCH="$raw" node --input-type=module -e '
+        const strip = s => s.replace(/\x1b\[[0-9;]*m/g, "");
+        const raw = strip(process.env.GRAPHIFY_BENCH || "");
+        const nodes = raw.match(/Graph:\s+([\d,]+)\s+nodes/);
+        const reduction = raw.match(/Reduction:\s+([\d.]+)x/);
+        if (!reduction) { console.log("N/A|graphify benchmark reported no reduction figure|0"); process.exit(0); }
+        const where = nodes ? nodes[1] + " nodes in the global graph, " : "";
+        console.log("N/A|" + where + reduction[1] + "x fewer tokens per query vs naive corpus read (graphify benchmark)|0");
+    ' 2>/dev/null || echo "N/A|graphify benchmark parse failed|0"
+}
+
 # === json mode ===
 if $json_mode; then
     # Gather per-tool summaries (reuse inline node blocks — just serialize)
     rtk_s=$(rtk_summary); ctx_s=$(ctx_summary); mem_s=$(mem_summary)
     caveman_s=$(caveman_summary); pxpipe_s=$(pxpipe_summary)
+    graphify_s=$(graphify_summary)
 
     # Compute total tokens (sum numeric third field)
     total_tokens=0
-    for s in "$rtk_s" "$ctx_s" "$mem_s" "$caveman_s" "$pxpipe_s"; do
+    for s in "$rtk_s" "$ctx_s" "$mem_s" "$caveman_s" "$pxpipe_s" "$graphify_s"; do
         t=$(echo "$s" | awk -F'|' '{print $3}')
         total_tokens=$((total_tokens + ${t:-0}))
     done
@@ -299,6 +346,7 @@ if $json_mode; then
     fi
 
     RTK_S="$rtk_s" CTX_S="$ctx_s" MEM_S="$mem_s" CAVEMAN_S="$caveman_s" PXPIPE_S="$pxpipe_s" \
+    GRAPHIFY_S="$graphify_s" \
     TOTAL_TOKENS="$total_tokens" TOTAL_HUMAN="$total_human" \
     PROVIDER_ENTRIES="[$provider_entries]" MONTHLY_JSON="$monthly_json" \
     node --input-type=module -e '
@@ -311,7 +359,8 @@ if $json_mode; then
             "context-mode": parse(process.env.CTX_S),
             "claude-mem": parse(process.env.MEM_S),
             "caveman": parse(process.env.CAVEMAN_S),
-            "pxpipe": parse(process.env.PXPIPE_S)
+            "pxpipe": parse(process.env.PXPIPE_S),
+            "graphify": parse(process.env.GRAPHIFY_S)
         };
         // augment tools with tool name for easier assertions
         const toolsList = Object.entries(tools).map(([tool, v]) => ({ tool, ...v }));
@@ -340,7 +389,8 @@ for entry in \
     "context-mode|$(ctx_summary)" \
     "claude-mem|$(mem_summary)" \
     "caveman|$(caveman_summary)" \
-    "pxpipe|$(pxpipe_summary)"; do
+    "pxpipe|$(pxpipe_summary)" \
+    "graphify|$(graphify_summary)"; do
     tool="${entry%%|*}"
     summary="${entry#*|}"
     saved=""; note=""; tokens=""
