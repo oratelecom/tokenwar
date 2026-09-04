@@ -10,6 +10,7 @@
 #   tokenwar scan       # local agent-log scan + recommendations
 #   tokenwar check      # complementarity / conflict detector
 #   tokenwar test       # end-to-end ping: is each tool actually working?
+#   tokenwar copilot    # report/wire the stack into GitHub Copilot CLI
 #   tokenwar upgrade    # bump managed tools (asks confirmation)
 #   tokenwar updates    # show available updates (throttled cache)
 #   tokenwar doctor     # full pipeline: status → test → check → gain
@@ -31,9 +32,10 @@ tokenwar — token-saving stack manager
 Usage: tokenwar <command>
 
 Commands:
-  status     state of the 7 tools + providers (codex, gemini, kimi, opencode)
+  status     state of the 7 tools + providers (codex, gemini, kimi, opencode, copilot)
   gain       per-tool + per-provider token savings + monthly \$ value
   scan       scan local agent logs and recommend token-saving tools
+  copilot    report which tools reach GitHub Copilot CLI ('copilot wire' to fix)
   check      complementarity / conflict detector
   test       end-to-end ping: is each tool actually working?
   upgrade    bump managed tools to latest (asks confirmation)
@@ -53,6 +55,7 @@ case "$cmd" in
     gain)    exec bash "${SCRIPT_DIR}/gain.sh" "$@" ;;
     scan)    exec bash "${SCRIPT_DIR}/scan.sh" "$@" ;;
     check)   exec bash "${SCRIPT_DIR}/check.sh" "$@" ;;
+    copilot) exec bash "${SCRIPT_DIR}/copilot.sh" "$@" ;;
     test)
         bash "${SCRIPT_DIR}/status.sh" --test "$@"
         rc=$?

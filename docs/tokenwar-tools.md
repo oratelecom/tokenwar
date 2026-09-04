@@ -58,6 +58,7 @@ and never calls an AI provider.
 | `gemini` | Gemini CLI | `~/.gemini` | Full local log scan; recommendations still work even though native token telemetry is unavailable. |
 | `kimi` | Kimi Code CLI | `~/.kimi-code` | Full local log scan when files exist; totals remain estimates. |
 | `opencode` | opencode | `~/.local/share/opencode`, `~/.config/opencode` | Full local log scan; pair with `tokenwar gain` for native token telemetry. |
+| `copilot` | GitHub Copilot CLI | `~/.copilot` | Full local log scan of `~/.copilot/session-state`; pair with `tokenwar gain` for native token + AI-credit telemetry, and with `tokenwar copilot` for tool wiring. |
 | `vibe` | Vibe/Ora agents | `~/.ora/tasks`, `~/.ora/contribute`, `~/.claude/contributebg/logs` | Full local log scan for background contribution and vibe-coding sessions. |
 | `cursor` | Cursor | `~/.cursor` | Detected when installed; reports no opportunity when no supported log files are found. |
 
@@ -135,7 +136,7 @@ for local code navigation TokenWar should test lighter alternatives first:
 numbers as real savings.
 
 - Actual savings: only from native telemetry (`rtk gain`, `pxpipe stats`,
-  `graphify benchmark`, Codex/opencode token databases, `ctx_stats`).
+  `graphify benchmark`, Codex/opencode/Copilot token databases, `ctx_stats`).
 - Estimated opportunity: derived from local logs by matching command, search,
   scrape, memory, verbosity, and code-generation signals.
 - Recommendation output must include both: `estimated avoidable tokens` and

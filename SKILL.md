@@ -1,6 +1,6 @@
 ---
 name: tokenwar
-description: Activate, upgrade, test, and benchmark the 7-tool token-saving stack (context-mode, claude-mem, RTK, pxpipe, graphify, caveman, ponytail). Reports per-tool + per-provider (Codex, Gemini, Kimi, opencode) token savings and detects conflicts that would erase the gains.
+description: Activate, upgrade, test, and benchmark the 7-tool token-saving stack (context-mode, claude-mem, RTK, pxpipe, graphify, caveman, ponytail). Reports per-tool + per-provider (Codex, Gemini, Kimi, opencode, GitHub Copilot CLI) token savings, wires the stack into Copilot, and detects conflicts that would erase the gains.
 trigger: /tokenwar
 ---
 
@@ -34,17 +34,26 @@ tokenwar now tracks token usage across AI coding agents, each from its own
 | Gemini CLI   | N/A (server-side sessions — no local store)      | —                     |
 | Kimi Code CLI | N/A (`~/.kimi-code` has no documented token store) | —                  |
 | opencode     | `~/.local/share/opencode/opencode.db` → `session` token cols | per-session + monthly |
+| GitHub Copilot CLI | `~/.copilot/session-store.db` → `assistant_usage_events` | per-call + monthly, plus the AI credits actually billed (`total_nano_aiu`) |
 
 Each provider's token counts are valued at their own list prices (input-side).
 Provider prices are defined in `scripts/lib/providers.sh` — verify against
 official pricing pages.
 
-## Cross-CLI status (Claude vs Codex/Gemini/Kimi/opencode)
+> Copilot is the one provider that is **not** billed per token: it is a seat
+> subscription plus AI credits (premium requests on the legacy plan), and GitHub
+> publishes no per-token list price. Its `$` column is therefore an
+> API-equivalent valuation at a GPT-5-class input rate, never an invoice — while
+> the unit that IS billed, AI credits, is read from `total_nano_aiu` and printed
+> in the telemetry note. Do not present the `$` figure as a Copilot bill.
+
+## Cross-CLI status (Claude vs Codex/Gemini/Kimi/opencode/Copilot)
 
 The persistent **status bar** is a Claude Code feature (its `statusLine` API).
-Codex, Gemini, Kimi, and opencode do **not** expose a status-bar API — their
-footers are hardcoded in their TUIs, and their hooks only inject into the *model*
-context, never the screen. So tokenwar surfaces the stack differently per CLI:
+Codex, Gemini, Kimi, opencode, and GitHub Copilot CLI do **not** expose a
+status-bar API — their footers are hardcoded in their TUIs, and their hooks only
+inject into the *model* context, never the screen. So tokenwar surfaces the stack
+differently per CLI:
 
 | CLI        | How the stack is surfaced                                              |
 | ---------- | --------------------------------------------------------------------- |
@@ -53,18 +62,20 @@ context, never the screen. So tokenwar surfaces the stack differently per CLI:
 | Gemini CLI | **Launch banner** + reminder + update status hint (via shell wrapper) |
 | Kimi Code CLI | **Launch banner** + reminder + update status hint (via shell wrapper) |
 | opencode   | **Launch banner** + reminder + update status hint (via shell wrapper) |
+| GitHub Copilot CLI | **Launch banner** + reminder + update status hint (via shell wrapper) |
 
 `install.sh` wires the shell functions (one-time, then zero effort):
 
 - `tokenwar <cmd>` — the dispatcher; `tokenwar status` / `gain` / `check` /
   `upgrade` work in **any** shell (Codex, Gemini, Kimi, opencode, plain terminal).
-- `codex` / `gemini` / `kimi` / `opencode` — wrapped so that launching any of
+- `codex` / `gemini` / `kimi` / `opencode` / `copilot` — wrapped so that launching any of
   them prints the tokenwar banner (`scripts/tokenwar-launch.sh`), reminds the
   user to run `tokenwar status`, and leaves pending updates as the statusline's
   informational **"⬆ N updates · /tokenwar upgrade"** hint. It never runs
   `scripts/upgrade.sh` automatically from provider launch. The banner is silent for
   non-interactive launches (`codex exec`, `gemini -p …`, `kimi -p …`,
-  `opencode run …`, pipes) so it never pollutes scripted output.
+  `opencode run …`, `copilot -p …`, `copilot --acp`, `copilot mcp|skill|plugin …`,
+  pipes) so it never pollutes scripted output.
 
 ## Usage
 
@@ -76,6 +87,7 @@ context, never the screen. So tokenwar surfaces the stack differently per CLI:
 /tokenwar test       # ping each one-by-one, verify it actually responds
 /tokenwar gain       # per-tool + global token-savings report
 /tokenwar check      # conflict detector — verifies the 7 tools are complementary
+/tokenwar copilot    # which tools reach GitHub Copilot CLI (`copilot wire` to fix)
 /tokenwar doctor     # full pipeline: status → test → check → gain
 /tokenwar disable X  # turn off one plugin (context-mode|claude-mem|caveman|ponytail)
 /tokenwar enable X   # turn a disabled plugin back on
@@ -114,8 +126,9 @@ On `Yes`, run for each tool:
 - `pxpipe` not installed → `npm install -g pxpipe-proxy@0.10.0`. This is the current pinned package for teamchong/pxpipe; do not install a floating version.
 - `graphify` not installed → `uv tool install graphifyy` (or `pipx install graphifyy`; plain `pip` only as a last resort — the skill resolves its interpreter at runtime and a shared env is what produces upstream's `ModuleNotFoundError: No module named 'graphify'`), then `graphify install` to register the skill.
 - `graphify` installed-disabled (CLI present, skill missing) → `graphify install`. Do NOT reinstall the package; the CLI is already there, only the skill registration is absent.
+- GitHub Copilot CLI present but tools not wired to it → `bash ~/.claude/skills/tokenwar/scripts/copilot.sh wire --yes` (see the `copilot` subcommand below).
 
-**One-shot alternative**: `install.sh --all` (or `curl … | bash -s -- --all`) installs the whole stack at install time — the 4 plugins (marketplace-add + install + enable, with the anti-clobber re-enable), the RTK binary (via rtk's official prebuilt installer — no toolchain), pxpipe (`pxpipe-proxy@0.10.0`), and graphify (`graphifyy` + `graphify install`), then wires RTK's hook with `rtk init -g` (and, when opencode is present, RTK's opencode plugin with `rtk init -g --opencode`). Use `--with-plugins`, `--with-rtk`, `--with-pxpipe`, or `--with-graphify` for just one part. So a fresh machine needs no separate `activate`.
+**One-shot alternative**: `install.sh --all` (or `curl … | bash -s -- --all`) installs the whole stack at install time — the 4 plugins (marketplace-add + install + enable, with the anti-clobber re-enable), the RTK binary (via rtk's official prebuilt installer — no toolchain), pxpipe (`pxpipe-proxy@0.10.0`), and graphify (`graphifyy` + `graphify install`), then wires RTK's hook with `rtk init -g` (and, when opencode is present, RTK's opencode plugin with `rtk init -g --opencode`). Use `--with-plugins`, `--with-rtk`, `--with-pxpipe`, `--with-graphify`, or `--with-copilot` for just one part. So a fresh machine needs no separate `activate`.
 
 **Gotcha discovered 2026-05-18**: the *first* call to `claude plugin enable` on any plugin creates `enabledPlugins` in `~/.claude/settings.json` and **clobbers** plugins that were enabled implicitly at the marketplace level. Mitigation: after EVERY enable/install, snapshot the full `claude plugin list --json` and re-enable any plugin that flipped from `enabled:true` to `enabled:false`. The `activate` flow must do this snapshot-and-restore.
 
@@ -250,6 +263,46 @@ Verdict: <COMPLEMENTARY|DEGRADED|CONFLICT>
 ```
 
 `<evidence>` must cite an actual path or value (e.g., `~/.claude/settings.json:hooks[0]` or `claude-mem v12.1.4 vs latest 12.1.4`). No vague "looks fine" — show the bytes.
+
+## Subcommand: copilot
+
+Copilot CLI is a tracked provider, but the TOOLS do not reach it for free — they
+are published for Claude Code, and Copilot exposes exactly three extension
+points of its own: hooks (`~/.copilot/hooks/*.json`), skills
+(`~/.copilot/skills/<name>/SKILL.md`), and MCP (`~/.copilot/mcp-config.json`).
+
+Run `bash ~/.claude/skills/tokenwar/scripts/copilot.sh` (read-only) to report the
+mapping, and `… copilot.sh wire --yes` to apply the missing parts. Exit `0` when
+every installed tool is wired, `1` otherwise.
+
+| Tool | Via | Wiring command |
+| ---- | --- | -------------- |
+| rtk | hook | `rtk init -g --copilot --auto-patch` |
+| graphify | skill | `graphify copilot install` |
+| caveman | skill | `copilot skill add <plugin cache>/skills/caveman/SKILL.md` |
+| ponytail | skill | `copilot skill add <plugin cache>/skills/ponytail/SKILL.md` |
+| claude-mem | MCP | `copilot mcp add claude-mem -- <its own .mcp.json command+args>` |
+
+Rules for this subcommand:
+
+- **Never hand-write the claude-mem MCP command.** Read it from the plugin's own
+  `.mcp.json`: that definition wraps a locator which resolves the current plugin
+  version at runtime, so the registration survives `claude plugin update`. A
+  hardcoded `.../claude-mem/<version>/scripts/mcp-server.cjs` breaks on the next
+  upgrade.
+- **Never write into `~/.copilot/skills/` directly.** Go through
+  `copilot skill add <file>`; Copilot owns that directory's layout and derives
+  the skill name from the SKILL.md frontmatter.
+- **The timeouts are not optional.** claude-mem's MCP server calls a local worker
+  and aborts at `CLAUDE_MEM_API_TIMEOUT_MS` (30s default). The first search after
+  a cold worker path indexes the whole memory DB — measured 2m02s. With the
+  defaults, the first Copilot call always fails and looks like a broken
+  integration. The wiring raises both that variable and Copilot's own per-tool
+  timeout.
+- `context-mode` and `pxpipe` are reported `n/a` with a reason and are NOT
+  wired. Do not "fix" that: context-mode's manifest pins an absolute,
+  version-specific interpreter path, and pxpipe proxies the Anthropic-compatible
+  API path, which Copilot does not use.
 
 ## Subcommand: doctor
 

@@ -71,3 +71,48 @@ EOF
     [[ "$output" == *"/tokenwar upgrade"* ]]
     [[ "$output" != *"Upgrade now?"* ]]
 }
+
+# ── GitHub Copilot CLI ────────────────────────────────────────────
+#
+# These run under a real pty (`script -qfec`). Without one, `[[ -t 1 ]]` is false
+# and the banner is suppressed no matter what the subcommand/flag filter says —
+# the test would pass against a launcher that knows nothing about Copilot.
+
+copilot_launch() {
+    command -v script >/dev/null 2>&1 || skip "script command not available"
+    run script -qfec "env HOME='$HOME' bash '$SCRIPT' copilot $*" /dev/null
+}
+
+@test "copilot -p headless flag → no banner even on a tty" {
+    copilot_launch -p "summarize"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"tokenwar"* ]]
+}
+
+@test "copilot --acp (Agent Client Protocol server) → no banner on a tty" {
+    # --acp turns the CLI into a machine channel; a banner on stdout corrupts it.
+    copilot_launch --acp
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"tokenwar"* ]]
+}
+
+@test "copilot management subcommands → no banner on a tty" {
+    for sub in mcp skill plugin update version login; do
+        copilot_launch "$sub" list
+        [ "$status" -eq 0 ]
+        [[ "$output" != *"tokenwar"* ]]
+    done
+}
+
+@test "copilot --version → no banner on a tty" {
+    copilot_launch --version
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"tokenwar"* ]]
+}
+
+@test "interactive copilot launch prints the banner naming the provider" {
+    copilot_launch
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"tokenwar"*"copilot"* ]]
+    [[ "$output" == *"tokenwar status"* ]]
+}

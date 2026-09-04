@@ -40,6 +40,8 @@ jobs:
           bash scripts/tokenwar.sh help
           bash scripts/upgrade.sh </dev/null || true
           bash scripts/tokenwar-launch.sh codex </dev/null
+          bash scripts/tokenwar-launch.sh copilot </dev/null
+          bash scripts/copilot.sh check || true
 
       # The text tables and the JSON contract are rendered by separate code
       # paths, so a tool can be added to one and forgotten in the other. `scan`
@@ -62,5 +64,18 @@ jobs:
             for (const t of GAIN_TOOLS) {
               if (!(t in gain.tools)) throw new Error(`gain --json is missing tool: ${t}`);
             }
-            console.log("JSON contract OK — " + MANAGED.length + " tools in status, " + GAIN_TOOLS.length + " in gain");
+            // Providers are registry-driven (lib/providers.sh). A provider added
+            // to the registry but forgotten in a note map or a telemetry switch
+            // surfaces here rather than as a blank column at runtime.
+            const PROVIDERS = ["claude","codex","gemini","kimi","opencode","copilot"];
+            for (const p of PROVIDERS) {
+              if (!(p in status.providers)) throw new Error(`status --json is missing provider: ${p}`);
+              if (!status.providers[p].name) throw new Error(`provider ${p} has no name`);
+            }
+            const gainProviders = (gain.providers || []).map(p => p.id);
+            for (const p of PROVIDERS.filter(x => x !== "claude")) {
+              if (!gainProviders.includes(p)) throw new Error(`gain --json is missing provider: ${p}`);
+            }
+            console.log("JSON contract OK — " + MANAGED.length + " tools in status, " +
+                        GAIN_TOOLS.length + " in gain, " + PROVIDERS.length + " providers");
           '

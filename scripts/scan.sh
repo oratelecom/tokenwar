@@ -61,6 +61,12 @@ const CLIENTS = [
     roots: ["TOKENWAR_OPENCODE_LOG_ROOT", "~/.local/share/opencode", "~/.config/opencode"],
   },
   {
+    id: "copilot",
+    name: "GitHub Copilot CLI",
+    cli: "copilot",
+    roots: ["TOKENWAR_COPILOT_LOG_ROOT", "~/.copilot"],
+  },
+  {
     id: "vibe",
     name: "Vibe/Ora agents",
     cli: "",

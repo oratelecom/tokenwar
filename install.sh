@@ -9,7 +9,7 @@
 #   1. git clone https://github.com/oratelecom/tokenwar ~/.claude/skills/tokenwar
 #   2. chmod +x scripts/*.sh
 #   3. patch ~/.claude/settings.json to wire the statusLine
-#   4. wire the tokenwar/codex/gemini/kimi/opencode shell functions
+#   4. wire the tokenwar/codex/gemini/kimi/opencode/copilot shell functions
 #   5. opt-in installs (none by default — no surprise mutation):
 #      --with-plugins  marketplace add + install + enable the 4 Claude Code
 #                      plugins (context-mode, claude-mem, caveman, ponytail),
@@ -19,8 +19,10 @@
 #      --with-pxpipe  install pxpipe proxy from a pinned npm package.
 #      --with-graphify install the graphify CLI (PyPI `graphifyy`) and register
 #                      its assistant skill via `graphify install`.
-#      --all           plugins + RTK + pxpipe + graphify. After plugins/RTK,
-#                      RTK's hook is wired via `rtk init -g`.
+#      --with-copilot  point the installed tools at GitHub Copilot CLI's own
+#                      extension points (hook / skills / MCP) via copilot.sh.
+#      --all           plugins + RTK + pxpipe + graphify + Copilot wiring. After
+#                      plugins/RTK, RTK's hook is wired via `rtk init -g`.
 #      Without any flag, plugin/RTK setup is left to /tokenwar activate.
 #
 # Idempotent: re-running pulls the latest tokenwar and only patches settings.json
@@ -82,6 +84,11 @@ readonly PIP_BIN="pip"
 readonly GRAPHIFY_BIN="graphify"
 readonly GRAPHIFY_PYPI_PACKAGE="graphifyy"
 
+# Copilot wiring (--with-copilot). The tools are published for Claude Code and
+# do not reach Copilot for free; copilot.sh points each at Copilot's own
+# extension point. It is idempotent and no-ops when the CLI is absent.
+readonly COPILOT_BIN="copilot"
+readonly COPILOT_WIRE_SCRIPT_REL="scripts/copilot.sh"
 # Shell-integration block markers — used to idempotently inject/remove the
 # `tokenwar`, `codex`, `gemini`, `kimi`, and `opencode` wrapper functions in the
 # user's shell rc.
@@ -92,6 +99,7 @@ readonly WRAPPED_PROVIDER_CLIS=(
     "gemini"
     "kimi"
     "opencode"
+    "copilot"
 )
 
 color()  { printf '\033[%sm%s\033[0m' "$1" "$2"; }
@@ -106,22 +114,25 @@ WITH_PLUGINS=false
 WITH_RTK=false
 WITH_PXPIPE=false
 WITH_GRAPHIFY=false
+WITH_COPILOT=false
 for arg in "$@"; do
     case "$arg" in
         --with-plugins)  WITH_PLUGINS=true ;;
         --with-rtk)      WITH_RTK=true ;;
         --with-pxpipe)   WITH_PXPIPE=true ;;
         --with-graphify) WITH_GRAPHIFY=true ;;
-        --all)           WITH_PLUGINS=true; WITH_RTK=true; WITH_PXPIPE=true; WITH_GRAPHIFY=true ;;
+        --with-copilot)  WITH_COPILOT=true ;;
+        --all)           WITH_PLUGINS=true; WITH_RTK=true; WITH_PXPIPE=true; WITH_GRAPHIFY=true; WITH_COPILOT=true ;;
         -h|--help)
-            printf 'Usage: install.sh [--with-plugins] [--with-rtk] [--with-pxpipe] [--with-graphify] [--all]\n'
+            printf 'Usage: install.sh [--with-plugins] [--with-rtk] [--with-pxpipe] [--with-graphify] [--with-copilot] [--all]\n'
             printf '  --with-plugins   install+enable the 4 Claude Code plugins (incl. ponytail)\n'
             printf '  --with-rtk       install the RTK binary (official prebuilt installer) + wire its hook\n'
             printf '  --with-pxpipe    install pxpipe proxy (%s)\n' "$PXPIPE_NPM_SPEC"
             printf '  --with-graphify  install the graphify CLI (PyPI %s) + register its skill\n' "$GRAPHIFY_PYPI_PACKAGE"
+            printf '  --with-copilot   wire the installed tools into GitHub Copilot CLI\n'
             printf '  --all            all of the above\n'
             exit 0 ;;
-        *) die "unknown argument: $arg (supported: --with-plugins, --with-rtk, --with-pxpipe, --with-graphify, --all)" ;;
+        *) die "unknown argument: $arg (supported: --with-plugins, --with-rtk, --with-pxpipe, --with-graphify, --with-copilot, --all)" ;;
     esac
 done
 
@@ -177,9 +188,10 @@ console.log(`    patched (backup at ${path}.bak-${stamp})`);
 
 # 4. wire shell integration (tokenwar + provider functions) into shell rc.
 #
-# Claude Code shows the native statusLine; Codex, Gemini, Kimi, and opencode do not expose a
-# status-bar API, so we wrap their launch with a banner + reminder + upgrade
-# prompt. The `tokenwar` function makes `tokenwar status` work in any shell.
+# Claude Code shows the native statusLine; Codex, Gemini, Kimi, opencode, and
+# GitHub Copilot CLI do not expose a status-bar API, so we wrap their launch with
+# a banner + reminder. The `tokenwar` function makes `tokenwar status` work in
+# any shell.
 # Idempotent: an existing tokenwar block is replaced, never duplicated.
 wire_shell_rc() {
     local rc_file="$1"
@@ -212,7 +224,7 @@ wire_shell_rc() {
     if ! mv -f "$tmp" "$rc_file"; then
         warn "could not write $rc_file"; rm -f "$tmp"; return 1
     fi
-    say "Wired tokenwar/codex/gemini/kimi/opencode shell functions in $rc_file"
+    say "Wired tokenwar/codex/gemini/kimi/opencode/copilot shell functions in $rc_file"
 }
 
 # Print the ids of every currently-enabled plugin, one per line (from
@@ -404,6 +416,23 @@ install_graphify() {
     fi
 }
 
+# --with-copilot: point the installed tools at Copilot CLI's extension points.
+# Delegates to scripts/copilot.sh so the wiring has ONE implementation, shared
+# with `tokenwar copilot wire` — no second copy to drift.
+wire_copilot_stack() {
+    if ! command -v "$COPILOT_BIN" >/dev/null 2>&1; then
+        warn "GitHub Copilot CLI not found — skipping --with-copilot (npm install -g @github/copilot, then re-run \`tokenwar copilot wire\`)."
+        return 0
+    fi
+    local wire_script="${INSTALL_DIR}/${COPILOT_WIRE_SCRIPT_REL}"
+    if [[ ! -f "$wire_script" ]]; then
+        warn "copilot wiring script not found at $wire_script"
+        return 0
+    fi
+    say "Wiring the stack into GitHub Copilot CLI"
+    bash "$wire_script" wire --yes || warn "Copilot wiring reported failures — see \`tokenwar copilot\`"
+}
+
 say "Wiring shell integration"
 wired_any=false
 for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
@@ -423,6 +452,9 @@ if $WITH_RTK; then install_rtk; fi
 if $WITH_PXPIPE; then install_pxpipe; fi
 if $WITH_GRAPHIFY; then install_graphify; fi
 if $WITH_PLUGINS || $WITH_RTK; then wire_rtk_hook; fi
+# Copilot wiring runs LAST: it reflects whatever the steps above installed, so a
+# tool added in this same run is picked up rather than reported as missing.
+if $WITH_COPILOT; then wire_copilot_stack; fi
 
 if $WITH_PLUGINS && $WITH_RTK && $WITH_PXPIPE && $WITH_GRAPHIFY; then
     next_steps="Plugins + RTK + pxpipe + graphify installed and RTK's hook wired. Restart Claude Code to load the plugins. Start pxpipe when you want proxy-side prompt-to-PNG savings, and run \`graphify .\` inside a repo to build its first graph."
@@ -454,9 +486,9 @@ Sanity check now:
 Statusline appears after restarting Claude Code.
 
 Shell integration wired (reload your shell or 'source ~/.bashrc'):
-  tokenwar status      # works in any shell — Codex, Gemini, Kimi, opencode, plain terminal
-  codex / gemini / kimi / opencode
-                       # now print the tokenwar banner + upgrade prompt on launch
+  tokenwar status      # works in any shell — Codex, Gemini, Kimi, opencode, Copilot, plain terminal
+  codex / gemini / kimi / opencode / copilot
+                       # now print the tokenwar banner on launch
 
 $next_steps
 
