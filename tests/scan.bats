@@ -203,3 +203,31 @@ JSONL
         if(!clients.some(c=>c.id==="copilot")) throw new Error("copilot must be reported");
       })'
 }
+
+@test "pricing follows the model that did most of the work" {
+    # A short Haiku subagent transcript alongside a large Opus session must not
+    # price the whole workload at Haiku rates.
+    cat > "${FIXTURE_ROOT}/logs/haiku-small.jsonl" <<'JSONL'
+{"sessionId":"h1","type":"assistant","message":{"role":"assistant","model":"claude-haiku-4-5-20251001","usage":{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":5},"content":[{"type":"text","text":"hi"}]}}
+JSONL
+    cat > "${FIXTURE_ROOT}/logs/opus-large.jsonl" <<'JSONL'
+{"sessionId":"o1","type":"assistant","message":{"role":"assistant","model":"claude-opus-5","usage":{"input_tokens":50000,"cache_creation_input_tokens":10000,"cache_read_input_tokens":900000,"output_tokens":5000},"content":[{"type":"text","text":"work"}]}}
+JSONL
+    run bash "$SCAN" --client claude --days 3650 --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const model=JSON.parse(r).meta.model;
+        if(model!=="claude-opus") throw new Error("expected claude-opus pricing, got "+model);
+      })'
+}
+
+@test "an explicit --model overrides inference" {
+    run bash "$SCAN" --client claude --days 3650 --model claude-sonnet --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const model=JSON.parse(r).meta.model;
+        if(model!=="claude-sonnet") throw new Error("expected claude-sonnet, got "+model);
+      })'
+}

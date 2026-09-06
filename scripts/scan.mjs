@@ -228,7 +228,21 @@ function main() {
   }
 
   const aggregate = aggregateSessions(sessions);
-  const price = pricingFor(args.model || sessions.find((s) => s.model)?.model);
+
+  // Price against the model that did most of the work, not whichever session
+  // happens to sort first: a short Haiku subagent transcript would otherwise
+  // price an Opus workload at a fifteenth of its real cost.
+  let dominantModel = null;
+  if (!args.model) {
+    const byModel = new Map();
+    for (const session of sessions) {
+      if (!session.model) continue;
+      const volume = session.freshInput + session.cacheCreate + session.cacheRead + session.output;
+      byModel.set(session.model, (byModel.get(session.model) || 0) + volume);
+    }
+    dominantModel = [...byModel.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] || null;
+  }
+  const price = pricingFor(args.model || dominantModel);
 
   // Inventory: what is loaded on every request, and what was invoked.
   const skills = collectSkills();
