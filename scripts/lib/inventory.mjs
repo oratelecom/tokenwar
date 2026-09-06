@@ -54,8 +54,11 @@ function listingCost(name, description) {
 
 export function collectSkills({ skillsDir, pluginCacheDir } = {}) {
   const home = homedir();
-  const userDir = skillsDir || join(home, ".claude", "skills");
-  const pluginDir = pluginCacheDir || join(home, ".claude", "plugins", "cache");
+  // Env overrides keep the scan testable against a fixture directory instead of
+  // whatever the host happens to have installed.
+  const userDir = skillsDir || process.env.TOKENWAR_SKILLS_DIR || join(home, ".claude", "skills");
+  const pluginDir =
+    pluginCacheDir || process.env.TOKENWAR_PLUGIN_CACHE_DIR || join(home, ".claude", "plugins", "cache");
   const skills = [];
 
   if (existsSync(userDir)) {
@@ -141,7 +144,7 @@ export function collectSkills({ skillsDir, pluginCacheDir } = {}) {
 // caller supplies them, because a server's tool list is only knowable at
 // connect time.
 export function collectMcpServers({ configPath, knownToolCounts = {} } = {}) {
-  const path = configPath || join(homedir(), ".claude.json");
+  const path = configPath || process.env.TOKENWAR_MCP_CONFIG || join(homedir(), ".claude.json");
   const servers = new Map();
 
   if (existsSync(path)) {

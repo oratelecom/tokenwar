@@ -18,6 +18,32 @@ setup() {
 {"sessionId":"s1","type":"assistant","message":{"role":"assistant","usage":{"input_tokens":0,"cache_creation_input_tokens":150,"cache_read_input_tokens":6200,"output_tokens":60},"content":[{"type":"tool_use","id":"t3","name":"Skill","input":{"skill":"askcodex"}}]}}
 JSONL
 
+    # Provide a skills directory of our own. Without this the tests would read
+    # whatever the host has installed, so they would pass on a developer machine
+    # and fail on CI, where nothing is installed and every cost is zero.
+    export TOKENWAR_SKILLS_DIR="${FIXTURE_ROOT}/skills"
+    mkdir -p "${TOKENWAR_SKILLS_DIR}/askcodex" "${TOKENWAR_SKILLS_DIR}/never-used"
+    cat > "${TOKENWAR_SKILLS_DIR}/askcodex/SKILL.md" <<'SKILL'
+---
+name: askcodex
+description: Ask Codex for an independent critique and preserve the exchange.
+---
+SKILL
+    # A folded description, to keep the block-scalar parse covered.
+    cat > "${TOKENWAR_SKILLS_DIR}/never-used/SKILL.md" <<'SKILL'
+---
+name: never-used
+description: >
+  A skill that is installed but never invoked, carrying a description long
+  enough that its listing cost is clearly non-zero and measurable.
+---
+SKILL
+    export TOKENWAR_PLUGIN_CACHE_DIR="${FIXTURE_ROOT}/plugins"
+    mkdir -p "$TOKENWAR_PLUGIN_CACHE_DIR"
+    # Isolate MCP config too, so the host's servers do not leak into results.
+    export TOKENWAR_MCP_CONFIG="${FIXTURE_ROOT}/claude.json"
+    printf '{"mcpServers":{}}' > "$TOKENWAR_MCP_CONFIG"
+
     export TOKENWAR_CLAUDE_LOG_ROOT="${FIXTURE_ROOT}/logs"
     export TOKENWAR_SCAN_SKIP_STATUS=1
 }
