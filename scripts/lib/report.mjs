@@ -67,6 +67,24 @@ export function renderTerminal(report) {
   out.push(c(DIM, "  " + "─".repeat(72)));
   out.push("");
 
+  // Always state which clients the numbers cover. A client that was detected
+  // but could not be read must not be mistaken for one that is simply frugal.
+  out.push(c(BOLD, "  CLIENTS SCANNED"));
+  for (const client of meta.clients) {
+    const label = client.name.padEnd(20);
+    if (client.status === "ok") {
+      const note = client.usage === false ? c(YELLOW, "  no token telemetry — excluded from cost") : "";
+      out.push(`    ${c(GREEN, "●")} ${label} ${String(client.sessions).padStart(4)} sessions${note}`);
+    } else if (client.status === "unparsed") {
+      out.push(`    ${c(RED, "●")} ${label} ${String(client.files).padStart(4)} files found but none parsed — format unsupported`);
+    } else if (client.status === "no-logs") {
+      out.push(`    ${c(DIM, "○")} ${c(DIM, label)} ${c(DIM, "installed, no sessions in this window")}`);
+    } else {
+      out.push(`    ${c(DIM, "○")} ${c(DIM, label)} ${c(DIM, "not installed")}`);
+    }
+  }
+  out.push("");
+
   const overall = grade(scores.overall);
   out.push(`  ${c(BOLD, "Overall")}  ${c(overall.color, overall.letter)}  ${c(DIM, `${scores.overall}/100`)}`);
   out.push("");
@@ -82,7 +100,8 @@ export function renderTerminal(report) {
   // Dead weight — the part that needs no modelling.
   out.push(c(BOLD, "  DEAD WEIGHT") + c(DIM, "  measured, not estimated"));
   out.push("");
-  out.push(`    ${c(BOLD, String(inventory.skills.dead.length))} of ${inventory.skills.all.length} skills never invoked, costing ${c(BOLD, formatTokens(inventory.skills.deadListingTokens))} tokens on every request`);
+  out.push(`    ${c(BOLD, String(inventory.skills.dead.length))} of ${inventory.skills.all.length} skills never invoked, costing ${c(BOLD, formatTokens(inventory.skills.deadListingTokens))} tokens on every Claude Code request`);
+  out.push(`    ${c(DIM, `Priced against ${prefixCost.turns.toLocaleString()} Claude turns — skills are a Claude Code capability.`)}`);
   if (inventory.mcp.dead.length > 0) {
     const deadTools = inventory.mcp.dead.reduce((sum, s) => sum + (s.toolCount || 0), 0);
     out.push(`    ${c(BOLD, String(inventory.mcp.dead.length))} MCP servers never called${deadTools ? ` (${deadTools} tools exposed)` : ""}: ${inventory.mcp.dead.map((s) => s.name).join(", ")}`);
@@ -290,6 +309,30 @@ a{color:var(--accent)}
 </div>
 
 <div class="cards">${scoreCards}</div>
+
+<h2>Clients scanned</h2>
+<div class="panel">
+<table>
+  <thead><tr><th>Client</th><th>Status</th><th class="num">Sessions</th><th>Notes</th></tr></thead>
+  <tbody>${meta.clients
+    .map((client) => {
+      const status = {
+        ok: "parsed",
+        unparsed: "format unsupported",
+        "no-logs": "no sessions in window",
+        "not-installed": "not installed",
+      }[client.status] || client.status;
+      const note =
+        client.status === "unparsed"
+          ? `${client.files} files found but none could be read`
+          : client.status === "ok" && client.usage === false
+            ? "No token telemetry in this format — excluded from cost figures"
+            : "";
+      return `<tr><td class="tool">${escapeHtml(client.name)}</td><td>${escapeHtml(status)}</td><td class="num">${client.sessions}</td><td class="why">${escapeHtml(note)}</td></tr>`;
+    })
+    .join("\n")}</tbody>
+</table>
+</div>
 
 <h2>Dead weight</h2>
 <div class="panel">

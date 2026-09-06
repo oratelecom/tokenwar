@@ -163,3 +163,43 @@ teardown() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"tokenwar scan"* ]]
 }
+
+@test "codex rollout sessions are parsed with their own telemetry" {
+    local codex="${FIXTURE_ROOT}/codex/sessions/2026/01/01"
+    mkdir -p "$codex"
+    # total_token_usage is cumulative, so the adapter must difference snapshots
+    # rather than summing them.
+    cat > "${codex}/rollout-2026-01-01T00-00-00-abc.jsonl" <<'JSONL'
+{"type":"session_meta","payload":{"id":"c1","cwd":"/tmp/proj","model":"gpt-5"}}
+{"type":"response_item","payload":{"type":"function_call","id":"f1","name":"exec_command","arguments":"{\"cmd\":\"kubectl get pods\"}"}}
+{"type":"response_item","payload":{"type":"function_call_output","id":"f1","output":"pod/foo Running"}}
+{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1000,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":50},"model_context_window":258400}}}
+{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":3000,"cached_input_tokens":900,"cache_write_input_tokens":0,"output_tokens":120},"model_context_window":258400}}}
+JSONL
+    export TOKENWAR_CODEX_LOG_ROOT="${FIXTURE_ROOT}/codex/sessions"
+    run bash "$SCAN" --client codex --days 3650 --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const j=JSON.parse(r);
+        if(j.meta.sessions!==1) throw new Error("expected 1 codex session, got "+j.meta.sessions);
+        // Two snapshots -> two turns; cached delta is 900.
+        if(j.meta.turns!==2) throw new Error("expected 2 turns, got "+j.meta.turns);
+        if(j.cacheStats.cacheRead!==900) throw new Error("expected cacheRead 900, got "+j.cacheStats.cacheRead);
+      })'
+}
+
+@test "every client is reported with a coverage status" {
+    run bash "$SCAN" --days 3650 --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const clients=JSON.parse(r).meta.clients;
+        const valid=["ok","unparsed","no-logs","not-installed"];
+        for(const c of clients){
+          if(!valid.includes(c.status)) throw new Error(c.id+" has invalid status "+c.status);
+        }
+        if(!clients.some(c=>c.id==="codex")) throw new Error("codex must be reported");
+        if(!clients.some(c=>c.id==="copilot")) throw new Error("copilot must be reported");
+      })'
+}

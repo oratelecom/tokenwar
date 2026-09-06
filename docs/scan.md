@@ -153,10 +153,40 @@ tokenwar bundle dev|devops|architect|testing
 
 Apply at the start of a session, for the invalidation reason above.
 
+## Multi-client support
+
+Each agent stores sessions differently, so each needs its own adapter. The
+report always lists which clients it actually read, and distinguishes a client
+that had no sessions from one whose format could not be parsed — an unread
+client must never be mistaken for an efficient one.
+
+| Client | Log location | Token telemetry | Status |
+| --- | --- | --- | --- |
+| Claude Code | `~/.claude/projects/**/*.jsonl` | Yes | Full support |
+| Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | Yes | Full support |
+| Gemini CLI | `~/.gemini/tmp/<hash>/logs.json` | No | Tool evidence only, excluded from cost |
+| GitHub Copilot CLI | `~/.copilot/**` | Expected | Adapter pending real session logs |
+| opencode | `~/.local/share/opencode/**` | Expected | Adapter pending real session logs |
+
+Codex reports cumulative totals in periodic `token_count` events, so a turn's
+cost is the delta between successive snapshots. Its `input_tokens` already
+includes the cached portion, which is subtracted so the same tokens are not
+counted as both fresh and cached.
+
+Scan one client with `--client codex`, or all detected ones by default.
+
+Skills and MCP servers are Claude Code capabilities, so their listing cost is
+priced against Claude turns only, never against turns from a client that never
+carried them.
+
 ## Limits
 
 - MCP tool counts are only knowable from a live session; pass them via
   `TOKENWAR_MCP_TOOL_COUNTS` or they show as unknown.
+- Copilot and opencode are detected but have no adapter yet; they report
+  `format unsupported` rather than contributing zero.
+- Gemini's local logs carry no usage fields, so it contributes tool evidence
+  but is excluded from every cost figure.
 - Cache TTL expiry during idle gaps is invisible in logs, so the cached cost is
   a floor rather than an exact figure.
 - Only Claude Code writes `.jsonl` sessions in the parsed schema today. Other

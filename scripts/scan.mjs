@@ -13,15 +13,54 @@ import { listSessionFiles, parseSessionFile, aggregateSessions, median, expandHo
 import { pricingFor, observedCost, uncachedCost, prefixBlockCost, windowOccupancy, invalidationCost, dollars, CACHE_WRITE_5M_MULTIPLIER } from "./lib/economics.mjs";
 import { collectSkills, collectMcpServers, crossReference } from "./lib/inventory.mjs";
 import { inferProfile } from "./lib/profile.mjs";
+import { adapterFor } from "./lib/adapters.mjs";
 import { buildRecommendations, BUNDLES } from "./lib/recommend.mjs";
 import { renderTerminal, renderHtml, computeScores } from "./lib/report.mjs";
 
+// Each client stores sessions somewhere different and in a different shape.
+// `pattern` selects that client's session files; `usage` records whether the
+// format carries token telemetry, so a client without it is never priced.
 const CLIENTS = [
-  { id: "claude", name: "Claude Code", root: "~/.claude/projects", env: "TOKENWAR_CLAUDE_LOG_ROOT" },
-  { id: "codex", name: "Codex", root: "~/.codex", env: "TOKENWAR_CODEX_LOG_ROOT" },
-  { id: "gemini", name: "Gemini CLI", root: "~/.gemini", env: "TOKENWAR_GEMINI_LOG_ROOT" },
-  { id: "copilot", name: "GitHub Copilot CLI", root: "~/.copilot", env: "TOKENWAR_COPILOT_LOG_ROOT" },
-  { id: "opencode", name: "opencode", root: "~/.local/share/opencode", env: "TOKENWAR_OPENCODE_LOG_ROOT" },
+  {
+    id: "claude",
+    name: "Claude Code",
+    roots: ["~/.claude/projects"],
+    env: "TOKENWAR_CLAUDE_LOG_ROOT",
+    pattern: /\.jsonl$/,
+    usage: true,
+  },
+  {
+    id: "codex",
+    name: "Codex",
+    roots: ["~/.codex/sessions"],
+    env: "TOKENWAR_CODEX_LOG_ROOT",
+    pattern: /rollout-.*\.jsonl$/,
+    usage: true,
+  },
+  {
+    id: "gemini",
+    name: "Gemini CLI",
+    roots: ["~/.gemini/tmp"],
+    env: "TOKENWAR_GEMINI_LOG_ROOT",
+    pattern: /logs\.json$/,
+    usage: false,
+  },
+  {
+    id: "copilot",
+    name: "GitHub Copilot CLI",
+    roots: ["~/.copilot/history-session-state", "~/.copilot/session-state", "~/.copilot"],
+    env: "TOKENWAR_COPILOT_LOG_ROOT",
+    pattern: /\.jsonl$/,
+    usage: true,
+  },
+  {
+    id: "opencode",
+    name: "opencode",
+    roots: ["~/.local/share/opencode/storage", "~/.local/share/opencode"],
+    env: "TOKENWAR_OPENCODE_LOG_ROOT",
+    pattern: /\.jsonl$/,
+    usage: true,
+  },
 ];
 
 const DEFAULT_DAYS = 30;
@@ -130,18 +169,56 @@ function main() {
   const sessions = [];
   const perClient = [];
   for (const client of selected) {
-    const root = process.env[client.env] ? expandHome(process.env[client.env]) : expandHome(client.root);
-    if (!existsSync(root)) continue;
-    const files = listSessionFiles(root, { maxFiles: args.maxSessions, since });
+    // An explicit override replaces the built-in roots entirely.
+    const roots = process.env[client.env]
+      ? [expandHome(process.env[client.env])]
+      : client.roots.map(expandHome);
+
+    const present = roots.filter((root) => existsSync(root));
+    if (present.length === 0) {
+      perClient.push({ id: client.id, name: client.name, status: "not-installed", files: 0, sessions: 0 });
+      continue;
+    }
+
+    // Only the first root that yields files is used, so a fallback root does
+    // not double-count sessions already found in the preferred one.
+    let files = [];
+    let usedRoot = present[0];
+    for (const root of present) {
+      const found = listSessionFiles(root, { maxFiles: args.maxSessions, since, pattern: client.pattern });
+      if (found.length > 0) {
+        files = found;
+        usedRoot = root;
+        break;
+      }
+    }
+
+    const adapter = adapterFor(client.id);
     let parsed = 0;
     for (const file of files) {
-      const session = parseSessionFile(file.path);
+      const session = adapter ? adapter.parse(file.path) : parseSessionFile(file.path);
       if (session) {
+        session.client = session.client || client.id;
         sessions.push(session);
         parsed += 1;
       }
     }
-    perClient.push({ id: client.id, name: client.name, root, files: files.length, sessions: parsed });
+
+    // Distinguish "no logs" from "logs we cannot read": an unparsed client must
+    // never look like an efficient one.
+    let status = "ok";
+    if (files.length === 0) status = "no-logs";
+    else if (parsed === 0) status = "unparsed";
+
+    perClient.push({
+      id: client.id,
+      name: client.name,
+      root: usedRoot,
+      files: files.length,
+      sessions: parsed,
+      status,
+      usage: client.usage,
+    });
   }
 
   if (sessions.length === 0) {
@@ -169,14 +246,20 @@ function main() {
     ? Math.round(aggregate.cacheWriteTokensAfterFirst / aggregate.cacheWriteTurns)
     : 0;
 
+  // Skills are a Claude Code capability, so the listing is only presented on
+  // Claude turns. Pricing it against every client's turns would attribute the
+  // cost to sessions that never carried it.
+  const skillBearingSessions = sessions.filter((session) => (session.client || "claude") === "claude");
+  const skillBearingTurns = skillBearingSessions.reduce((sum, session) => sum + session.turns, 0);
+
   const prefixCost = prefixBlockCost({
     blockTokens: inventory.skills.deadListingTokens,
-    turns: aggregate.turns,
+    turns: skillBearingTurns,
     price,
     // The static skill listing is re-sent on a cold prefix, not on every turn
     // that appends to the conversation. One write per session is the honest
     // floor; TTL expiry during idle gaps can add more, which we cannot see.
-    cacheWriteTurns: aggregate.sessions,
+    cacheWriteTurns: Math.max(1, skillBearingSessions.length),
   });
 
   const medianFirst = median(aggregate.firstRequestTokens);

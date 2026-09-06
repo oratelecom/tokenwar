@@ -10,7 +10,10 @@ import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-export const MAX_DEPTH = 6;
+// Codex nests sessions under sessions/YYYY/MM/DD, and Claude Code keeps
+// subagent transcripts a level deeper again, so the walk has to reach further
+// than a flat log directory would need.
+export const MAX_DEPTH = 8;
 
 // Bash argv[0] families. Used for profile inference; a command is attributed to
 // the first family that matches, so order matters where a binary could fit two.
@@ -151,7 +154,7 @@ export function splitCommands(command) {
     .filter(Boolean);
 }
 
-export function listSessionFiles(root, { maxFiles = Infinity, since = null } = {}) {
+export function listSessionFiles(root, { maxFiles = Infinity, since = null, pattern = /\.jsonl$/ } = {}) {
   if (!existsSync(root)) return [];
   const found = [];
   const stack = [{ path: root, depth: 0 }];
@@ -171,7 +174,7 @@ export function listSessionFiles(root, { maxFiles = Infinity, since = null } = {
         }
         continue;
       }
-      if (!entry.isFile() || !entry.name.endsWith(".jsonl")) continue;
+      if (!entry.isFile() || !pattern.test(entry.name)) continue;
       let stats;
       try {
         stats = statSync(path);
@@ -427,6 +430,7 @@ export function aggregateSessions(sessions) {
     peakInputTokens: [],
     resultSizes: [],
     cwds: new Set(),
+    clients: new Map(),
   };
 
   for (const key of Object.keys(emptySession("").lanes)) {
@@ -461,6 +465,7 @@ export function aggregateSessions(sessions) {
     if (session.peakInputTokens > 0) total.peakInputTokens.push(session.peakInputTokens);
     for (const size of session.resultSizes) total.resultSizes.push(size);
     if (session.cwd) total.cwds.add(session.cwd);
+    if (session.client) bump(total.clients, session.client);
   }
 
   return total;

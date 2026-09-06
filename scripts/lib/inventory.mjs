@@ -13,6 +13,11 @@ import { homedir } from "node:os";
 // prompt cost of; never to provider-reported usage, which is exact.
 export const CHARS_PER_TOKEN = 4;
 
+// Directories where a plugin vendors its skills for another agent. These copies
+// are not loaded by the client being audited, so counting them would inflate
+// both the skill count and the per-request listing cost.
+const VENDORED_COPY_RE = /\/(\.junie|\.codex|\.cursor|\.gemini|\.github|\.opencode|\.windsurf|\.aider|node_modules|test|tests|fixtures|__tests__)\//;
+
 export function estimateTokens(text) {
   return Math.ceil((text || "").length / CHARS_PER_TOKEN);
 }
@@ -24,10 +29,20 @@ function readFrontmatter(text) {
   const fields = {};
   const nameMatch = block.match(/^name:\s*(.+)$/m);
   if (nameMatch) fields.name = nameMatch[1].trim().replace(/^["']|["']$/g, "");
-  // A description may be a folded multi-line value, so read until the next
-  // top-level key rather than to end of line.
-  const descMatch = block.match(/^description:\s*([\s\S]*?)(?=\n[a-zA-Z_-]+:|$)/m);
-  if (descMatch) fields.description = descMatch[1].trim().replace(/^["']|["']$/g, "");
+  // A description may be a plain scalar or a YAML block scalar (`>` or `|`),
+  // whose text lives on the following indented lines. Read to the next
+  // top-level key so both shapes are captured; matching only to end of line
+  // would score a folded description as a few tokens instead of its real size.
+  const descMatch = block.match(/^description:[ \t]*(.*(?:\n(?:[ \t]+.*|[ \t]*))*)/m);
+  if (descMatch) {
+    fields.description = descMatch[1]
+      .replace(/^[>|][-+]?\s*/, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .join(" ")
+      .trim()
+      .replace(/^["']|["']$/g, "");
+  }
   return fields;
 }
 
@@ -86,6 +101,10 @@ export function collectSkills({ skillsDir, pluginCacheDir } = {}) {
           continue;
         }
         if (entry.name !== "SKILL.md") continue;
+        // A plugin often vendors the same skill for several agents (.junie/,
+        // .codex/, .cursor/ ...). Only the copy the client loads costs prompt
+        // space, so count a plugin skill once rather than once per vendored copy.
+        if (VENDORED_COPY_RE.test(path)) continue;
         let text;
         try {
           text = readFileSync(path, "utf8");
@@ -106,7 +125,16 @@ export function collectSkills({ skillsDir, pluginCacheDir } = {}) {
     }
   }
 
-  return skills;
+  // The same skill name can still appear under two plugin paths (a versioned
+  // cache alongside a working copy). The client loads one listing entry per
+  // name, so keep the richest parse and drop the rest.
+  const byName = new Map();
+  for (const skill of skills) {
+    const key = `${skill.source}:${skill.name}`;
+    const existing = byName.get(key);
+    if (!existing || skill.listingTokens > existing.listingTokens) byName.set(key, skill);
+  }
+  return [...byName.values()];
 }
 
 // MCP servers as configured. Tool counts come from the live session when the
