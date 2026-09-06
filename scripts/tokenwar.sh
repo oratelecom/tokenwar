@@ -34,7 +34,9 @@ Usage: tokenwar <command>
 Commands:
   status     state of the 7 tools + providers (codex, gemini, kimi, opencode, copilot)
   gain       per-tool + per-provider token savings + monthly \$ value
-  scan       scan local agent logs and recommend token-saving tools
+  scan       audit local agent logs: what loads every request vs what you use
+  prune      list skills and MCP servers that load but were never invoked
+  bundle X   apply a session-start tool bundle (dev|devops|architect|testing)
   copilot    report which tools reach GitHub Copilot CLI ('copilot wire' to fix)
   check      complementarity / conflict detector
   test       end-to-end ping: is each tool actually working?
@@ -54,6 +56,8 @@ case "$cmd" in
     status)  exec bash "${SCRIPT_DIR}/status.sh" "$@" ;;
     gain)    exec bash "${SCRIPT_DIR}/gain.sh" "$@" ;;
     scan)    exec bash "${SCRIPT_DIR}/scan.sh" "$@" ;;
+    prune)   exec bash "${SCRIPT_DIR}/prune.sh" "$@" ;;
+    bundle)  exec bash "${SCRIPT_DIR}/bundle.sh" "$@" ;;
     check)   exec bash "${SCRIPT_DIR}/check.sh" "$@" ;;
     copilot) exec bash "${SCRIPT_DIR}/copilot.sh" "$@" ;;
     test)

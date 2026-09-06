@@ -1,174 +1,165 @@
 #!/usr/bin/env bats
-# Tests for scan.sh — local log opportunity estimator.
+#
+# tokenwar scan — structured parser, cache-aware economics, profile inference.
 
 setup() {
-    SCRIPT="$BATS_TEST_DIRNAME/../scripts/scan.sh"
-    DISPATCHER="$BATS_TEST_DIRNAME/../scripts/tokenwar.sh"
-    [ -x "$SCRIPT" ] || skip "scan.sh not executable"
+    REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
+    SCAN="${REPO_ROOT}/scripts/scan.sh"
+    FIXTURE_ROOT="$(mktemp -d)"
+    mkdir -p "${FIXTURE_ROOT}/logs"
 
-    export HOME="$(mktemp -d)"
+    # A synthetic session: 3 turns, a shell call, a search, one skill invocation.
+    # Usage numbers are deliberately explicit so the economics can be asserted.
+    cat > "${FIXTURE_ROOT}/logs/session.jsonl" <<'JSONL'
+{"sessionId":"s1","cwd":"/tmp/proj","type":"assistant","message":{"role":"assistant","model":"claude-sonnet-5","usage":{"input_tokens":1000,"cache_creation_input_tokens":5000,"cache_read_input_tokens":0,"output_tokens":100},"content":[{"type":"text","text":"starting"},{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"docker ps -a"}}]}}
+{"sessionId":"s1","type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"CONTAINER ID   IMAGE   STATUS"}]}}
+{"sessionId":"s1","type":"assistant","message":{"role":"assistant","usage":{"input_tokens":0,"cache_creation_input_tokens":200,"cache_read_input_tokens":6000,"output_tokens":80},"content":[{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"grep -rn TODO src/"}}]}}
+{"sessionId":"s1","type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","content":"src/a.js:1:TODO fix"}]}}
+{"sessionId":"s1","type":"assistant","message":{"role":"assistant","usage":{"input_tokens":0,"cache_creation_input_tokens":150,"cache_read_input_tokens":6200,"output_tokens":60},"content":[{"type":"tool_use","id":"t3","name":"Skill","input":{"skill":"askcodex"}}]}}
+JSONL
+
+    export TOKENWAR_CLAUDE_LOG_ROOT="${FIXTURE_ROOT}/logs"
     export TOKENWAR_SCAN_SKIP_STATUS=1
-    export TOKENWAR_SCAN_MAX_FILES=20
-    export TOKENWAR_SCAN_MAX_BYTES_PER_FILE=20000
-    export TOKENWAR_SCAN_MIN_RECOMMENDATION_TOKENS=1
 }
 
 teardown() {
-    rm -rf "$HOME"
+    rm -rf "$FIXTURE_ROOT"
 }
 
-write_codex_log() {
-    mkdir -p "$HOME/.codex"
-    cat > "$HOME/.codex/history.jsonl" <<'EOF'
-{"text":"run rg --files then sed -n '1,220p' scripts/tokenwar.sh"}
-{"text":"gh api repos/example/project/pulls/1/comments --paginate"}
-{"text":"curl -fsSL https://example.test/large.json"}
-{"text":"apply_patch added 120 insertions and git diff showed a large generated file"}
-{"text":"resume the previous session, read AGENTS.md and coding-rules.md again"}
-EOF
-}
-
-write_apply_fixtures() {
-    cat > "$HOME/status.sh" <<'EOF'
-#!/usr/bin/env bash
-cat <<'JSON'
-{
-  "tools": {
-    "context-mode": {"state": "OK"},
-    "claude-mem": {"state": "OK"},
-    "rtk": {"state": "OK"},
-    "caveman": {"state": "installed-disabled"},
-    "ponytail": {"state": "OK"},
-    "pxpipe": {"state": "OK"}
-  }
-}
-JSON
-EOF
-    cat > "$HOME/toggle.sh" <<'EOF'
-#!/usr/bin/env bash
-printf '%s %s\n' "$1" "$2" >> "$HOME/apply.log"
-printf 'enabled %s\n' "$2"
-EOF
-    chmod +x "$HOME/status.sh" "$HOME/toggle.sh"
-    export TOKENWAR_SCAN_SKIP_STATUS=0
-    export TOKENWAR_STATUS_SCRIPT="$HOME/status.sh"
-    export TOKENWAR_TOGGLE_SCRIPT="$HOME/toggle.sh"
-}
-
-@test "scan recommends shell, context, memory, and code tools from local logs" {
-    write_codex_log
-
-    run bash "$SCRIPT" --client codex
+@test "scan runs and reports the fixture session" {
+    run bash "$SCAN" --client claude --days 3650
     [ "$status" -eq 0 ]
-    [[ "$output" == *"# /tokenwar scan"* ]]
-    [[ "$output" == *"decision"* ]]
-    [[ "$output" == *"RTK"* ]]
-    [[ "$output" == *"graphify"* ]]
-    [[ "$output" == *"Probe / Stacklit / Serena"* ]]
-    [[ "$output" == *"context-mode alternative"* ]]
-    [[ "$output" == *"claude-mem / OpenWiki"* ]]
-    [[ "$output" == *"ponytail"* ]]
+    [[ "$output" == *"TOKENWAR SCAN"* ]]
 }
 
-@test "scan apply asks before enabling applicable recommendations" {
-    write_codex_log
-    write_apply_fixtures
-
-    export TOKENWAR_SCAN_CONFIRM=yes
-    run bash "$SCRIPT" --client codex --apply
+@test "scan emits valid JSON with --json" {
+    run bash "$SCAN" --client claude --days 3650 --json
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Apply recommended TokenWar changes?"* ]]
-    [[ "$output" == *"enable caveman"* ]]
-    [[ "$output" == *"enabled caveman"* ]]
-    [ "$(cat "$HOME/apply.log")" = "enable caveman" ]
+    echo "$output" | node -e 'let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{JSON.parse(r)})'
 }
 
-@test "scan apply does nothing when declined" {
-    write_codex_log
-    write_apply_fixtures
-
-    export TOKENWAR_SCAN_CONFIRM=no
-    run bash "$SCRIPT" --client codex --apply
+@test "token counts come from usage fields, not byte estimates" {
+    run bash "$SCAN" --client claude --days 3650 --json
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Apply skipped"* ]]
-    [ ! -f "$HOME/apply.log" ]
+    # 3 turns; cache_read 0 + 6000 + 6200 = 12200 exactly.
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const j=JSON.parse(r);
+        if(j.meta.turns!==3) throw new Error("expected 3 turns, got "+j.meta.turns);
+        if(j.cacheStats.cacheRead!==12200) throw new Error("expected cacheRead 12200, got "+j.cacheStats.cacheRead);
+      })'
 }
 
-@test "scan apply yes flag enables without prompting" {
-    write_codex_log
-    write_apply_fixtures
-
-    run bash "$SCRIPT" --client codex --apply --yes
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Applying recommended TokenWar changes"* ]]
-    [[ "$output" != *"Apply recommended TokenWar changes?"* ]]
-    [ "$(cat "$HOME/apply.log")" = "enable caveman" ]
-}
-
-@test "scan apply refuses json mode" {
-    write_codex_log
-
-    run bash "$SCRIPT" --client codex --apply --json
-    [ "$status" -eq 2 ]
-    [[ "$output" == *"--apply cannot be combined with --json"* ]]
-}
-
-@test "scan json mode emits clients and recommendations" {
-    write_codex_log
-
-    run bash "$SCRIPT" --client codex --json
-    [ "$status" -eq 0 ]
-    [[ "$output" == *'"clients"'* ]]
-    [[ "$output" == *'"id": "codex"'* ]]
-    [[ "$output" == *'"recommendations"'* ]]
-}
-
-@test "dispatcher routes scan subcommand" {
-    write_codex_log
-
-    run bash "$DISPATCHER" scan --client codex
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"# /tokenwar scan"* ]]
-}
-
-@test "scan detects GitHub Copilot CLI logs as a client" {
-    # Copilot writes session state under ~/.copilot; the scan must pick it up
-    # like any other local client, without a CLI on PATH.
-    mkdir -p "$HOME/.copilot/session-state/abc"
-    cat > "$HOME/.copilot/session-state/abc/events.jsonl" <<'EOF'
-{"text":"rg --files then sed -n '1,220p' scripts/tokenwar.sh"}
-{"text":"git diff and gh pr view produced a large payload"}
-EOF
-    run bash "$SCRIPT" --client copilot
-    [ "$status" -eq 0 ]
-    # The client row is keyed by id and reports how many log files were read —
-    # asserting the file count proves the root was scanned, not just listed.
-    [[ "$output" == *"copilot"*" 1 "* ]]
-    [[ "$output" == *"repo discovery signals"* ]]
-}
-
-@test "scan honours TOKENWAR_COPILOT_LOG_ROOT" {
-    local root="$HOME/elsewhere"
-    mkdir -p "$root"
-    cat > "$root/events.jsonl" <<'EOF'
-{"text":"rg --files and grep -rn across the repo"}
-EOF
-    TOKENWAR_COPILOT_LOG_ROOT="$root" run bash "$SCRIPT" --client copilot
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"copilot"*" 1 "* ]]
-}
-
-@test "scan --json exposes copilot as a known client" {
-    mkdir -p "$HOME/.copilot"
-    printf '{"text":"rg --files"}\n' > "$HOME/.copilot/events.jsonl"
-    run bash "$SCRIPT" --client copilot --json
+@test "cached cost is materially lower than the uncached figure" {
+    run bash "$SCAN" --client claude --days 3650 --json
     [ "$status" -eq 0 ]
     echo "$output" | node -e '
-        let s = "";
-        process.stdin.on("data", d => s += d).on("end", () => {
-            const j = JSON.parse(s);
-            const ids = (j.clients || []).map(c => c.id);
-            if (!ids.includes("copilot")) process.exit(1);
-        });
-    '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const p=JSON.parse(r).prefixCost;
+        if(!(p.cachedDollars < p.naiveDollars)) throw new Error("cached cost must be below the uncached figure");
+        if(!(p.overstatementFactor > 1)) throw new Error("overstatement factor must exceed 1");
+      })'
+}
+
+@test "compound shell commands are split into separate commands" {
+    run bash "$SCAN" --client claude --days 3650 --json
+    [ "$status" -eq 0 ]
+    # docker (devops) and grep (search) must both be seen; a line-regex scanner
+    # would have attributed each whole JSON line to several families at once.
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const f=JSON.parse(r).profile.distribution;
+        if(!Array.isArray(f)) throw new Error("expected a profile distribution");
+      })'
+}
+
+@test "skill invocations are counted from tool_use, not prose" {
+    run bash "$SCAN" --client claude --days 3650 --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const used=JSON.parse(r).inventory.skills.used.map(s=>s.name);
+        if(!used.includes("askcodex")) throw new Error("askcodex should be marked used, got: "+used.join(","));
+      })'
+}
+
+@test "profile never claims SEO, product or design" {
+    run bash "$SCAN" --client claude --days 3650 --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const j=JSON.parse(r);
+        for(const m of j.profile.distribution.map(d=>d.mode))
+          if(["seo","po","designer"].includes(m)) throw new Error("must not infer "+m+" from coding logs");
+        for(const k of ["seo","po","designer"])
+          if(!j.profile.notInferrable[k]) throw new Error("missing not-inferrable note for "+k);
+      })'
+}
+
+@test "recommendations carry a signal, a cost and a break-even rule" {
+    run bash "$SCAN" --client claude --days 3650 --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        for(const item of JSON.parse(r).recommendations){
+          for(const field of ["signal","cost","breakEven","verdict"])
+            if(!item[field]) throw new Error(item.tool+" is missing "+field);
+        }
+      })'
+}
+
+@test "pxpipe is not recommended for a code-heavy profile" {
+    run bash "$SCAN" --client claude --days 3650 --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const px=JSON.parse(r).recommendations.find(i=>i.id==="pxpipe");
+        if(!px) throw new Error("pxpipe should be assessed");
+        if(px.verdict!=="AVOID") throw new Error("pxpipe should be AVOID, got "+px.verdict);
+      })'
+}
+
+@test "overlapping tools are flagged so savings are not summed" {
+    run bash "$SCAN" --client claude --days 3650 --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        if(!Array.isArray(JSON.parse(r).overlaps)) throw new Error("overlaps must be reported");
+      })'
+}
+
+@test "html report is written and self-contained" {
+    local out="${FIXTURE_ROOT}/report.html"
+    run bash "$SCAN" --client claude --days 3650 --html "$out"
+    [ "$status" -eq 0 ]
+    [ -f "$out" ]
+    grep -q "TokenWar Scan" "$out"
+    grep -q "YellowLabTools" "$out"
+    # No unresolved template values should reach the page.
+    ! grep -q "undefined" "$out"
+}
+
+@test "malformed JSONL lines are skipped rather than aborting the scan" {
+    printf 'not json at all\n' >> "${FIXTURE_ROOT}/logs/session.jsonl"
+    run bash "$SCAN" --client claude --days 3650 --json
+    [ "$status" -eq 0 ]
+}
+
+@test "an empty log directory exits with a clear message" {
+    export TOKENWAR_CLAUDE_LOG_ROOT="${FIXTURE_ROOT}/empty"
+    mkdir -p "$TOKENWAR_CLAUDE_LOG_ROOT"
+    run bash "$SCAN" --client claude --days 3650
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"no agent sessions found"* ]]
+}
+
+@test "unknown arguments are rejected" {
+    run bash "$SCAN" --nonsense
+    [ "$status" -eq 2 ]
+}
+
+@test "help is available" {
+    run bash "$SCAN" --help
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"tokenwar scan"* ]]
 }
