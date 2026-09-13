@@ -10,6 +10,12 @@ setup() {
     export ORIG_PATH="$PATH"
     export PATH="$MOCK_BIN:$PATH"
     mkdir -p "$HOME/.claude/tokenwar"
+    # Keep provider tests hermetic. status.sh performs a throttled update check;
+    # without a fresh cache these tests can reach the network and append a real
+    # provider version to the output, making version parsing assertions flaky.
+    cat > "$HOME/.claude/tokenwar/upgrade-check.json" <<'EOF'
+{"refresh_ok":true,"tools":{},"providers":{}}
+EOF
 }
 
 teardown() {

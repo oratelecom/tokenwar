@@ -25,7 +25,7 @@ carries a real managed state in `tokenwar status`.
 
 | Tool | Best At | Weakness | TokenWar Position |
 | --- | --- | --- | --- |
-| [OpenWiki](https://github.com/langchain-ai/openwiki) | Durable Markdown wiki maintained by an agent, good for onboarding and purpose memory. | It creates/maintains docs; it is not a live low-latency grep replacement. | Recommend when agents keep re-reading project rules, architecture, setup, and "why" context. |
+| [OpenWiki](https://github.com/langchain-ai/openwiki) | Durable, grounded Markdown shared through Git by humans and agents. | Initial generation and changed updates consume LLM tokens; it is not a low-latency grep replacement. | **Strongly recommend for active team projects:** pay for understanding once, then reuse it across sessions, developers and providers. See [shared project memory](project-memory.md). |
 | [Serena](https://github.com/oraios/serena) | MCP-backed IDE-like symbol retrieval, reference lookup, refactoring, and debugging. | MCP dependency and language-server quality vary by repo/language. | Strong candidate when exact symbol navigation would replace many file reads. |
 | [Probe](https://github.com/probelabs/probe) | Code and Markdown context engine with AST parsing, semantic search, CLI, MCP, and SDK modes. | Smaller ecosystem than Serena; benchmark locally before defaulting. | Preferred context-mode alternative for code search because it offers direct CLI usage, not only MCP. |
 | [Stacklit](https://github.com/glincker/stacklit) | Compact repo map (`stacklit.json`) that agents can read instead of exploring. | Newer/smaller project; less semantic depth than IDE/LSP tools. | Good low-friction context-mode alternative for fast first-pass repo orientation. |
