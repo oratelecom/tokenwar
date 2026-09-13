@@ -89,7 +89,9 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 | --- | --- |
 | `/tokenwar status` | Health of the 7 tools — installed, enabled, version |
 | `/tokenwar gain` | Per-tool token savings + per-provider telemetry/status (Codex/Gemini/Kimi/opencode) + **monthly $ value** |
-| `/tokenwar scan` | Local agent-log scan that estimates which token-saving tools would have helped most |
+| `/tokenwar scan` | Local agent-log audit: what loads into every request vs what you actually use, with cache-adjusted cost |
+| `/tokenwar prune` | List skills and MCP servers that load every request but were never invoked |
+| `/tokenwar bundle <mode>` | Apply a session-start tool bundle (`dev`/`devops`/`architect`/`testing`) |
 | `/tokenwar copilot` | Report which tools reach GitHub Copilot CLI; `copilot wire` points the missing ones at Copilot's hook / skills / MCP |
 | `/tokenwar upgrade` | Bump each tool to latest (asks confirmation) |
 | `/tokenwar check` | Conflict detector — verifies the 7 tools stack additively |
@@ -100,19 +102,52 @@ Inside Claude Code (`/tokenwar <subcommand>`) or standalone (`bash ~/.claude/ski
 
 ## Local log scan
 
-`tokenwar scan` is the recommendation layer. It reads local agent logs, detects
-which clients are present, and estimates which TokenWar tools would have helped
-most. It does **not** upload logs, call a provider, or present estimated numbers
-as real telemetry.
+`tokenwar scan` is the audit layer. It reads local agent logs, measures what is
+loaded into every request against what was actually used, and reports the cost
+honestly. It does **not** upload logs, call a provider, or present estimates as
+real telemetry.
+
+Inspired by [Yellow Lab Tools](https://github.com/gmetais/YellowLabTools) by
+Gaël Métais — graded categories, each with the evidence behind the grade.
 
 ```bash
-tokenwar scan                  # scan detected local clients
-tokenwar scan --all            # include every supported client
-tokenwar scan --client codex   # scan one client
-tokenwar scan --clients codex,vibe --json
-tokenwar scan --apply          # ask before applying ENABLE recommendations
-tokenwar scan --apply --yes    # apply ENABLE recommendations without prompting
+tokenwar scan                  # audit the last 30 days
+tokenwar scan --days 7         # narrow the window
+tokenwar scan --html --open    # write an HTML report and open it
+tokenwar scan --json           # machine-readable
+tokenwar prune                 # what loads every request but is never used
+tokenwar bundle devops --dry-run
 ```
+
+It grades four things: **capability inventory** (how many installed skills were
+ever invoked), **context-window hygiene** (how much of the window is gone before
+any work), **prefix stability** (how much input arrives as cache writes), and
+**cache efficiency**.
+
+### The arithmetic, stated plainly
+
+An unused skill listing costs *N* tokens and a session runs *T* turns, so the
+tempting claim is that it wastes *N × T* tokens. That is wrong, in the direction
+that flatters the tool.
+
+A static listing sits in the **prompt prefix**, so after turn 1 it is served
+from cache — billed at **0.1x** input, not 1.0x. In practice the naive figure is
+**8-9x too high**, and on the logs used to build this feature caching was
+already absorbing **~88%** of the theoretical waste. The report shows both
+numbers and names the gap, because the pre-cache figure is one the user's own
+billing page disproves in a minute.
+
+What is genuinely expensive is what caching does *not* discount:
+
+- **Window occupancy** — a cached token still holds its place on every request,
+  displacing real context and bringing compaction forward.
+- **Prefix invalidation** — adding or removing a capability forces a rewrite at
+  1.25x instead of a read at 0.1x, a **12.5x** step.
+
+That second point is why `tokenwar bundle` applies at session start and is not a
+mid-session switch.
+
+Full method, limits and per-tool break-even rules: [docs/scan.md](docs/scan.md).
 
 Supported clients:
 
