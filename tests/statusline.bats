@@ -110,6 +110,18 @@ EOF
     [[ "$output" == *"${GREEN}[caveman 84cc3c1]"* ]]
 }
 
+@test "rtk rewrite script hook → rtk green" {
+    write_settings <<'EOF'
+{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"command":"/another/users/home/.claude/hooks/rtk-rewrite.sh"}]}]}}
+EOF
+    mock_claude_with_plugins '[]'
+    mock_rtk_alive
+
+    run bash "$SCRIPT" <<<'{}'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"${GREEN}[rtk 44.7M]"* ]]
+}
+
 @test "pxpipe installed → pxpipe badge green" {
     write_settings <<'EOF'
 {}

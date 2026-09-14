@@ -219,7 +219,11 @@ if command -v "$RTK_BIN" >/dev/null 2>&1; then
                 const cfg = JSON.parse(readFileSync(path, "utf8"));
                 const pre = (cfg.hooks && cfg.hooks.PreToolUse) || [];
                 return pre.some(h => (h.matcher||"") === "Bash"
-                    && (h.hooks||[]).some(x => (x.command||"").includes("rtk hook")));
+                    && (h.hooks||[]).some(x => {
+                        const command = x.command || "";
+                        return command.includes("rtk hook")
+                            || command.includes("rtk-rewrite.sh");
+                    }));
             } catch { return false; }
         };
         const wired = wiredIn(process.env.SETTINGS) || wiredIn(process.env.SETTINGS_LOCAL);
