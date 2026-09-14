@@ -42,6 +42,15 @@ echo "\$*" >> "$GRAPHIFY_LOG"
 exit 0
 EOF
     chmod +x "$MOCK_BIN/graphify"
+
+    export OPENWIKI_LOG="$HOME/openwiki-calls.log"
+    cat > "$MOCK_BIN/openwiki" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$OPENWIKI_LOG"
+[[ "\$1" == "--version" ]] && echo "openwiki 0.5.1-test"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/openwiki"
 }
 
 # Write a fake rtk binary at $1 that records its args to $RTK_LOG.
@@ -357,6 +366,46 @@ EOF
     run bash "$SCRIPT" --all
     [ "$status" -eq 0 ]
     grep -qx "install" "$GRAPHIFY_LOG"
+}
+
+@test "--with-openwiki installs the pinned CLI without initializing a repository" {
+    mock_claude_empty
+    rm -f "$MOCK_BIN/openwiki"
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    cat > "$MOCK_BIN/npm" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$NPM_LOG"
+mkdir -p "$HOME/.local/bin"
+cat > "$HOME/.local/bin/openwiki" <<'OPENWIKI'
+#!/usr/bin/env bash
+[[ "\$1" == "--version" ]] && echo "openwiki 0.5.1"
+OPENWIKI
+chmod +x "$HOME/.local/bin/openwiki"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/npm"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
+    run bash "$SCRIPT" --with-openwiki
+    [ "$status" -eq 0 ]
+    grep -qx "install -g openwiki@0.5.1" "$NPM_LOG"
+    [ ! -s "$OPENWIKI_LOG" ]
+    [[ "$output" == *"openwiki --init"* ]]
+}
+
+@test "--all includes OpenWiki" {
+    mock_claude_empty
+    ln -s "$(command -v node)" "$MOCK_BIN/node"
+    cat > "$MOCK_BIN/npm" <<EOF
+#!/usr/bin/env bash
+echo "\$*" >> "$NPM_LOG"
+exit 0
+EOF
+    chmod +x "$MOCK_BIN/npm"
+    rm -f "$MOCK_BIN/openwiki"
+    PATH="$MOCK_BIN:/usr/bin:/bin"
+    run bash "$SCRIPT" --all
+    [ "$status" -eq 0 ]
+    grep -q "install -g openwiki@0.5.1" "$NPM_LOG"
 }
 
 @test "--with-copilot delegates to scripts/copilot.sh rather than re-implementing it" {

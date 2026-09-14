@@ -22,6 +22,14 @@ Manages the 7 complementary token-saving tools:
 
 > **graphify** is a CLI + skill, not a Claude Code plugin. Its PyPI package is `graphifyy` (the bare `graphify` name on PyPI is unaffiliated — see upstream's README) while the command stays `graphify`. `status` reports it OK only when BOTH halves are present: the CLI on `PATH` **and** a registered skill (`~/.claude/skills/graphify/SKILL.md`); a CLI with no skill is `installed-disabled`, because the assistant then never reaches for the graph. `check-updates` reads its latest version live from the PyPI JSON API (no pinned constant — graphify ships weekly, so a hardcoded number would report phantom up-to-date), and `upgrade` routes through whichever installer owns the package (`uv tool` → `pipx` → `pip`) then re-runs `graphify install` so the skill files match the new version.
 
+> **OpenWiki is the recommended shared project-memory layer**, not an eighth
+> live compression lane. `install.sh --with-openwiki` installs the pinned CLI,
+> and `--all` includes it. Never run `openwiki --init` implicitly: initialization
+> writes generated documentation and invokes an LLM. Recommend it strongly for
+> long-lived team repositories, where one reviewed wiki is reused by every human
+> and agent. Use `graphify update .` after code changes and `openwiki --update`
+> after merges or on a schedule. A clean OpenWiki update skips model work.
+
 ## Multi-provider support
 
 tokenwar now tracks token usage across AI coding agents, each from its own
@@ -128,7 +136,7 @@ On `Yes`, run for each tool:
 - `graphify` installed-disabled (CLI present, skill missing) → `graphify install`. Do NOT reinstall the package; the CLI is already there, only the skill registration is absent.
 - GitHub Copilot CLI present but tools not wired to it → `bash ~/.claude/skills/tokenwar/scripts/copilot.sh wire --yes` (see the `copilot` subcommand below).
 
-**One-shot alternative**: `install.sh --all` (or `curl … | bash -s -- --all`) installs the whole stack at install time — the 4 plugins (marketplace-add + install + enable, with the anti-clobber re-enable), the RTK binary (via rtk's official prebuilt installer — no toolchain), pxpipe (`pxpipe-proxy@0.10.0`), and graphify (`graphifyy` + `graphify install`), then wires RTK's hook with `rtk init -g` (and, when opencode is present, RTK's opencode plugin with `rtk init -g --opencode`). Use `--with-plugins`, `--with-rtk`, `--with-pxpipe`, `--with-graphify`, or `--with-copilot` for just one part. So a fresh machine needs no separate `activate`.
+**One-shot alternative**: `install.sh --all` (or `curl … | bash -s -- --all`) installs the whole stack at install time — the 4 plugins (marketplace-add + install + enable, with the anti-clobber re-enable), the RTK binary (via rtk's official prebuilt installer — no toolchain), pxpipe (`pxpipe-proxy@0.10.0`), graphify (`graphifyy` + `graphify install`), and the pinned OpenWiki CLI, then wires RTK's hook with `rtk init -g` (and, when opencode is present, RTK's opencode plugin with `rtk init -g --opencode`). Use `--with-plugins`, `--with-rtk`, `--with-pxpipe`, `--with-graphify`, `--with-openwiki`, or `--with-copilot` for just one part. OpenWiki repository initialization remains explicit. So a fresh machine needs no separate `activate`.
 
 **Gotcha discovered 2026-05-18**: the *first* call to `claude plugin enable` on any plugin creates `enabledPlugins` in `~/.claude/settings.json` and **clobbers** plugins that were enabled implicitly at the marketplace level. Mitigation: after EVERY enable/install, snapshot the full `claude plugin list --json` and re-enable any plugin that flipped from `enabled:true` to `enabled:false`. The `activate` flow must do this snapshot-and-restore.
 
