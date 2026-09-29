@@ -250,3 +250,5 @@ and approximately 800 MiB peak RAM across Claude and Codex logs. Allow 90 second
 for remote collection and adequate host memory; this is an observed benchmark,
 not a runtime guarantee. Whole-file parsing currently retains normalized
 session data for the selected sample.
+
+An installed client with no supported session files has **partial coverage**: other stores may contain sessions. The sanitized summary excludes OpenWiki while it is suspended.

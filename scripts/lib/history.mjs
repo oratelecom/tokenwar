@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 export const SCHEMA_VERSION = 1;
-const TOOLS = new Set(["rtk", "context-mode", "graphify", "caveman", "ponytail", "claude-mem", "pxpipe", "openwiki"]);
+const TOOLS = new Set(["rtk", "context-mode", "graphify", "caveman", "ponytail", "claude-mem", "pxpipe"]);
 const METRICS = ["sessions", "turns", "freshInputTokens", "cacheWriteTokens", "cacheReadTokens", "outputTokens", "inputTokensPerTurn", "cacheHitRatio"];
 const number = (value) => Number.isFinite(value) && value >= 0 ? value : null;
 
@@ -15,7 +15,7 @@ export function buildSnapshot({ report, aggregate, sourceId, days, maxSessions, 
     parseErrors: client.parseErrors || 0, limitReached: client.limitReached || false,
   })).sort((a, b) => a.id.localeCompare(b.id));
   const complete = clients.some((c) => c.sessions > 0) && clients.every((c) =>
-    ["ok", "not-installed", "no-logs"].includes(c.status) &&
+    ["ok", "not-installed"].includes(c.status) &&
     c.files === c.sessions && c.sessions === c.telemetrySessions && !c.parseErrors && !c.limitReached);
   const hasTelemetry = clients.some((c) => c.telemetrySessions > 0);
   const input = aggregate.freshInput + aggregate.cacheCreate + aggregate.cacheRead;

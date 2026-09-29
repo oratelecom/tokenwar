@@ -28,6 +28,18 @@ test("snapshot is a whitelist: no log paths, inventory or prompts", () => {
   assert.equal(s.coverage.status, "complete");
 });
 
+test("installed clients with no supported logs stay partial; suspended OpenWiki is absent", () => {
+  const input = fixture();
+  input.report.meta.clients.push({ id: "opencode", status: "no-logs", files: 0,
+    sessions: 0, telemetrySessions: 0, parseErrors: 0, limitReached: false });
+  input.report.recommendations.push({ id: "openwiki", state: "unknown", verdict: "NOT YET",
+    signal: "none", cost: "none", breakEven: "none" });
+  const result = buildSnapshot(input);
+  assert.equal(result.coverage.status, "partial");
+  assert.equal(result.coverage.clients[1].status, "no-logs");
+  assert.equal(result.recommendations.some((item) => item.toolId === "openwiki"), false);
+});
+
 test("comparison reports workload deltas without calling them savings", () => {
   const old = snapshot(), next = snapshot();
   next.metrics.inputTokensPerTurn = 50;
