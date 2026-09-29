@@ -257,3 +257,76 @@ JSONL
         if(model!=="claude-sonnet") throw new Error("expected claude-sonnet, got "+model);
       })'
 }
+
+@test "summary contains only aggregates and stable recommendation IDs" {
+    run bash "$SCAN" --client claude --summary-json --source-id fixture --days 3650
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const j=JSON.parse(r);
+        if(j.schemaVersion!==1 || j.sourceId!=="fixture") throw new Error("bad schema");
+        if(j.metrics.cacheReadTokens!==12200) throw new Error("bad telemetry");
+        if(j.coverage.status!=="complete") throw new Error("unexpected coverage");
+        if(r.includes(process.env.FIXTURE_ROOT)) throw new Error("raw path leaked");
+        if(j.recommendations.some(x=>!x.id.startsWith("tokenwar:"))) throw new Error("unstable IDs");
+      })'
+}
+
+@test "summary records and compares sanitized local history" {
+    local history="${FIXTURE_ROOT}/history"
+    run bash "$SCAN" --client claude --summary-json --history "$history" --source-id fixture --days 3650
+    [ "$status" -eq 0 ]
+    run bash "$SCAN" --client claude --summary-json --history "$history" --source-id fixture --days 3650
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const j=JSON.parse(r);
+        if(j.comparison.status!=="comparable") throw new Error("missing comparison");
+        if(j.comparison.metrics.cacheReadTokens.delta!==0) throw new Error("bad delta");
+      })'
+}
+
+@test "empty summary reports missing coverage instead of fabricated improvement" {
+    export TOKENWAR_CLAUDE_LOG_ROOT="${FIXTURE_ROOT}/empty"
+    mkdir -p "$TOKENWAR_CLAUDE_LOG_ROOT"
+    run bash "$SCAN" --client claude --summary-json --source-id fixture
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const j=JSON.parse(r);
+        if(j.coverage.status!=="partial") throw new Error("missing partial coverage");
+        if(j.metrics.cacheHitRatio!==null) throw new Error("unknown cache ratio must be null");
+      })'
+}
+
+@test "summary detects an actual session limit rather than an exact count match" {
+    run bash "$SCAN" --client claude --summary-json --max-sessions 1 --days 3650
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"limitReached": false'* ]]
+    cp "${FIXTURE_ROOT}/logs/session.jsonl" "${FIXTURE_ROOT}/logs/second.jsonl"
+    run bash "$SCAN" --client claude --summary-json --max-sessions 1 --days 3650
+    [ "$status" -eq 0 ]
+    [[ "$output" == *'"limitReached": true'* ]]
+    [[ "$output" == *'"status": "partial"'* ]]
+}
+
+@test "invalid clients and session limits fail without creating history" {
+    for args in "--client absent" "--max-sessions 0" "--max-sessions NaN" "--max-sessions 1.5"; do
+        run bash "$SCAN" --summary-json $args
+        [ "$status" -eq 2 ]
+    done
+}
+
+@test "all-zero usage placeholder is unknown telemetry rather than zero spend" {
+    cat > "${FIXTURE_ROOT}/logs/session.jsonl" <<'JSONL'
+{"type":"assistant","message":{"usage":{"input_tokens":0,"output_tokens":0},"content":[]}}
+JSONL
+    run bash "$SCAN" --client claude --summary-json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+      let r="";process.stdin.on("data",c=>r+=c);process.stdin.on("end",()=>{
+        const j=JSON.parse(r);
+        if(j.coverage.status!=="partial" || j.coverage.clients[0].telemetrySessions!==0) throw new Error("zero placeholder was treated as telemetry");
+        if(j.metrics.freshInputTokens!==null || j.metrics.inputTokensPerTurn!==null) throw new Error("missing telemetry must be null");
+      })'
+}

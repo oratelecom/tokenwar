@@ -7,7 +7,8 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
+import { hostname } from "node:os";
+import { buildSnapshot, compareSnapshots, recordSnapshot } from "./lib/history.mjs";
 
 import { listSessionFiles, parseSessionFile, aggregateSessions, median, expandHome } from "./lib/parse.mjs";
 import { pricingFor, observedCost, uncachedCost, prefixBlockCost, windowOccupancy, invalidationCost, dollars, CACHE_WRITE_5M_MULTIPLIER } from "./lib/economics.mjs";
@@ -73,6 +74,9 @@ Usage:
   tokenwar scan                     audit the last ${DEFAULT_DAYS} days
   tokenwar scan --days N            change the window
   tokenwar scan --json              machine-readable output
+  tokenwar scan --summary-json      sanitized aggregate snapshot for central API
+  tokenwar scan --source-id ID      stable machine label for comparisons
+  tokenwar scan --history DIR       save snapshots and compare with previous scan
   tokenwar scan --html [PATH]       write an HTML report (default: ./tokenwar-scan.html)
   tokenwar scan --open              write the HTML report and open it
   tokenwar scan --client ID         restrict to one client (${CLIENTS.map((c) => c.id).join(", ")})
@@ -86,6 +90,9 @@ function parseArgs(argv) {
   const args = {
     days: DEFAULT_DAYS,
     json: false,
+    summaryJson: false,
+    sourceId: hostname(),
+    history: null,
     html: null,
     open: false,
     clients: [],
@@ -97,6 +104,12 @@ function parseArgs(argv) {
     if (arg === "-h" || arg === "--help") {
       usage();
       process.exit(0);
+    } else if (arg === "--summary-json") {
+      args.summaryJson = true;
+    } else if (arg === "--source-id" || arg === "--history") {
+      const value = argv[++i];
+      if (!value || value.startsWith("--")) throw new Error(arg + " requires a value");
+      args[arg === "--source-id" ? "sourceId" : "history"] = value;
     } else if (arg === "--json") {
       args.json = true;
     } else if (arg === "--open") {
@@ -127,12 +140,16 @@ function parseArgs(argv) {
       throw new Error(`unknown argument: ${arg}`);
     }
   }
+  if (!Number.isInteger(args.maxSessions) || args.maxSessions < 1) throw new Error("--max-sessions must be a positive integer");
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(args.sourceId)) throw new Error("--source-id must be a short machine label");
+  for (const id of args.clients) if (!CLIENTS.some((c) => c.id === id)) throw new Error("unknown client: " + id);
   return args;
 }
 
 // Tool states come from status.sh when it is available; a missing status file
 // only means states show as unknown, never that the scan fails.
 function loadToolStates() {
+  if (process.env.TOKENWAR_SCAN_SKIP_STATUS === "1") return {};
   const script = process.env.TOKENWAR_STATUS_SCRIPT || join(new URL(".", import.meta.url).pathname, "status.sh");
   if (!existsSync(script)) return {};
   try {
@@ -185,7 +202,7 @@ function main() {
     let files = [];
     let usedRoot = present[0];
     for (const root of present) {
-      const found = listSessionFiles(root, { maxFiles: args.maxSessions, since, pattern: client.pattern });
+      const found = listSessionFiles(root, { maxFiles: args.maxSessions + 1, since, pattern: client.pattern });
       if (found.length > 0) {
         files = found;
         usedRoot = root;
@@ -193,7 +210,11 @@ function main() {
       }
     }
 
+    const limitReached = files.length > args.maxSessions;
+    files = files.slice(0, args.maxSessions);
     const adapter = adapterFor(client.id);
+    let telemetrySessions = 0;
+    let parseErrors = 0;
     let parsed = 0;
     for (const file of files) {
       const session = adapter ? adapter.parse(file.path) : parseSessionFile(file.path);
@@ -201,6 +222,8 @@ function main() {
         session.client = session.client || client.id;
         sessions.push(session);
         parsed += 1;
+        if (client.usage && session.turns > 0 && session.freshInput + session.cacheCreate + session.cacheRead + session.output > 0) telemetrySessions += 1;
+        parseErrors += session.parseErrors || 0;
       }
     }
 
@@ -218,12 +241,15 @@ function main() {
       sessions: parsed,
       status,
       usage: client.usage,
+      telemetrySessions,
+      parseErrors,
+      limitReached,
     });
   }
 
-  if (sessions.length === 0) {
+  if (sessions.length === 0 && !args.summaryJson) {
     console.error(`tokenwar scan: no agent sessions found in the last ${args.days} days.`);
-    console.error(`Looked in: ${selected.map((c) => c.root).join(", ")}`);
+    console.error(`Looked in: ${selected.flatMap((c) => process.env[c.env] || c.roots).join(", ")}`);
     process.exit(1);
   }
 
@@ -335,6 +361,20 @@ function main() {
     },
     bundles: BUNDLES,
   };
+
+  if (args.summaryJson || args.history) {
+    let snapshot = buildSnapshot({
+      report, aggregate, sourceId: args.sourceId, days: args.days,
+      maxSessions: args.maxSessions, selectedClients: selected.map((c) => c.id),
+    });
+    snapshot = args.history ? recordSnapshot(expandHome(args.history), snapshot)
+      : { ...snapshot, comparison: compareSnapshots(null, snapshot) };
+    report.snapshot = snapshot;
+    if (args.summaryJson) {
+      console.log(JSON.stringify(snapshot, null, 2));
+      return;
+    }
+  }
 
   if (args.json) {
     // Maps do not survive JSON.stringify, so project the ones a consumer needs.
