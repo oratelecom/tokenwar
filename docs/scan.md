@@ -223,7 +223,10 @@ reconciliation.
 `scripts/lib/history.mjs` exports pure `buildSnapshot` and `compareSnapshots`.
 Comparisons return `baseline` with no previous report, `incomparable` when
 source, schema, window duration, client selection or sampling settings differ,
-and `unknown` for incomplete coverage. Truncation, parse errors, unread files
+and `unknown` for incomplete coverage. Comparable scopes retain observed
+metric deltas under `basis: "observed-partial"`, with previous/current coverage
+counts, even when coverage is incomplete. These deltas must be shown neutrally,
+without improvement colors or an inference about recommendation efficacy. Truncation, parse errors, unread files
 and clients without token telemetry make coverage partial. Metrics show numeric
 changes and increased/decreased/unchanged directions, never causal savings.
 A zero baseline has no percentage change; an unknown ratio is null.
@@ -241,3 +244,9 @@ history. No history files are written unless this flag is supplied.
 Validation: `bats tests/history.bats tests/scan.bats tests/parse.bats`.
 Central Ora integration should expose this same coverage, report comparison and
 action-tracking capability on its existing `/tests` page.
+
+On GCP, a seven-day scan with a 3,200-file cap per client took 27 seconds
+and approximately 800 MiB peak RAM across Claude and Codex logs. Allow 90 seconds
+for remote collection and adequate host memory; this is an observed benchmark,
+not a runtime guarantee. Whole-file parsing currently retains normalized
+session data for the selected sample.

@@ -63,7 +63,14 @@ test("missing telemetry, truncation, parse errors and missing files are unknown"
     Object.assign(input.report.meta.clients[0], change);
     const next = buildSnapshot(input);
     assert.equal(next.coverage.status, "partial");
-    assert.equal(compareSnapshots(snapshot(), next).status, "unknown");
+    const comparison = compareSnapshots(snapshot(), next);
+    // An unsupported format changes the observed client coverage.
+    assert.equal(comparison.status, change.status ? "incomparable" : "unknown");
+    if (!change.status) {
+      assert.equal(comparison.basis, "observed-partial");
+      assert.ok(comparison.metrics.sessions);
+      assert.deepEqual(comparison.coverage.current, next.coverage);
+    }
   }
 });
 
@@ -117,4 +124,19 @@ test("local append-only history compares latest source snapshot and uses private
     writeFileSync(join(dir, "damaged.snapshot.json"), "{");
     assert.throws(() => recordSnapshot(dir, snapshot()), SyntaxError);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("partial trends retain measured changes without assigning improvement", () => {
+  const old = snapshot(), next = snapshot();
+  next.coverage.status = "partial";
+  next.coverage.clients[0].files = 3;
+  next.metrics.cacheReadTokens = 200;
+  const c = compareSnapshots(old, next);
+  assert.equal(c.status, "unknown");
+  assert.equal(c.basis, "observed-partial");
+  assert.deepEqual(c.reasons, ["incomplete-coverage"]);
+  assert.equal(c.metrics.cacheReadTokens.delta, 100);
+  assert.equal(c.coverage.previous.clients[0].files, 1);
+  assert.equal(c.coverage.current.clients[0].files, 3);
+  assert.equal(c.recommendations[0].actionStatus, "unknown");
 });

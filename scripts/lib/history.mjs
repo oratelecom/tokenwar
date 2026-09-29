@@ -44,7 +44,7 @@ export function buildSnapshot({ report, aggregate, sourceId, days, maxSessions, 
 }
 
 export function compareSnapshots(previous, current) {
-  const result = { status: "baseline", previousId: previous?.id || null, reasons: [], metrics: {}, recommendations: [] };
+  const result = { status: "baseline", previousId: previous?.id || null, reasons: [], basis: null, coverage: null, metrics: {}, recommendations: [] };
   if (!previous) return result;
   if (previous.schemaVersion !== SCHEMA_VERSION || current.schemaVersion !== SCHEMA_VERSION) {
     return { ...result, status: "incomparable", reasons: ["schema-version-changed"] };
@@ -55,9 +55,7 @@ export function compareSnapshots(previous, current) {
   const clientKey = (s) => JSON.stringify([...(s.scope?.selectedClients || [])].sort());
   if (clientKey(previous) !== clientKey(current)) result.reasons.push("clients-changed");
   if (result.reasons.length) return { ...result, status: "incomparable" };
-  if (previous.coverage?.status !== "complete" || current.coverage?.status !== "complete") {
-    return { ...result, status: "unknown", reasons: ["incomplete-coverage"] };
-  }
+  const partial = previous.coverage?.status !== "complete" || current.coverage?.status !== "complete";
   const coverageKey = (s) => JSON.stringify(s.coverage.clients.map((c) => [c.id, c.status]).sort());
   if (coverageKey(previous) !== coverageKey(current)) {
     return { ...result, status: "incomparable", reasons: ["client-coverage-changed"] };
@@ -65,7 +63,10 @@ export function compareSnapshots(previous, current) {
   if (!(Date.parse(current.generatedAt) >= Date.parse(previous.generatedAt))) {
     return { ...result, status: "unknown", reasons: ["invalid-report-order"] };
   }
-  result.status = "comparable";
+  result.status = partial ? "unknown" : "comparable";
+  result.basis = partial ? "observed-partial" : "observed-complete";
+  if (partial) result.reasons.push("incomplete-coverage");
+  result.coverage = { previous: previous.coverage, current: current.coverage };
   for (const key of METRICS) {
     const before = previous.metrics?.[key], after = current.metrics?.[key];
     const known = number(before) !== null && number(after) !== null;
