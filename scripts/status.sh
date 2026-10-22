@@ -129,6 +129,24 @@ graphify_state() {
     echo "$STATUS_OK"
 }
 
+# graphify only acts inside a repo that has its own graph AND the PreToolUse
+# hook-guard (`graphify claude install`). CLI + skill alone report OK while the
+# agent never sees the graph, so status surfaces the current repo's wiring.
+# Prints nothing outside a git repo.
+graphify_repo_note() {
+    local root out graph
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
+    out="${GRAPHIFY_OUT:-graphify-out}"
+    [[ "$out" == /* ]] && graph="$out/graph.json" || graph="$root/$out/graph.json"
+    if [[ ! -f "$graph" ]]; then
+        echo "repo: no graph — run \`graphify update .\`"
+    elif ! grep -qs 'graphify hook-guard' "$root/.claude/settings.json" "$root/.claude/settings.local.json"; then
+        echo "repo: no hook — run \`graphify claude install\`"
+    else
+        echo "repo: graph + hook"
+    fi
+}
+
 graphify_version() {
     if ! command -v "$GRAPHIFY_BIN" >/dev/null 2>&1; then echo "-"; return; fi
     "$GRAPHIFY_BIN" --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | awk '{print $1}'
@@ -197,6 +215,10 @@ if $test_mode; then
     ping_caveman    && cave_extra="ping=ok" || cave_extra="ping=FAIL"
     ping_ponytail   && pony_extra="ping=ok" || pony_extra="ping=FAIL"
     ping_graphify   && graphify_extra="ping=ok" || graphify_extra="ping=FAIL"
+fi
+if [[ "$graphify_st" == "$STATUS_OK" ]]; then
+    graphify_repo=$(graphify_repo_note)
+    [[ -n "$graphify_repo" ]] && graphify_extra="${graphify_extra:+$graphify_extra · }$graphify_repo"
 fi
 
 # ── JSON mode ──────────────────────────────────────────────────────

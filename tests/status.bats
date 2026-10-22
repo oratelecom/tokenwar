@@ -278,3 +278,55 @@ EOF
         });
     '
 }
+
+# graphify only acts in a repo with its own graph AND the hook-guard, so status
+# reports the current repo's wiring next to the global OK.
+healthy_plugins() {
+    mock_claude_with_plugins '[
+      {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
+      {"id":"claude-mem@thedotmack","version":"12.1.4","enabled":true},
+      {"id":"caveman@caveman","version":"abc","enabled":true},
+      {"id":"ponytail@ponytail","version":"4.5.0","enabled":true}
+    ]'
+    mock_rtk_alive
+    mock_pxpipe_alive
+    mock_graphify_alive
+}
+
+@test "graphify notes a repo without a graph" {
+    healthy_plugins
+    repo="$HOME/repo"; mkdir -p "$repo" && git -C "$repo" init -q
+    cd "$repo"
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"graphify"*"OK"*"repo: no graph"*"graphify update ."* ]]
+}
+
+@test "graphify notes a repo with a graph but no hook" {
+    healthy_plugins
+    repo="$HOME/repo"; mkdir -p "$repo/graphify-out" && git -C "$repo" init -q
+    echo '{}' > "$repo/graphify-out/graph.json"
+    cd "$repo"
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"repo: no hook"*"graphify claude install"* ]]
+}
+
+@test "graphify notes a fully wired repo" {
+    healthy_plugins
+    repo="$HOME/repo"; mkdir -p "$repo/graphify-out" "$repo/.claude" && git -C "$repo" init -q
+    echo '{}' > "$repo/graphify-out/graph.json"
+    echo '{"hooks":{"PreToolUse":[{"hooks":[{"command":"graphify hook-guard search"}]}]}}' > "$repo/.claude/settings.json"
+    cd "$repo/.claude"
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"repo: graph + hook"* ]]
+}
+
+@test "graphify adds no repo note outside a git repo" {
+    healthy_plugins
+    cd "$HOME"
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"repo:"* ]]
+}
