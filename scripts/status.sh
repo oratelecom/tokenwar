@@ -129,6 +129,44 @@ graphify_state() {
     echo "$STATUS_OK"
 }
 
+# The Claude hook is an integration check, not a requirement for other agents.
+# Inspect only executable PreToolUse commands; a note elsewhere is not a hook.
+claude_graphify_hook_present() {
+    local root="$1"
+    node - "$root/.claude/settings.json" "$root/.claude/settings.local.json" <<'JS'
+const fs = require('fs');
+const command = /^(?:"[^"]*\/graphify"|'[^']*\/graphify'|(?:\S*\/)?graphify)\s+hook-guard\s+(?:search|read)(?:\s|$)/;
+for (const file of process.argv.slice(2)) {
+    let settings;
+    try { settings = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { continue; }
+    for (const group of Array.isArray(settings?.hooks?.PreToolUse) ? settings.hooks.PreToolUse : []) {
+        for (const hook of Array.isArray(group?.hooks) ? group.hooks : []) {
+            if (typeof hook?.command === 'string' && command.test(hook.command.trim())) {
+                process.exit(0);
+            }
+        }
+    }
+}
+process.exit(1);
+JS
+}
+
+# Graphify query resolves a relative GRAPHIFY_OUT from the current directory.
+# A missing graph in a Git repo makes the managed tool unready; the Claude hook
+# remains informational because Codex and other providers do not use it.
+graphify_repo_note() {
+    local root graph
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
+    graph="${GRAPHIFY_OUT:-graphify-out}/graph.json"
+    if [[ ! -f "$graph" ]]; then
+        echo 'repo: no graph — run `graphify update .`'
+    elif claude_graphify_hook_present "$root"; then
+        echo "repo: graph; Claude hook installed"
+    else
+        echo 'repo: graph; Claude hook missing — run `graphify claude install`'
+    fi
+}
+
 graphify_version() {
     if ! command -v "$GRAPHIFY_BIN" >/dev/null 2>&1; then echo "-"; return; fi
     "$GRAPHIFY_BIN" --version 2>/dev/null | head -1 | sed 's/^[^0-9]*//' | awk '{print $1}'
@@ -197,6 +235,11 @@ if $test_mode; then
     ping_caveman    && cave_extra="ping=ok" || cave_extra="ping=FAIL"
     ping_ponytail   && pony_extra="ping=ok" || pony_extra="ping=FAIL"
     ping_graphify   && graphify_extra="ping=ok" || graphify_extra="ping=FAIL"
+fi
+if [[ "$graphify_st" == "$STATUS_OK" ]]; then
+    graphify_repo=$(graphify_repo_note)
+    [[ "$graphify_repo" == "repo: no graph"* ]] && graphify_st="$STATUS_DISABLED"
+    [[ -n "$graphify_repo" ]] && graphify_extra="${graphify_extra:+$graphify_extra · }$graphify_repo"
 fi
 
 # ── JSON mode ──────────────────────────────────────────────────────

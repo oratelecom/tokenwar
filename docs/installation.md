@@ -22,17 +22,16 @@ Steps:
 2. Activate: reload the shell (`source ~/.bashrc`) so the tokenwar / codex /
    gemini / kimi / opencode wrappers take effect. For Claude Code, restart it so
    the statusLine loads.
-3. Verify: run `tokenwar status` — every one of the 7 tools must report OK.
+3. Verify: outside a Git repository, run `tokenwar status` — every one of the 7 tools must report OK. Inside a Git repository, build its graph with `graphify update .` first.
    Then run `tokenwar check` (must print COMPLEMENTARY) and `tokenwar gain`
    (must show real per-tool token savings, not all N/A).
-4. Report back the status table and the total tokens saved. If any tool is
-   red, run `tokenwar upgrade` and re-check.
+4. Report back the status table and the total tokens saved. If a tool is missing, run `tokenwar upgrade` and re-check. If Graphify reports `repo: no graph`, run `graphify update .` in the current directory.
 ```
 
 One line, if your agent likes it terse:
 
 ```text
-Install, activate, and verify https://github.com/oratelecom/tokenwar — run its install.sh --all, reload the shell, then confirm `tokenwar status` shows all 7 tools OK, `tokenwar check` says COMPLEMENTARY, and `tokenwar gain` reports real savings.
+Install, activate, and verify https://github.com/oratelecom/tokenwar — run its install.sh --all, reload the shell, build the current Git repository graph with `graphify update .`, then confirm `tokenwar status` shows all 7 tools OK, `tokenwar check` says COMPLEMENTARY, and `tokenwar gain` reports real savings.
 ```
 
 ### 👤 Human install
@@ -45,11 +44,24 @@ functions, Copilot wiring, and RTK's hook:
 curl -fsSL https://raw.githubusercontent.com/oratelecom/tokenwar/main/install.sh | bash -s -- --all
 ```
 
+Inside a Git repository, `tokenwar status` also checks for a Graphify graph at
+`${GRAPHIFY_OUT:-graphify-out}/graph.json`, resolved from the current directory
+like `graphify query`. A missing graph makes the Graphify row
+`installed-disabled`, sets JSON `ok` to `false`, and returns exit code `1`.
+`/tokenwar activate` can create the graph with `graphify update .` after
+confirmation. Outside Git, this repository check is skipped.
+
+The Claude `PreToolUse` hook is a separate integration check. Status reads
+actual hook commands from `.claude/settings.json` and
+`.claude/settings.local.json`; a missing Claude hook appears in the note but
+does not fail status when the graph exists. Install it with
+`graphify claude install` if Claude Code should receive graph reminders.
+
 Then activate + verify:
 
 ```bash
 source ~/.bashrc      # load the shell wrappers (or open a new terminal)
-tokenwar status       # all 7 tools should report OK
+tokenwar status       # all 7 tools OK after the current repo graph exists
 tokenwar check        # must print COMPLEMENTARY
 tokenwar gain         # real per-tool token savings
 ```
