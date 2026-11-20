@@ -16,6 +16,8 @@ setup() {
     export HOME="$(mktemp -d)"
     mkdir -p "$HOME/.claude/tokenwar"
     write_uptodate_cache
+    unset GRAPHIFY_OUT
+    cd "$HOME"
 }
 
 teardown() {
@@ -279,8 +281,7 @@ EOF
     '
 }
 
-# graphify only acts in a repo with its own graph AND the hook-guard, so status
-# reports the current repo's wiring next to the global OK.
+# Repository readiness is separate from the optional Claude hook integration.
 healthy_plugins() {
     mock_claude_with_plugins '[
       {"id":"context-mode@context-mode","version":"1.0.107","enabled":true},
@@ -293,34 +294,100 @@ healthy_plugins() {
     mock_graphify_alive
 }
 
-@test "graphify notes a repo without a graph" {
-    healthy_plugins
-    repo="$HOME/repo"; mkdir -p "$repo" && git -C "$repo" init -q
+new_repo() {
+    repo="$HOME/repo"
+    mkdir -p "$repo"
+    git -C "$repo" init -q
     cd "$repo"
-    run bash "$SCRIPT"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"graphify"*"OK"*"repo: no graph"*"graphify update ."* ]]
 }
 
-@test "graphify notes a repo with a graph but no hook" {
+@test "graphify fails status in a repo without a graph" {
     healthy_plugins
-    repo="$HOME/repo"; mkdir -p "$repo/graphify-out" && git -C "$repo" init -q
-    echo '{}' > "$repo/graphify-out/graph.json"
-    cd "$repo"
+    new_repo
     run bash "$SCRIPT"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"repo: no hook"*"graphify claude install"* ]]
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"graphify"*"installed-disabled"*"repo: no graph"*"graphify update ."* ]]
 }
 
-@test "graphify notes a fully wired repo" {
+@test "graphify missing repo graph fails JSON contract" {
     healthy_plugins
-    repo="$HOME/repo"; mkdir -p "$repo/graphify-out" "$repo/.claude" && git -C "$repo" init -q
+    new_repo
+    run bash "$SCRIPT" --json
+    [ "$status" -eq 1 ]
+    echo "$output" | node -e '
+        let s = "";
+        process.stdin.on("data", d => s += d).on("end", () => {
+            const j = JSON.parse(s);
+            if (j.ok !== false) process.exit(1);
+            if (j.tools.graphify.state !== "installed-disabled") process.exit(1);
+            if (!j.tools.graphify.note.includes("repo: no graph")) process.exit(1);
+        });
+    '
+}
+
+@test "graphify reports missing Claude hook without failing other providers" {
+    healthy_plugins
+    new_repo
+    mkdir -p "$repo/graphify-out"
     echo '{}' > "$repo/graphify-out/graph.json"
-    echo '{"hooks":{"PreToolUse":[{"hooks":[{"command":"graphify hook-guard search"}]}]}}' > "$repo/.claude/settings.json"
-    cd "$repo/.claude"
     run bash "$SCRIPT"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"repo: graph + hook"* ]]
+    [[ "$output" == *"repo: graph; Claude hook missing"*"graphify claude install"* ]]
+}
+
+@test "a note mentioning hook-guard is not a Claude command hook" {
+    healthy_plugins
+    new_repo
+    mkdir -p "$repo/graphify-out" "$repo/.claude"
+    echo '{}' > "$repo/graphify-out/graph.json"
+    echo '{"hooks":{"PreToolUse":[{"note":"graphify hook-guard"}]}}' > "$repo/.claude/settings.json"
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"repo: graph; Claude hook missing"* ]]
+}
+
+@test "malformed Claude settings do not corrupt status JSON" {
+    healthy_plugins
+    new_repo
+    mkdir -p "$repo/graphify-out" "$repo/.claude"
+    echo '{}' > "$repo/graphify-out/graph.json"
+    echo '{' > "$repo/.claude/settings.json"
+    run bash "$SCRIPT" --json
+    [ "$status" -eq 0 ]
+    echo "$output" | node -e '
+        let s = "";
+        process.stdin.on("data", d => s += d).on("end", () => {
+            const j = JSON.parse(s);
+            if (j.ok !== true || !j.tools.graphify.note.includes("Claude hook missing")) process.exit(1);
+        });
+    '
+}
+
+@test "quoted graphify executable in Claude hook counts as installed" {
+    healthy_plugins
+    new_repo
+    mkdir -p "$repo/graphify-out" "$repo/.claude"
+    echo '{}' > "$repo/graphify-out/graph.json"
+    echo '{"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"\"/tmp/tool dir/graphify\" hook-guard search"}]}]}}' > "$repo/.claude/settings.local.json"
+    run bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"repo: graph; Claude hook installed"* ]]
+}
+
+@test "relative GRAPHIFY_OUT follows graphify query from a subdirectory" {
+    healthy_plugins
+    new_repo
+    mkdir -p "$repo/custom-index" "$repo/subdir"
+    echo '{}' > "$repo/custom-index/graph.json"
+    cd "$repo/subdir"
+    run env GRAPHIFY_OUT=custom-index bash "$SCRIPT"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"repo: no graph"* ]]
+    mkdir -p "$repo/subdir/custom-index"
+    echo '{}' > "$repo/subdir/custom-index/graph.json"
+    run env GRAPHIFY_OUT=custom-index bash "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"repo: graph; Claude hook missing"* ]]
 }
 
 @test "graphify adds no repo note outside a git repo" {

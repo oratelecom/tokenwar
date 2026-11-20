@@ -34,6 +34,10 @@ tokenwar check
 tokenwar gain
 ```
 
+Inside a Git repository, run `graphify update .` before expecting green status.
+A missing graph makes `status` return 1 and JSON `ok: false`; the Claude hook
+is reported separately for Claude Code.
+
 A bare install is intentionally non-invasive: it installs TokenWar and its shell
 integration, but none of the managed tools. See [installation modes](docs/installation.md).
 
